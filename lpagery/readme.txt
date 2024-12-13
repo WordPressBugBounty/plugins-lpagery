@@ -4,15 +4,13 @@ Tags: bulk page, seo, local seo, mass page, programmatic seo
 Requires at least: 6.2
 Tested up to: 6.7.1
 Requires PHP: 7.4
-Stable tag: 2.0.0
+Stable tag: 2.0.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
 Effortlessly mass generate unlimited SEO-optimized pages in bulk with LPagery. Boost traffic, save time, and grow your business in just 5 minutes!
 
 == Description ==
-
-https://youtu.be/yvfAxmKavzk
 
 **"Get 10x more organic traffic and reach more customers effortlessly with LPagery."**
 
@@ -270,7 +268,10 @@ We are committed to transparency and your control over your data. For more infor
 
 == Changelog ==
 
-= 2.0.0 - 2024-12-07 =
+= 2.0.1 - 2024-12-13 =
+* Chore: Adapt Readme
+
+= 2.0.0 - 2024-12-13 =
 * Feat: Complete Rebuild of the User Interface
 * Feat: New Update Flow
 * Feat: Add support for taxonomies from dashboard
