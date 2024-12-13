@@ -59,7 +59,7 @@ class PostFieldProvider {
 
     public function get_slug() : string {
         $slug = $this->template_post->post_title;
-        $substituted = $this->substitutionHandler->lpagery_substitute( $this->params, $slug );
+        $substituted = $this->substitutionHandler->lpagery_substitute_slug( $this->params, $slug );
         return sanitize_title( strip_tags( $substituted ) );
     }
 

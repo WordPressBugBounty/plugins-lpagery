@@ -27,6 +27,9 @@ class SeoPluginHandler
     {
         $post_meta_keys = get_post_custom_keys($sourcePostId);
 
+        if(empty($post_meta_keys)) {
+            return;
+        }
 
         if (in_array('_aioseo_title', $post_meta_keys)) {
             self::lpagery_handle_aioseo($sourcePostId, $targetPostId, $params);

@@ -14,6 +14,8 @@ class Params extends BaseParams
 
     public array $image_keys = array();
     public array $image_values = array();
+    public bool $force_update_content = false;
+    public bool $overwrite_manual_changes = false;
 
 
 

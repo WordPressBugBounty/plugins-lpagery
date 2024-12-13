@@ -5,7 +5,6 @@ namespace LPagery\service\save_page\additional;
 use Brizy_Editor_Post;
 use Elementor\Plugin as ElementorPlugin;
 use ET_Core_PageResource;
-use Exception;
 use LPagery\service\Beautify_Html;
 use LPagery\service\substitution\SubstitutionHandler;
 use LPagery\model\Params;
@@ -106,7 +105,7 @@ class PagebuilderHandler
             try {
                 $brizy_Editor_Post = new Brizy_Editor_Post($target_post_id);
                 $brizy_Editor_Post->savePost();
-            } catch (Exception $e) {
+            } catch (\Throwable $e) {
                 error_log("Error saving brizy post " . $target_post_id . " " . $e->getMessage());
             }
         }
@@ -237,7 +236,7 @@ class PagebuilderHandler
         if (class_exists('ET_Core_PageResource')) {
             try {
                 ET_Core_PageResource::remove_static_resources((string) $targetPostId, 'all');
-            } catch (Throwable $throwable) {
+            } catch (\Throwable $throwable) {
                 lpagery_info_log("Error removing static divi resources for post " . $targetPostId . " " . $throwable->getMessage());
                 error_log(
                     "Error removing  divi resources for post " . $targetPostId . " " . $throwable->getMessage()

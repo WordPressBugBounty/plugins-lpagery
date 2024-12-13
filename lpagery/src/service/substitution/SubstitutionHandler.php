@@ -5,6 +5,7 @@ namespace LPagery\service\substitution;
 use LPagery\service\save_page\additional\MpgSupportController__premium_only;
 use LPagery\model\BaseParams;
 use LPagery\model\Params;
+use LPagery\utils\Utils;
 use Throwable;
 class SubstitutionHandler {
     private static ?SubstitutionHandler $instance = null;
@@ -23,6 +24,22 @@ class SubstitutionHandler {
             self::$instance = new self($spintax, $imageSubstitutionHandler);
         }
         return self::$instance;
+    }
+
+    public function lpagery_substitute_slug( BaseParams $params, $content ) {
+        $params_copy = new BaseParams();
+        $sanitized_data = array();
+        $sanitized_keys = array();
+        foreach ( $params->keys as $index => $key ) {
+            $value = $params->values[$index];
+            $sanitized_key = Utils::lpagery_sanitize_title_with_dashes( $key );
+            $sanitized_data[$sanitized_key] = $value;
+            $sanitized_keys[] = $sanitized_key;
+        }
+        $params_copy->raw_data = $sanitized_data;
+        $params_copy->keys = $sanitized_keys;
+        $params_copy->values = $params->values;
+        return $this->lpagery_substitute( $params_copy, $content );
     }
 
     public function lpagery_substitute( BaseParams $params, $content ) {
@@ -60,7 +77,7 @@ class SubstitutionHandler {
                                 if ( $replaced_content ) {
                                     $content = $replaced_content;
                                 }
-                            } catch ( Throwable $e ) {
+                            } catch ( \Throwable $e ) {
                                 error_log( "Error in preg_replace: " . $e->getMessage() . " " . $e->getTraceAsString() );
                             }
                         }

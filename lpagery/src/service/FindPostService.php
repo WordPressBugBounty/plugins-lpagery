@@ -27,7 +27,7 @@ class FindPostService
     }
 
 
-    public function lpagery_find_post(BaseParams $params, $lpagery_post_term, $lpagery_post_id_from_dashboard, $post_type)
+    public function lpagery_find_post_or_default(BaseParams $params, $lpagery_post_term, $lpagery_post_id_from_dashboard, $post_type)
     {
         $lpagery_post_term = $this->substitutionHandler->lpagery_substitute($params, $lpagery_post_term);
 
@@ -48,5 +48,22 @@ class FindPostService
 
 
         return $found_post ?? $this->lpageryDao->lpagery_find_post_by_id($lpagery_post_id_from_dashboard);
+    }
+
+    public function lpagery_find_post(BaseParams $params, $lpagery_post_term, $post_type)
+    {
+        $lpagery_post_term = $this->substitutionHandler->lpagery_substitute($params, $lpagery_post_term);
+
+        if (is_numeric($lpagery_post_term)) {
+            $found_post = $this->lpageryDao->lpagery_find_post_by_id($lpagery_post_term);
+            if ($found_post) {
+                return $found_post;
+            }
+        }
+
+
+        $lpagery_post_term = sanitize_title($lpagery_post_term);
+
+        return $this->lpageryDao->lpagery_find_post_by_name_and_type_equal($lpagery_post_term, $post_type);
     }
 }

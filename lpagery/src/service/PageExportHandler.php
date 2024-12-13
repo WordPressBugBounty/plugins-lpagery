@@ -65,7 +65,7 @@ class PageExportHandler
 
         // Create a temporary file for the ZIP archive
         $temp_file = tempnam(sys_get_temp_dir(), 'zip');
-
+        unlink($temp_file);
         // Create the ZIP archive
         $zip = new ZipArchive();
         if ($zip->open($temp_file, ZipArchive::CREATE) !== true) {

@@ -4,45 +4,62 @@ namespace LPagery\controller;
 
 use LPagery\data\LPageryDao;
 use LPagery\service\save_page\CreatePostDelegate;
+use LPagery\service\settings\SettingsController;
 use LPagery\utils\MemoryUtils;
-use Throwable;
 use WP_Error;
 use WP_REST_Request;
 
-if(!defined('TEST_RUNNING')){
+if (!defined('TEST_RUNNING')) {
     include_once(plugin_dir_path(__FILE__) . '/../utils/IncludeWordpressFiles.php');
 }
+
 class CreatePostController
 {
 
     private static $instance;
     private CreatePostDelegate $createPostDelegate;
     private LPageryDao $LPageryDao;
+    private SettingsController $settingsController;
 
-    public function __construct(CreatePostDelegate $createPostDelegate, LPageryDao $LPageryDao)
+    public function __construct(CreatePostDelegate $createPostDelegate, LPageryDao $LPageryDao, SettingsController $settingsController)
     {
         $this->createPostDelegate = $createPostDelegate;
         $this->LPageryDao = $LPageryDao;
+        $this->settingsController = $settingsController;
 
     }
 
-    public static function get_instance(CreatePostDelegate $createPostDelegate, LPageryDao $LPageryDao)
+    public static function get_instance(CreatePostDelegate $createPostDelegate, LPageryDao $LPageryDao, SettingsController $settingsController)
     {
         if (null === self::$instance) {
-            self::$instance = new self($createPostDelegate, $LPageryDao);
+            self::$instance = new self($createPostDelegate, $LPageryDao, $settingsController);
         }
         return self::$instance;
     }
 
     public function lpagery_create_posts_rest(WP_REST_Request $request)
     {
-        $nonce = $request->get_param('nonce');
-        if (!wp_verify_nonce($nonce, 'lpagery_create_post')) {
-            return new WP_Error('invalid_nonce', 'Invalid nonce', array('status' => 403));
+        $secret_from_request = strval($request->get_param('secret'));
+        $secret = strval(get_option('lpagery_queue_create_post_secret'));
+        if (!hash_equals($secret, $secret_from_request)) {
+            return new WP_Error('invalid_secret', 'Invalid secret ' . $secret_from_request, array('status' => 403));
         }
-        $params = $request->get_params();
 
-        $creation_id = $params["creation_id"] ?? null;
+        global $wpdb;
+        $queue_item_id = $request->get_param("queue_item_id");
+        if (!$queue_item_id) {
+            return new WP_Error('invalid_queue_item_id', 'Invalid queue_item_id', array('status' => 400));
+        }
+
+        $table_name = $wpdb->prefix . 'lpagery_sync_queue';
+        $queue_items = $wpdb->get_results($wpdb->prepare("SELECT * FROM $table_name WHERE id = %s", $queue_item_id),
+            ARRAY_A);
+        if (!$queue_items) {
+            return new WP_Error('queue_item_not_found', 'Queue item not found', array('status' => 404));
+        }
+        $queue_item = $queue_items[0];
+
+        $creation_id = $queue_item["creation_id"];
         $transient_key = "lpagery_$creation_id";
         $processed_slugs = get_transient($transient_key);
         if (!$processed_slugs) {
@@ -50,7 +67,7 @@ class CreatePostController
         } else {
             $processed_slugs = maybe_unserialize($processed_slugs);
         }
-        $process_id = (int)($params['process_id'] ?? 0);
+        $process_id = $queue_item['process_id'];
         $process = $this->LPageryDao->lpagery_get_process_by_id($process_id);
         $google_sheet_data = maybe_unserialize($process->google_sheet_data);
         $operations = array();
@@ -60,13 +77,20 @@ class CreatePostController
         if ($google_sheet_data["update"]) {
             $operations[] = "update";
         }
+        $params = [];
+        $params["process_id"] = $process_id;
+        $params["creation_id"] = $creation_id;
+        $params["data"] = maybe_unserialize($queue_item["data"]);
+        $params["force_update_content"] = $this->settingsController->isForceUpdateEnabled();
+        $params["overwrite_manual_changes"] = $this->settingsController->isOverwriteManualChangesEnabled();
+
         $response = $this->createPostDelegate->lpagery_create_post($params, $processed_slugs, $operations);
-        if ($creation_id && $response["replaced_slug"] && $response["mode"] !== "ignored") {
-            $processed_slugs[] = $response["replaced_slug"];
+        if ($creation_id && $response->slug && $response->mode !== "ignored") {
+            $processed_slugs[] = $response->slug;
             set_transient($transient_key, $processed_slugs, 60);
         }
 
-        $replaced_slug = $this->getReplaced_slug($response);
+        $replaced_slug = $response->slug;
 
         $result_array = array("success" => true,
             "slug" => $replaced_slug);
@@ -79,9 +103,10 @@ class CreatePostController
     {
         $nonce_validity = check_ajax_referer('lpagery_ajax');
         $creation_id = $post_data["creation_id"];
-        $transient_key = "lpagery_$creation_id";
         $is_last_page = filter_var($post_data["is_last_page"], FILTER_VALIDATE_BOOLEAN);
 
+
+        $transient_key = "lpagery_$creation_id";
         $processed_slugs = get_transient($transient_key);
         if (!$processed_slugs) {
             $processed_slugs = [];
@@ -90,25 +115,37 @@ class CreatePostController
         }
 
         $response = $this->createPostDelegate->lpagery_create_post($post_data, $processed_slugs);
-        if ($creation_id && $response["replaced_slug"]) {
-            $processed_slugs[] = $response["replaced_slug"];
+        if ($creation_id && $response->slug) {
+            $processed_slugs[] = $response->slug;
             if (!$is_last_page) {
+                error_log("set transient");
                 set_transient($transient_key, $processed_slugs, 60);
             }
         }
 
         $memory_usage = $this->getMemory_usage();
-        $mode = $this->getMode($response);
-        $replaced_slug = $this->getReplaced_slug($response);
         $result_array = array("success" => true,
-            "mode" => $mode,
+            "mode" => $response->mode,
             "used_memory" => $memory_usage,
-            "slug" => $replaced_slug);
+            "slug" => $response->slug);
+
+        if ($response->mode == "ignored") {
+            $result_array["ignored_reason"] = $response->reason;
+        }
+
+        if ($response->mode == "created") {
+            $result_array["created_reason"] = $response->reason;
+        }
+
+        if ($response->mode == "updated") {
+            $result_array["updated_reason"] = $response->reason;
+        }
+
 
         $result_array = $this->append_new_nonce_if_needed($nonce_validity, $result_array);
         $this->set_finished_if_last_page($post_data, $is_last_page);
 
-        if($is_last_page) {
+        if ($is_last_page) {
             delete_transient($transient_key);
         }
 
@@ -124,39 +161,12 @@ class CreatePostController
         $memory_usage = array();
         try {
             $memory_usage = MemoryUtils::lpagery_get_memory_usage();
-        } catch (Throwable $e) {
+        } catch (\Throwable $e) {
             error_log($e->getMessage());
         }
         return $memory_usage;
     }
 
-    /**
-     * @param array $response
-     * @return mixed|string
-     */
-    private function getMode(array $response)
-    {
-        if (array_key_exists("mode", $response)) {
-            $mode = $response["mode"];
-        } else {
-            error_log("Mode not found in response");
-            $mode = "ignored";
-        }
-        return $mode;
-    }
-
-    /**
-     * @param array $response
-     * @return mixed|string
-     */
-    private function getReplaced_slug(array $response)
-    {
-        $replaced_slug = "";
-        if (array_key_exists("replaced_slug", $response)) {
-            $replaced_slug = $response["replaced_slug"];
-        }
-        return $replaced_slug;
-    }
 
     /**
      * @param $nonce_validity
@@ -166,7 +176,7 @@ class CreatePostController
     public function append_new_nonce_if_needed($nonce_validity, array $result_array): array
     {
         if ($nonce_validity == 2) {
-            $result_array["new_nonce"] = wp_create_nonce("lpagery_ajax");
+            $result_array["nonce"] = wp_create_nonce("lpagery_ajax");
         }
         return $result_array;
     }
@@ -182,12 +192,10 @@ class CreatePostController
             if ($is_last_page) {
                 $this->LPageryDao->lpagery_update_process_sync_status((int)$post_data['process_id'], "FINISHED");
             }
-        } catch (Throwable $e) {
+        } catch (\Throwable $e) {
             error_log($e->__toString());
         }
     }
-
-
 
 
 }

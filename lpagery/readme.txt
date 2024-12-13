@@ -1,74 +1,100 @@
 ﻿=== Bulk Page Generator - LPagery ===
-Contributors: niklaslindemann, jonaslindemann, freemius
-Tags: bulk page,seo, local seo, mass page, bulk edit, multi page, bulk post, mass post, csv, landing page, generator, add pages, add posts
-Requires at least: 5.0.2
-Tested up to: 6.6.2
+Contributors: niklaslindemann, jonaslindemann
+Tags: bulk page, seo, local seo, mass page, programmatic seo
+Requires at least: 6.2
+Tested up to: 6.7.1
 Requires PHP: 7.4
-Stable tag: 1.5.6
+Stable tag: 2.0.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-
-Mass generate pages in bulk from a CSV/XLSX file in minutes. Fast and easy to use.
+Effortlessly mass generate unlimited SEO-optimized pages in bulk with LPagery. Boost traffic, save time, and grow your business in just 5 minutes!
 
 == Description ==
 
 https://youtu.be/yvfAxmKavzk
 
+**"Get 10x more organic traffic and reach more customers effortlessly with LPagery."**
 
-== The #1 Best Rated Bulk Page Generator Plugin ==
+🎯 **Why Choose LPagery?**
 
-Get your business in front of more eyes with LPagery. Envision effortlessly creating a vast number of landing pages, each tailored to reach more of your potential customers directly and effectively.
+* Create pages for every city, service, or product you offer—automatically from a simple spreadsheet and a template page.
+* Convert local customers with personalized, targeted landing pages.
+* Generate thousands of ranking pages in minutes with very little manual work.
 
-Say goodbye to the tedious task of individually tailoring pages for different keywords. LPagery streamlines the process, enabling you to use one template to automatically generate countless pages designed to resonate with your audience. This isn't just about climbing the SEO ladder; it's about ensuring your business becomes the first stop for anyone in need of your services.
+✨ **How It Works:**
 
-LPagery is your shortcut to expanding your business. It ensures each page is finely tuned to both attract search engines and captivate your prospective customers, turning your website into a customer magnet. Reach more, do less, and watch your business grow with LPagery.
-Our [Pro version](https://lpagery.io/?utm_source=wp_repo&utm_medium=link&utm_campaign=repo) includes even more features to further optimize your workflow.
+1. **Design a Template:** Build one beautiful template page using your favorite WordPress theme or page builder, and include {placeholders} for dynamic data.
+2. **Prepare Your Data:** Add your locations, services, or products into a simple spreadsheet or use our free Source File Creator.
+3. **Generate Pages:** Click "Generate," and LPagery will do the rest. Your custom pages are ready to rank.
 
-== HOW DOES IT WORK? ==
+⚡ **Results You Can Expect:**
 
-1. **Prepare Your Data:**
-Start by [setting up a CSV file](https://lpagery.io/docs/set-up-a-csv-file-with-custom-placeholders/) with your data. This file should include columns for the specific details you want on each page, like city, service, and features.
+* Pages live in under 5 minutes.
+* Google starts indexing them in 48-72 hours.
+* Begin attracting local traffic within the first week (depending on competition and other SEO factors).
 
-2. **Create a Template Page:**
-In WordPress, [create a template page](https://lpagery.io/docs/create-a-template-page/) using your desired page builder or theme and use {placeholders} in all places you want to have dynamic data. This template will serve as the foundation for every page LPagery generates.
+---
 
-3. **Import and Generate:**
-With your template and CSV file ready, head to the LPagery menu in your WordPress dashboard. Select your template, import your CSV file, and let LPagery do the rest. It automatically generates unique landing pages based on your template and the data in your CSV, creating a tailored experience for each entry.
-
-== USE CASES ==
-
-* **Local SEO Optimization for Businesses:**
-Local businesses can use LPagery to create individual landing pages for each location they serve and/or all services they offer, dramatically improving local search visibility and attracting more local customers.
-
-* **Marketing Agencies Managing Multiple Clients:**
-Agencies can efficiently generate customized landing pages for different campaigns or clients, enabling personalized content at scale and improving campaign performance.
-
-* **E-Commerce Sites:**
-Online stores can create product-specific landing pages in bulk for various regions or demographics, enhancing targeted marketing efforts and boosting sales.
-
-* **Real Estate Portals:**
-Real estate websites can generate detailed landing pages for each property listing or neighborhood, providing comprehensive information to potential buyers and improving SEO rankings.
-
-* **Event Management:**
-For events held in multiple locations or dates, create individual pages for each event, improving discovery and engagement with potential attendees.
-
-* **Educational Institutions:**
-Schools and universities can create pages for each course, program, or department, making it easier for prospective students to find the information they need.
-
-* **Job Portals:**
-Generate pages for job listings in different cities or for various job categories, helping job seekers to find relevant listings more efficiently.
-
-* **Travel and Tourism Websites:**
-Create detailed landing pages for destinations, tours, or travel packages, enhancing the user experience and boosting bookings.
-
-* **Affiliate Marketers:**
-Affiliate marketers can create dedicated pages for different products or services they are promoting, optimizing for specific keywords and improving conversion rates.
-
-* **Directories and Listing Sites:**
-For sites that list businesses, services, or professionals, LPagery can be used to generate a dedicated page for each listing, improving the site's structure and SEO.
+== Here's How LPagery Makes Your Life Easier ==
 
 
+**Step 1: Design Your Template**
+   Create one template page in WordPress using any theme or page builder. Add {placeholders} (e.g., {city}, {service}) where dynamic data will go, and LPagery will handle the rest.
+
+**Step 2: Start With Your Data**
+   Add your services, locations, or any custom data into a spreadsheet. Each row in the spreadsheet becomes a page. Use CSV/XLSX files, or connect directly to Google Sheets with the Pro version.
+
+   💡 Need help setting up your data? Use our free [Source File Creator](https://lpagery.io/lpagery-source-file-generator-v2/?hide_sidebar=true&free_version=true&show_onboarding=true) to easily generate keyword combinations and eliminate manual entry.
+
+**Step 3: Generate Pages in One Click**
+   Combine your template with your data. LPagery will instantly generate SEO-optimized pages tailored to your needs.
+
+---
+
+== Who Can Benefit from LPagery? ==
+
+* **SEO Optimization for Local Businesses:** Generate landing pages for every location or service to improve your local search visibility and attract new customers.
+* **Marketing Agencies:** Scale campaigns by creating location or service-specific pages for multiple clients quickly and effectively.
+* **E-Commerce Stores:** Build product landing pages tailored to different regions or demographics to drive conversions.
+* **Real Estate Websites:** Create property-specific pages for listings or neighborhoods to improve discoverability.
+* **Event Planners:** Generate pages for each event, venue, or date to boost engagement and attendance.
+* **Educational Institutions:** Design pages for each course or program to provide detailed information to prospective students.
+* **Travel & Tourism:** Build pages for destinations or packages to enhance bookings.
+* **Job Portals:** Generate job listing pages by category or location to improve accessibility.
+* **Directories and Listing Sites:** Create pages for individual listings to improve structure and SEO rankings.
+* **Affiliate Marketers:** Drive conversions with product-specific pages optimized for search traffic.
+
+---
+
+== Why People Love LPagery ==
+
+* **Save Hours of Work:** Stop wasting time on repetitive tasks—generate hundreds or thousands of pages in minutes.
+* **Boost SEO:** Rank for local search terms, products, or services with SEO-optimized pages.
+* **Super Easy to Use:** A beginner-friendly interface and onboarding process mean you can start seeing results in under 5 minutes.
+* **Highly Flexible:** Works seamlessly with most WordPress themes, page builders, and SEO plugins.
+* **Free to Start:** Use the free plugin to experience LPagery’s core features before upgrading to unlock its full potential.
+
+---
+
+== HOW EASY IS IT? ==
+
+Our guided onboarding ensures success from the start when first installing LPagery:
+
+1. **Quick Install (2 minutes):** Install the plugin, and access the built-in visual onboarding with helpful videos for every step.
+2. **Set Up (3 minutes):** Create your template, import your data, and click generate.
+
+Need help? Check out our [Getting Started Guide](https://intercom.help/lpagery/en/collections/10669566-getting-started) for a walkthrough.
+
+---
+
+== RESOURCES ==
+
+We’ve got you covered with resources to maximize LPagery’s potential:
+
+* **Knowledge Base:** Explore our [Knowledge Base](https://intercom.help/lpagery/en) for in-depth guides and FAQs.
+* **Video Tutorials:** Learn with step-by-step [Video Tutorials](https://www.youtube.com/@lpagery-wordpressplugin2980).
+* **Support:** Reach out anytime via our [Support Portal](https://lpagery.io/contact).
 
 == WHY CHOOSE LPagery? ==
 
@@ -77,8 +103,8 @@ LPagery is the go-to WordPress plugin for businesses looking to expand their onl
 * **Bulk Creation:**
 Effortlessly generate multiple pages and posts at once. With LPagery, you can scale your content quickly, ensuring your site remains dynamic and engaging.
 
-* **CSV Import:**
-Simplify your workflow by importing data directly from a CSV file. This feature allows for easy data management and page generation, saving you time and hassle.
+* **CSV/XLSX Import:**
+Simplify your workflow by importing data directly from a CSV or XLSX file. This feature allows for easy data management and page generation, saving you time and hassle.
 
 * **Unlimited Pages:**
 There's no cap on your creativity or needs. Generate as many pages as you require to fully represent your business online, all within the free plan.
@@ -92,9 +118,9 @@ LPagery is designed with simplicity in mind. Its intuitive interface makes it ac
 * **High Compatibility:**
 Whether you prefer a specific page builder or theme, LPagery's flexible design ensures seamless integration with your WordPress site.
 
-== FEATURES ==
+==FREE FEATURES ==
 * Bulk create pages & posts
-* CSV import
+* CSV/XLSX import
 * Generate unlimited pages with the free plan
 * Use up to 3 placeholders with the free plan
 * Easy & intuitive to use
@@ -122,12 +148,15 @@ Whether you prefer a specific page builder or theme, LPagery's flexible design e
 * RankMath SEO
 * All In One SEO
 * SEOPress
+* And nearly all other themes and pagebuilders
 
 We designed LPagery to work with nearly all themes and pagebuilders so even if your theme/pagebuilder is not on this list, it will probably work too!
 
 == PRO FEATURES ==
-[LPagery Pro](https://lpagery.io/?utm_source=wp_repo&utm_medium=link&utm_campaign=repo) offers the tools necessary for the full automatization of the creation of your landing pages.
+[LPagery Pro](https://lpagery.io/pricing?utm_source=wp_repo&utm_medium=link&utm_campaign=repo) offers the tools necessary for the full automatization of the creation of your landing pages.
 
+* **Google Sheet Sync:**
+Synchronize your landing page data directly from Google Sheets, enabling real-time content updates. Create, delete and update pages directly from your Google Sheet without having to even log in to WordPress.
 
 * **Radius Feature:**
 Automatically targets and generates landing pages for cities within a specified radius, perfect for local SEO.
@@ -137,9 +166,6 @@ Create dynamic content by utilizing an unlimited number of placeholders in your 
 
 * **Bulk Update the Generated Pages:**
 Easily manage and update all your generated pages in bulk, saving time and ensuring consistency.
-
-* **Google Sheet Sync:**
-Synchronize your landing page data directly from Google Sheets, enabling real-time content updates. Create, delete and update pages directly from your Google Sheet without having to even log in to WordPress.
 
 * **Assign Parent Page, Status, Categories, Tags, Taxonomies and Author from Sheet:**
 Directly assign these elements from your data source, enhancing page organization and SEO.
@@ -209,9 +235,12 @@ We are constantly testing LPagery with the most popular WordPress page builders 
 * Classic Editor WP
 * Gutenberg
 * SiteOrigin Page Builder
+* Bricks
+* Breakdance
+* and nearly all other page builders and themes
 
 = What exactly does LPagery do? =
-LPagery lets you mass generate WordPress pages in bulk with custom data from your CSV Files. You simply need to generate a template page with your placeholders.
+LPagery lets you mass generate WordPress pages in bulk with custom data from your CSV or XLSX Files. You simply need to generate a template page with your placeholders where the data from the source file will be inserted.
 
 = Is LPagery compatible with my SEO plugin? =
 Yes! LPagery works with the most popular SEO Plugins on the market like Yoast SEO and RankMath SEO and lets you customize the meta data of your generated pages.
@@ -222,7 +251,43 @@ If you own a business with your customers in a local area (e.g. Stores, Handyman
 = Do I need to be a WordPress expert to use LPagery? =
 Absolutely not! We designed LPagery to be easy to use. And if you encounter any issues feel free to contact us and we will help you with your problem!
 
+== Privacy and Data Usage ==
+Our plugin values your privacy and ensures compliance with relevant data protection regulations. The plugin includes optional integrations with the following services:
+
+* **PostHog**
+For gathering anonymized usage analytics to improve the plugin's functionality and user experience. All data is anonymized and no personal data is collected.
+
+* **Sentry**
+For tracking errors and debugging issues to ensure the stability and reliability of the plugin.
+These integrations are disabled by default and will only be activated if you explicitly provide consent.
+
+* **Enabling/Disabling**
+You can manage your consent for these integrations via the plugin overview page in your WordPress admin dashboard via the opt-out button.
+
+If consent is not granted, no data is sent to PostHog or Sentry.
+You can revoke your consent at any time, and the integrations will be disabled immediately.
+We are committed to transparency and your control over your data. For more information, please refer to our Privacy Policy.
+
 == Changelog ==
+
+= 2.0.0 - 2024-12-07 =
+* Feat: Complete Rebuild of the User Interface
+* Feat: New Update Flow
+* Feat: Add support for taxonomies from dashboard
+* Feat: Download Radius Data as XLSX
+* Feat: Button for Syncing Google Sheet now
+
+= 1.5.9 - 2024-10-29 =
+* Fix: use secret based auth for google sheet sync
+
+= 1.5.8 - 2024-09-22 =
+* Feat: Using a Queue-Based approach for Google Sheet Sync
+* Fix: Fix Image Search without ending
+
+= 1.5.7 - 2024-09-12 =
+* Fix: Increase Timeout at Google Sheet Sync
+* Fix: Add backoff/retry mechanism to Google Sheet Sync
+
 
 = 1.5.6 - 2024-09-11 =
 * Fix: Google Sheet Sync pause each 100 pages
@@ -584,9 +649,11 @@ Absolutely not! We designed LPagery to be easy to use. And if you encounter any 
 
 == Screenshots ==
 
-1. LPagery Dashboard
-2. LPagery Step 1 Create a CSV File
-3. LPagery Step 2 Create a Template Page
-4. LPagery Step 3 Select Template and CSV File
-5. LPagery Step 4 Confirm and Create Pages
-6. LPagery The Resulting Pages
+1. LPagery Dashboard & Confirmation Modal
+2. LPagery How it works
+3. LPagery Step 1 Create a Template Page
+4. LPagery Step 2 Create a Source File
+5. LPagery Step 3 Select Template and Source File
+6. LPagery Step 4 Confirm and Create Pages
+7. LPagery The Resulting Pages
+8. LPagery Onboarding

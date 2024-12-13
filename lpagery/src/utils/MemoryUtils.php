@@ -82,7 +82,7 @@ class MemoryUtils
                 add_option("lpagery_sheet_sync_ram_usage", serialize($ram_usage));
             }
             if($ram_usage["percent"] > 90) {
-                throw new Exception("Memory Limit of 90% (" . $ram_usage["pretty_usage"] . " of " .  $ram_usage["pretty_limit"]  .  ") reached. Stopping Sync.");
+                throw new Exception("Memory Limit of 90% (" . $ram_usage["pretty_usage"] . " of " .  $ram_usage["pretty_limit"]  .  ") reached. Pausing Sync.");
             }
         } else {
             add_option("lpagery_sheet_sync_ram_usage", serialize($ram_usage));

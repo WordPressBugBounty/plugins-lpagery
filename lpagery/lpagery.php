@@ -4,15 +4,19 @@
 Plugin Name: LPagery
 Plugin URI: https://lpagery.io/
 Description: Create hundreds or even thousands of landingpages for local businesses, services etc.
-Version: 1.5.6
+Version: 2.0.0
 Author: LPagery
 License: GPLv2 or later
 */
 // Create a helper function for easy SDK access.
-use LPagery\service\settings\SettingsController;
-use LPagery\service\sheet_sync\GoogleSheetSyncControllerFactory;
+use Kucrut\Vite;
 use LPagery\data\LPageryDao;
 use LPagery\io\Mapper;
+use LPagery\service\InstallationDateHandler;
+use LPagery\service\settings\SettingsController;
+use LPagery\service\sheet_sync\GoogleSheetQueueWorkerFactory;
+use LPagery\service\sheet_sync\GoogleSheetSyncControllerFactory;
+use LPagery\service\TrackingPermissionService;
 if ( !defined( 'ABSPATH' ) ) {
     exit;
 }
@@ -39,7 +43,8 @@ if ( function_exists( 'lpagery_fs' ) ) {
                     'has_paid_plans'  => true,
                     'has_affiliation' => 'customers',
                     'menu'            => array(
-                        'slug' => 'lpagery',
+                        'slug'    => 'lpagery',
+                        'contact' => false,
                     ),
                     'is_live'         => true,
                 ) );
@@ -67,45 +72,58 @@ if ( function_exists( 'lpagery_fs' ) ) {
     function lpagery_setup_menu() {
         $icon_base64 = 'PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4KPCEtLSBHZW5lcmF0b3I6IEFkb2JlIElsbHVzdHJhdG9yIDI2LjIuMSwgU1ZHIEV4cG9ydCBQbHVnLUluIC4gU1ZHIFZlcnNpb246IDYuMDAgQnVpbGQgMCkgIC0tPgo8c3ZnIHZlcnNpb249IjEuMSIgaWQ9IkViZW5lXzEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIHg9IjBweCIgeT0iMHB4IgoJIHZpZXdCb3g9IjAgMCA1MjcuMTYgNjc0LjQ1IiBzdHlsZT0iZW5hYmxlLWJhY2tncm91bmQ6bmV3IDAgMCA1MjcuMTYgNjc0LjQ1OyIgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+CjxzdHlsZSB0eXBlPSJ0ZXh0L2NzcyI+Cgkuc3Qwe2ZpbGw6I0ZGRkZGRjt9Cgkuc3Qxe2ZpbGw6bm9uZTtzdHJva2U6I0ZGRkZGRjtzdHJva2Utd2lkdGg6MztzdHJva2UtbWl0ZXJsaW1pdDoxMDt9Cjwvc3R5bGU+CjxwYXRoIGNsYXNzPSJzdDAiIGQ9Ik0yNTAuNDUsMzQ3LjYySDExMi4zOWMwLTAuMDEsMC0wLjAyLDAtMC4wMmwtMC4wMSwwLjAxbDAtMTg0LjQ5YzAtMzEuMDMtMjUuMTUtNTYuMTgtNTYuMTgtNTYuMTgKCWMwLDAsMCwwLTAuMDEsMEMyNS4xNiwxMDYuOTMsMCwxMzIuMDksMCwxNjMuMTFsMCwyNDAuNjJjMCwyOS44OSwyMi4wOCw1NC4yOSw1MS40OSw1Ni4wNGMxLjU4LDAuMTMsMy4xNiwwLjIyLDQuNzcsMC4yMgoJbDg5LjkxLTAuMTRsMzQuMzktMC4wMmwwLjAzLTAuMDNsMi4wMSwwTDI1MC40NSwzNDcuNjJ6Ii8+CjxwYXRoIGNsYXNzPSJzdDAiIGQ9Ik01MDMuODcsMjg2Ljc1Yy0xLjMyLTAuOTYtMi42OC0xLjg5LTQuMS0yLjc1TDM4OC43LDIxNi43OGwtMC4wMSwwbDAsMGwtMTAuNTUtNi4zOWwtMzIuMDItMTcuOTlsLTI5LjU1LDQ4LjMzCglsLTI4LjM5LDQ2LjMxbDEwNS4zMSw2My45YzAsMC4wMS0wLjAxLDAuMDMtMC4wMSwwLjAzbDAuMDIsMGwtOTUuNzIsMTU3LjcyYy0xNi4wOSwyNi41My03LjY0LDYxLjA5LDE4Ljg5LDc3LjE4CgljMjYuNTMsMTYuMSw2MS4wOSw3LjY0LDc3LjE4LTE4Ljg5bDEyNC44My0yMDUuNzFDNTM0LjE2LDMzNS43Nyw1MjcuOTgsMzAzLjUyLDUwMy44NywyODYuNzV6Ii8+CjxsaW5lIGNsYXNzPSJzdDEiIHgxPSI1Ni45NyIgeTE9IjY2NS4yNCIgeDI9IjQ2My43OCIgeTI9IjAiLz4KPC9zdmc+Cg==';
         $icon_data_uri = 'data:image/svg+xml;base64,' . $icon_base64;
+        if ( !TrackingPermissionService::get_instance( InstallationDateHandler::get_instance() )->getPermissions()->getIntercom() ) {
+            lpagery_fs()->add_submenu_link_item(
+                lpagery_fs()->get_text_inline( 'Contact Us', 'contact-us' ),
+                "https://lpagery.io/contact/",
+                'lpagery_contact',
+                'manage_options',
+                WP_FS__DEFAULT_PRIORITY,
+                true,
+                'fs_external_contact',
+                true
+            );
+        }
         add_menu_page(
             'LPagery',
             'LPagery',
             'manage_options',
             'lpagery',
-            'init',
+            'bootstrap',
             $icon_data_uri
         );
     }
 
     include_once plugin_dir_path( __FILE__ ) . '/src/io/AjaxActions.php';
-    include_once plugin_dir_path( __FILE__ ) . '/src/data/LPageryDao.php';
-    function lpagery_get_placeholder_counts() {
-        global $wpdb;
-        $table_name_process = $wpdb->prefix . 'lpagery_process';
-        $result = $wpdb->get_row( "SELECT exists(select *\n              FROM INFORMATION_SCHEMA.TABLES\n              WHERE table_name = '{$table_name_process}'\n                and create_time <= '2023-09-04 00:00:00') as created" );
-        if ( $result->created ) {
-            return null;
-        }
-        if ( lpagery_fs()->is_free_plan() ) {
-            return array(
-                "placeholders" => 3,
+    lpagery_fs()->add_filter( 'permission_list', 'add_lpagery_permssions' );
+    function add_lpagery_permssions(  $permissions  ) {
+        $permissions['tracking'] = array(
+            'id'         => 'tracking',
+            'icon-class' => 'dashicons dashicons-cloud',
+            'label'      => lpagery_fs()->get_text_inline( 'View User Behaviour', 'tracking' ),
+            'desc'       => lpagery_fs()->get_text_inline( 'Allow tracking of user behaviour to improve the plugin', 'permissions-tracking' ),
+            'tooltip'    => lpagery_fs()->get_text_inline( 'We do not track any personal or sensitive data. We just want to understand what our users do, to make the plugin better.', 'permissions-tracking' ),
+            'priority'   => 35,
+        );
+        $permissions['error_monitoring'] = array(
+            'id'         => 'error_monitoring',
+            'icon-class' => 'dashicons dashicons-warning',
+            'label'      => lpagery_fs()->get_text_inline( 'Error Monitoring', 'error_monitoring' ),
+            'desc'       => lpagery_fs()->get_text_inline( 'Allow monitoring of errors to improve the plugin', 'permissions-error-monitoring' ),
+            'tooltip'    => lpagery_fs()->get_text_inline( 'We do not track any personal or sensitive data. We just want to understand what errors occur, to make the plugin better.', 'permissions-error-monitoring' ),
+            'priority'   => 36,
+        );
+        if ( lpagery_fs()->is_premium() ) {
+            $permissions["intercom"] = array(
+                'id'         => 'intercom',
+                'icon-class' => 'dashicons dashicons-admin-comments',
+                'label'      => lpagery_fs()->get_text_inline( 'Intercom', 'intercom' ),
+                'desc'       => lpagery_fs()->get_text_inline( 'Allow Intercom to be shown in the plugin', 'permissions-intercom' ),
+                'tooltip'    => lpagery_fs()->get_text_inline( 'We use Intercom to provide support and help you with the plugin.', 'permissions-intercom' ),
+                'priority'   => 37,
             );
-        } else {
-            return array(
-                "placeholders" => null,
-            );
         }
-    }
-
-    function lpagery_get_installation_date() : ?DateTime {
-        global $wpdb;
-        $table_name_process = $wpdb->prefix . 'lpagery_process';
-        $result = $wpdb->get_row( "SELECT create_time\n              FROM INFORMATION_SCHEMA.TABLES\n              WHERE table_name = '{$table_name_process}'" );
-        try {
-            return new DateTime($result->create_time);
-        } catch ( Exception $e ) {
-            return null;
-        }
+        return $permissions;
     }
 
     function lpagery_info_log(  $message  ) {
@@ -114,19 +132,65 @@ if ( function_exists( 'lpagery_fs' ) ) {
         }
     }
 
-    function lpagery_enqueue_scripts() {
-        include_once plugin_dir_path( __FILE__ ) . '/src/includes/Enqueues.php';
+    add_action( 'admin_enqueue_scripts', function ( $page ) : void {
+        if ( $page !== 'toplevel_page_lpagery' ) {
+            return;
+        }
+        Vite\enqueue_asset( __DIR__ . '/frontend/dist', 'src/index.tsx', [
+            'handle'       => 'lpagery_scripts',
+            'dependencies' => ['react', 'react-dom'],
+            'css-media'    => 'all',
+            'css-only'     => false,
+            'in-footer'    => true,
+        ] );
+        $installationDateHandler = InstallationDateHandler::get_instance();
+        $lpagery_scripts_object = array(
+            'is_free_plan'         => (bool) lpagery_fs()->is_free_plan(),
+            'is_extended_plan'     => (bool) lpagery_fs()->is_plan_or_trial( "extended" ),
+            'is_standard_plan'     => (bool) lpagery_fs()->is_plan_or_trial( "standard" ),
+            'ajax_url'             => admin_url( 'admin-ajax.php' ),
+            'nonce'                => wp_create_nonce( "lpagery_ajax" ),
+            'plugin_dir'           => plugin_dir_url( dirname( __FILE__ ) ),
+            'upload_dir'           => wp_upload_dir(),
+            'tracking_permissions' => TrackingPermissionService::get_instance( $installationDateHandler )->getPermissions(),
+            'allowed_placeholders' => $installationDateHandler->get_placeholder_counts(),
+            'version'              => LPAGERY_VERSION,
+            'username'             => wp_get_current_user()->display_name,
+            'wpml_installed'       => (bool) defined( 'ICL_SITEPRESS_VERSION' ),
+        );
+        // Encode the data as JSON and output it inline
+        wp_add_inline_script( 'lpagery_scripts', 'const lpagery_scripts_object = ' . wp_json_encode( $lpagery_scripts_object ) . ';', 'before' );
+    } );
+    function bootstrap() : void {
+        printf( '<div id="lpagery-container" class="lpagery-tailwind" ></div>' );
     }
 
-    add_action( 'admin_enqueue_scripts', 'lpagery_enqueue_scripts' );
-    function init() {
-        include_once plugin_dir_path( __FILE__ ) . '/src/views/main.php';
+    add_action( 'admin_init', 'lpagery_admin_init' );
+    function lpagery_admin_init() {
         LPageryDao::get_instance()->init_db();
     }
 
-    add_filter( 'posts_where', 'lpagery_source_filter' );
-    function lpagery_source_filter(  $where  ) {
+    function suppress_all_admin_notices_for_lpagery() {
+        $screen = get_current_screen();
+        if ( $screen && strpos( $screen->id, 'toplevel_page_lpagery' ) !== false ) {
+            // Replace 'LPagery' with your plugin's screen ID if different
+            remove_all_actions( 'admin_notices' );
+        }
+    }
+
+    add_action( 'admin_head', 'suppress_all_admin_notices_for_lpagery' );
+    add_filter(
+        'posts_where',
+        'lpagery_source_filter',
+        10,
+        2
+    );
+    function lpagery_source_filter(  $where, $query  ) {
         global $wpdb;
+        // Only apply filter on admin post listing pages
+        if ( !is_admin() || !$query->is_main_query() ) {
+            return $where;
+        }
         $table_name_process_post = $wpdb->prefix . 'lpagery_process_post';
         if ( !isset( $_GET['lpagery_process'] ) && !isset( $_GET['lpagery_template'] ) ) {
             return $where;
@@ -135,15 +199,13 @@ if ( function_exists( 'lpagery_fs' ) ) {
             $lpagery_template_id = $_GET['lpagery_template'];
             if ( $lpagery_template_id != '' ) {
                 $lpagery_template_id = intval( $lpagery_template_id );
-                $where .= " AND EXISTS (select pp.id\n                    from {$table_name_process_post} pp\n                    where pp.template_id = {$lpagery_template_id} and pp.post_id = {$wpdb->posts}.id)";
-                return $where;
+                $where .= $wpdb->prepare( " AND EXISTS (\n                    SELECT pp.id \n                    FROM {$table_name_process_post} pp\n                    WHERE pp.template_id = %d \n                    AND pp.post_id = {$wpdb->posts}.id\n                )", $lpagery_template_id );
             }
         } else {
             $lpagery_process_id = $_GET['lpagery_process'];
             if ( $lpagery_process_id != '' ) {
                 $lpagery_process_id = intval( $lpagery_process_id );
-                $where .= " AND EXISTS (select pp.id\n                    from {$table_name_process_post} pp\n                          \n                    where pp.lpagery_process_id = {$lpagery_process_id} and pp.post_id = {$wpdb->posts}.id)";
-                return $where;
+                $where .= $wpdb->prepare( " AND EXISTS (\n                    SELECT pp.id\n                    FROM {$table_name_process_post} pp\n                    WHERE pp.lpagery_process_id = %d\n                    AND pp.post_id = {$wpdb->posts}.id\n                )", $lpagery_process_id );
             }
         }
         return $where;
@@ -324,41 +386,15 @@ if ( function_exists( 'lpagery_fs' ) ) {
             $found_post = LPageryDao::get_instance()->lpagery_get_post_at_position_in_process( $post_id, $position, $circle );
         }
         if ( $found_post ) {
-            $title = $title ?? $found_post['post_title'];
+            $title = ( empty( $title ) ? $found_post['post_title'] : $title );
             return '<a class="lpagery_link_anchor" href="' . esc_url( get_page_link( $found_post['id'] ) ) . '" target="' . esc_attr( $target ) . '">' . esc_html( $title ) . '</a>';
         }
         return null;
     }
 
-    function lpagery_time_ago(  $timestamp  ) {
-        $current_time = new DateTime();
-        $time_to_compare = DateTime::createFromFormat( 'U', $timestamp );
-        $time_difference = $current_time->getTimestamp() - $time_to_compare->getTimestamp();
-        $is_future = $time_difference < 0;
-        $time_difference = abs( $time_difference );
-        $units = [
-            "year"   => 365 * 24 * 60 * 60,
-            "month"  => 30 * 24 * 60 * 60,
-            "week"   => 7 * 24 * 60 * 60,
-            "day"    => 24 * 60 * 60,
-            "hour"   => 60 * 60,
-            "minute" => 60,
-            "second" => 1,
-        ];
-        foreach ( $units as $unit => $value ) {
-            if ( $time_difference >= $value ) {
-                $unit_value = floor( $time_difference / $value );
-                $suffix = ( $unit_value == 1 ? "" : "s" );
-                $direction = ( $is_future ? "from now" : "ago" );
-                return "{$unit_value} {$unit}{$suffix} {$direction}";
-            }
-        }
-        return "just now";
-    }
-
     function lpagery_add_replace_filename(  $form_fields, $post  ) {
         $settingsController = SettingsController::get_instance();
-        if ( $settingsController->lpagery_get_image_processing_enabled() ) {
+        if ( $settingsController->isImageProcessingEnabled() ) {
             $form_fields['lpagery_replace_filename'] = array(
                 'label' => '<img width="25px" height ="25px" src="' . plugin_dir_url( dirname( __FILE__ ) ) . "/" . plugin_basename( dirname( __FILE__ ) ) . '/freemius/assets/img/lpagery.png"/>Download Filename',
                 'input' => 'text',
@@ -392,88 +428,33 @@ if ( function_exists( 'lpagery_fs' ) ) {
     if ( lpagery_fs()->is_free_plan() ) {
         wp_clear_scheduled_hook( "lpagery_sync_google_sheet" );
     }
-    function lpagery_sanitize_title_with_dashes(  $title, $raw_title = '', $context = 'save'  ) {
-        $search = array("ä", "ü", "ö");
-        $replace = array("ae", "ue", "oe");
-        $title = str_replace( $search, $replace, $title );
-        $title = strip_tags( $title );
-        // Preserve escaped octets.
-        $title = preg_replace( '|%([a-fA-F0-9][a-fA-F0-9])|', '---$1---', $title );
-        // Remove percent signs that are not part of an octet.
-        $title = str_replace( '%', '', $title );
-        // Restore octets.
-        $title = preg_replace( '|---([a-fA-F0-9][a-fA-F0-9])---|', '%$1', $title );
-        if ( seems_utf8( $title ) ) {
-            if ( function_exists( 'mb_strtolower' ) ) {
-                $title = mb_strtolower( $title, 'UTF-8' );
-            }
-            $title = utf8_uri_encode( $title, 200 );
+    add_action(
+        'save_post',
+        'lpagery_catch_manual_post_update',
+        10,
+        3
+    );
+    function lpagery_catch_manual_post_update(  $post_id, $post, $update  ) {
+        $current_user_id = get_current_user_id();
+        if ( !$current_user_id ) {
+            return;
         }
-        $title = strtolower( $title );
-        if ( 'save' === $context ) {
-            // Convert &nbsp, &ndash, and &mdash to hyphens.
-            $title = str_replace( array('%c2%a0', '%e2%80%93', '%e2%80%94'), '-', $title );
-            // Convert &nbsp, &ndash, and &mdash HTML entities to hyphens.
-            $title = str_replace( array(
-                '&nbsp;',
-                '&#160;',
-                '&ndash;',
-                '&#8211;',
-                '&mdash;',
-                '&#8212;'
-            ), '-', $title );
-            // Convert forward slash to hyphen.
-            $title = str_replace( '/', '-', $title );
-            // Strip these characters entirely.
-            $title = str_replace( array(
-                // Soft hyphens.
-                '%c2%ad',
-                // &iexcl and &iquest.
-                '%c2%a1',
-                '%c2%bf',
-                // Angle quotes.
-                '%c2%ab',
-                '%c2%bb',
-                '%e2%80%b9',
-                '%e2%80%ba',
-                // Curly quotes.
-                '%e2%80%98',
-                '%e2%80%99',
-                '%e2%80%9c',
-                '%e2%80%9d',
-                '%e2%80%9a',
-                '%e2%80%9b',
-                '%e2%80%9e',
-                '%e2%80%9f',
-                // Bullet.
-                '%e2%80%a2',
-                // &copy, &reg, &deg, &hellip, and &trade.
-                '%c2%a9',
-                '%c2%ae',
-                '%c2%b0',
-                '%e2%80%a6',
-                '%e2%84%a2',
-                // Acute accents.
-                '%c2%b4',
-                '%cb%8a',
-                '%cc%81',
-                '%cd%81',
-                // Grave accent, macron, caron.
-                '%cc%80',
-                '%cc%84',
-                '%cc%8c',
-            ), '', $title );
-            // Convert &times to 'x'.
-            $title = str_replace( '%c3%97', 'x', $title );
+        if ( defined( 'DOING_CRON' ) && DOING_CRON ) {
+            return;
         }
-        // Kill entities.
-        $title = preg_replace( '/&.+?;/', '', $title );
-        $title = str_replace( '.', '-', $title );
-        $title = preg_replace( '/[^%a-z0-9 {}_-]/', '', $title );
-        $title = preg_replace( '/\\s+/', '-', $title );
-        $title = preg_replace( '|-+|', '-', $title );
-        $title = trim( $title, '-' );
-        return $title;
+        if ( defined( 'DOING_LPAGERY_CREATION' ) && DOING_LPAGERY_CREATION ) {
+            return;
+        }
+        if ( !$update ) {
+            return;
+        }
+        global $wpdb;
+        $table_name_process_post = $wpdb->prefix . 'lpagery_process_post';
+        $wpdb->query( $wpdb->prepare( "UPDATE {$table_name_process_post} SET page_manually_updated_at = %s WHERE post_id = %d", current_time( 'mysql' ), $post_id ) );
+        $wpdb->query( $wpdb->prepare( "UPDATE {$table_name_process_post} SET page_manually_updated_by = %s WHERE post_id = %d", $current_user_id, $post_id ) );
     }
 
+    lpagery_fs()->add_filter( 'pricing_url', function () {
+        return "https://lpagery.io/pricing/?utm_source=free_version&utm_medium=menu_item&utm_campaign=free";
+    } );
 }

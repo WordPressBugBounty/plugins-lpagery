@@ -34,7 +34,6 @@ class ImageSubstitutionHandler
             $content = '<?xml encoding="utf-8" ?>' . $content;
             $utf8_added = true;
         }
-        error_log(json_encode($params));
         libxml_use_internal_errors(true);
         $dom->loadHTML($content, LIBXML_HTML_NODEFDTD | LIBXML_HTML_NOIMPLIED);
         $images = $dom->getElementsByTagName("img");

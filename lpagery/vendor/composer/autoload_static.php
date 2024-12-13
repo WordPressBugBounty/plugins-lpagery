@@ -4,9 +4,18 @@
 
 namespace Composer\Autoload;
 
-class ComposerStaticInitf53afb4d93ac7cd6c1261d712a09e2db
+class ComposerStaticInite72c1509a07c59f1d8bf648fd8325987
 {
+    public static $files = array (
+        'b7e1c4cbafbabee94a69519a450ea263' => __DIR__ . '/..' . '/kucrut/vite-for-wp/vite-for-wp.php',
+        '9a31621970d4295d5f00acf4e277e6f9' => __DIR__ . '/..' . '/stechstudio/backoff/src/helpers.php',
+    );
+
     public static $prefixLengthsPsr4 = array (
+        'S' => 
+        array (
+            'STS\\Backoff\\' => 12,
+        ),
         'L' => 
         array (
             'LPagery\\' => 8,
@@ -14,6 +23,10 @@ class ComposerStaticInitf53afb4d93ac7cd6c1261d712a09e2db
     );
 
     public static $prefixDirsPsr4 = array (
+        'STS\\Backoff\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/stechstudio/backoff/src',
+        ),
         'LPagery\\' => 
         array (
             0 => __DIR__ . '/../..' . '/src',
@@ -25,10 +38,12 @@ class ComposerStaticInitf53afb4d93ac7cd6c1261d712a09e2db
         'LPagery\\controller\\CreatePostController' => __DIR__ . '/../..' . '/src/controller/CreatePostController.php',
         'LPagery\\data\\LPageryDao' => __DIR__ . '/../..' . '/src/data/LPageryDao.php',
         'LPagery\\data\\LPageryDatabaseMigrator' => __DIR__ . '/../..' . '/src/data/LPageryDatabaseMigrator.php',
+        'LPagery\\data\\SearchPostService' => __DIR__ . '/../..' . '/src/data/SearchPostService.php',
         'LPagery\\factories\\AdditionalDataSaverFactory' => __DIR__ . '/../..' . '/src/factories/AdditionalDataSaverFactory.php',
         'LPagery\\factories\\AttachmentReplacementProviderFactory' => __DIR__ . '/../..' . '/src/factories/AttachmentReplacementProviderFactory.php',
         'LPagery\\factories\\CreatePostDelegateFactory' => __DIR__ . '/../..' . '/src/factories/CreatePostDelegateFactory.php',
         'LPagery\\factories\\DuplicateSlugHandlerFactory' => __DIR__ . '/../..' . '/src/factories/DuplicateSlugHandlerFactory.php',
+        'LPagery\\factories\\DuplicateSlugHelperFactory' => __DIR__ . '/../..' . '/src/factories/DuplicateSlugHelperFactory.php',
         'LPagery\\factories\\DynamicPageAttributeHandlerFactory' => __DIR__ . '/../..' . '/src/factories/DynamicPageAttributeHandlerFactory.php',
         'LPagery\\factories\\InputParamProviderFactory' => __DIR__ . '/../..' . '/src/factories/InputParamProviderFactory.php',
         'LPagery\\factories\\PageUpdateDataHandlerFactory' => __DIR__ . '/../..' . '/src/factories/PageUpdateDataHandlerFactory.php',
@@ -38,10 +53,13 @@ class ComposerStaticInitf53afb4d93ac7cd6c1261d712a09e2db
         'LPagery\\model\\BaseParams' => __DIR__ . '/../..' . '/src/model/BaseParams.php',
         'LPagery\\model\\PageCreationDashboardSettings' => __DIR__ . '/../..' . '/src/model/PageCreationDashboardSettings.php',
         'LPagery\\model\\Params' => __DIR__ . '/../..' . '/src/model/Params.php',
+        'LPagery\\model\\TrackingPermissions' => __DIR__ . '/../..' . '/src/model/TrackingPermissions.php',
         'LPagery\\service\\Beautify_Html' => __DIR__ . '/../..' . '/src/service/Beautify_Html.php',
         'LPagery\\service\\DynamicPageAttributeHandler' => __DIR__ . '/../..' . '/src/service/DynamicPageAttributeHandler.php',
         'LPagery\\service\\FindPostService' => __DIR__ . '/../..' . '/src/service/FindPostService.php',
+        'LPagery\\service\\InstallationDateHandler' => __DIR__ . '/../..' . '/src/service/InstallationDateHandler.php',
         'LPagery\\service\\PageExportHandler' => __DIR__ . '/../..' . '/src/service/PageExportHandler.php',
+        'LPagery\\service\\TrackingPermissionService' => __DIR__ . '/../..' . '/src/service/TrackingPermissionService.php',
         'LPagery\\service\\duplicates\\DuplicateSlugHelper' => __DIR__ . '/../..' . '/src/service/duplicates/DuplicateSlugHelper.php',
         'LPagery\\service\\duplicates\\DuplicateSlugProvider' => __DIR__ . '/../..' . '/src/service/duplicates/DuplicateSlugProvider.php',
         'LPagery\\service\\media\\AttachmentHelper' => __DIR__ . '/../..' . '/src/service/media/AttachmentHelper.php',
@@ -62,7 +80,13 @@ class ComposerStaticInitf53afb4d93ac7cd6c1261d712a09e2db
         'LPagery\\service\\save_page\\additional\\WpmlHandler' => __DIR__ . '/../..' . '/src/service/save_page/additional/WpmlHandler.php',
         'LPagery\\service\\save_page\\update\\PageUpdateDataHandler' => __DIR__ . '/../..' . '/src/service/save_page/update/PageUpdateDataHandler.php',
         'LPagery\\service\\save_page\\update\\ShouldPageBeUpdatedChecker' => __DIR__ . '/../..' . '/src/service/save_page/update/ShouldPageBeUpdatedChecker.php',
+        'LPagery\\service\\save_page\\update\\UpdatePostDelegate' => __DIR__ . '/../..' . '/src/service/save_page/update/UpdatePostDelegate.php',
+        'LPagery\\service\\settings\\Settings' => __DIR__ . '/../..' . '/src/service/settings/Settings.php',
         'LPagery\\service\\settings\\SettingsController' => __DIR__ . '/../..' . '/src/service/settings/SettingsController.php',
+        'LPagery\\service\\sheet_sync\\GoogleSheetQueueWorker' => __DIR__ . '/../..' . '/src/service/sheet_sync/GoogleSheetQueueWorker.php',
+        'LPagery\\service\\sheet_sync\\GoogleSheetQueueWorkerFactory' => __DIR__ . '/../..' . '/src/service/sheet_sync/GoogleSheetQueueWorkerFactory.php',
+        'LPagery\\service\\sheet_sync\\GoogleSheetQueueWorkerHelper' => __DIR__ . '/../..' . '/src/service/sheet_sync/GoogleSheetQueueWorkerHelper.php',
+        'LPagery\\service\\sheet_sync\\GoogleSheetQueueWorkerHelperFactory' => __DIR__ . '/../..' . '/src/service/sheet_sync/GoogleSheetQueueWorkerHelperFactory.php',
         'LPagery\\service\\sheet_sync\\GoogleSheetSyncController' => __DIR__ . '/../..' . '/src/service/sheet_sync/GoogleSheetSyncController.php',
         'LPagery\\service\\sheet_sync\\GoogleSheetSyncControllerFactory' => __DIR__ . '/../..' . '/src/service/sheet_sync/GoogleSheetSyncControllerFactory.php',
         'LPagery\\service\\sheet_sync\\GoogleSheetSyncPostDeleteHandler' => __DIR__ . '/../..' . '/src/service/sheet_sync/GoogleSheetSyncPostDeleteHandler.php',
@@ -76,14 +100,23 @@ class ComposerStaticInitf53afb4d93ac7cd6c1261d712a09e2db
         'LPagery\\service\\taxonomies\\TaxonomySaveHandler' => __DIR__ . '/../..' . '/src/service/taxonomies/TaxonomySaveHandler.php',
         'LPagery\\utils\\MemoryUtils' => __DIR__ . '/../..' . '/src/utils/MemoryUtils.php',
         'LPagery\\utils\\Utils' => __DIR__ . '/../..' . '/src/utils/Utils.php',
+        'LPagery\\wpml\\WpmlHelper' => __DIR__ . '/../..' . '/src/wpml/WpmlHelper.php',
+        'LPagery\\wpml\\WpmlLanguageData' => __DIR__ . '/../..' . '/src/wpml/WpmlLanguageData.php',
+        'STS\\Backoff\\Backoff' => __DIR__ . '/..' . '/stechstudio/backoff/src/Backoff.php',
+        'STS\\Backoff\\Strategies\\AbstractStrategy' => __DIR__ . '/..' . '/stechstudio/backoff/src/Strategies/AbstractStrategy.php',
+        'STS\\Backoff\\Strategies\\ConstantStrategy' => __DIR__ . '/..' . '/stechstudio/backoff/src/Strategies/ConstantStrategy.php',
+        'STS\\Backoff\\Strategies\\ExponentialStrategy' => __DIR__ . '/..' . '/stechstudio/backoff/src/Strategies/ExponentialStrategy.php',
+        'STS\\Backoff\\Strategies\\LinearStrategy' => __DIR__ . '/..' . '/stechstudio/backoff/src/Strategies/LinearStrategy.php',
+        'STS\\Backoff\\Strategies\\PolynomialStrategy' => __DIR__ . '/..' . '/stechstudio/backoff/src/Strategies/PolynomialStrategy.php',
+        'Shuchkin\\SimpleXLSXGen' => __DIR__ . '/..' . '/shuchkin/simplexlsxgen/src/SimpleXLSXGen.php',
     );
 
     public static function getInitializer(ClassLoader $loader)
     {
         return \Closure::bind(function () use ($loader) {
-            $loader->prefixLengthsPsr4 = ComposerStaticInitf53afb4d93ac7cd6c1261d712a09e2db::$prefixLengthsPsr4;
-            $loader->prefixDirsPsr4 = ComposerStaticInitf53afb4d93ac7cd6c1261d712a09e2db::$prefixDirsPsr4;
-            $loader->classMap = ComposerStaticInitf53afb4d93ac7cd6c1261d712a09e2db::$classMap;
+            $loader->prefixLengthsPsr4 = ComposerStaticInite72c1509a07c59f1d8bf648fd8325987::$prefixLengthsPsr4;
+            $loader->prefixDirsPsr4 = ComposerStaticInite72c1509a07c59f1d8bf648fd8325987::$prefixDirsPsr4;
+            $loader->classMap = ComposerStaticInite72c1509a07c59f1d8bf648fd8325987::$classMap;
 
         }, null, ClassLoader::class);
     }

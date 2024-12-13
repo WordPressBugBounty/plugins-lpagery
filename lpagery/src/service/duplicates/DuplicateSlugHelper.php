@@ -102,7 +102,7 @@ class DuplicateSlugHelper {
     public function get_slugs_from_json_input( $slug_from_dashboard, $json_decode ) : array {
         $slugs = array_map( function ( $element ) use($slug_from_dashboard) {
             $params = $this->inputParamProvider->lpagery_get_input_params_without_images( $element );
-            $substituted_slug = $this->substitutionHandler->lpagery_substitute( $params, $slug_from_dashboard );
+            $substituted_slug = $this->substitutionHandler->lpagery_substitute_slug( $params, $slug_from_dashboard );
             if ( array_key_exists( "lpagery_ignore", $element ) && filter_var( $element["lpagery_ignore"], FILTER_VALIDATE_BOOLEAN ) ) {
                 return null;
             }

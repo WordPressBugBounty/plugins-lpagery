@@ -2,6 +2,7 @@
 
 namespace LPagery\service\preparation;
 
+use LPagery\service\InstallationDateHandler;
 use LPagery\service\settings\SettingsController;
 use LPagery\model\BaseParams;
 use LPagery\model\PageCreationDashboardSettings;
@@ -12,16 +13,19 @@ class InputParamProvider {
 
     private SettingsController $settingsController;
 
-    private InputParamMediaProvider $paramMediaProvider;
+    private InstallationDateHandler $installationDateHandler;
 
-    public function __construct( SettingsController $settingsController, InputParamMediaProvider $paramMediaProvider ) {
+    private ?InputParamMediaProvider $paramMediaProvider;
+
+    public function __construct( SettingsController $settingsController, InstallationDateHandler $installationDateHandler, ?InputParamMediaProvider $paramMediaProvider ) {
         $this->settingsController = $settingsController;
+        $this->installationDateHandler = $installationDateHandler;
         $this->paramMediaProvider = $paramMediaProvider;
     }
 
-    public static function get_instance( SettingsController $settingsController, InputParamMediaProvider $paramMediaProvider ) {
+    public static function get_instance( SettingsController $settingsController, InstallationDateHandler $installationDateHandler, ?InputParamMediaProvider $paramMediaProvider ) {
         if ( null === self::$instance ) {
-            self::$instance = new self($settingsController, $paramMediaProvider);
+            self::$instance = new self($settingsController, $installationDateHandler, $paramMediaProvider);
         }
         return self::$instance;
     }
@@ -30,7 +34,9 @@ class InputParamProvider {
         $json_data,
         $process_id,
         $source_post_id,
-        PageCreationDashboardSettings $post_settings
+        PageCreationDashboardSettings $post_settings,
+        bool $force_update_content,
+        bool $overwrite_manual_changes
     ) : Params {
         $base_params = self::lpagery_get_input_params_without_images( $json_data );
         $source_attachment_ids = array();
@@ -41,7 +47,7 @@ class InputParamProvider {
         $numeric_values = $base_params->numeric_values;
         $image_keys = array();
         $image_values = array();
-        if ( lpagery_fs()->is_plan_or_trial__premium_only( 'extended' ) && $this->settingsController->lpagery_get_image_processing_enabled( $process_id ) ) {
+        if ( lpagery_fs()->is_plan_or_trial__premium_only( 'extended' ) && $this->settingsController->isImageProcessingEnabled( $process_id ) && $this->paramMediaProvider ) {
             list( $image_keys, $image_values, $source_attachment_ids, $target_attachment_ids ) = $this->paramMediaProvider->provideMediaParams( $base_params, $source_post_id );
         }
         $params = new Params();
@@ -51,14 +57,16 @@ class InputParamProvider {
         $params->image_values = $image_values;
         $params->numeric_keys = $numeric_keys;
         $params->numeric_values = $numeric_values;
-        $params->spintax_enabled = $this->settingsController->lpagery_get_spintax_enabled( $process_id );
-        $params->image_processing_enabled = $this->settingsController->lpagery_get_image_processing_enabled( $process_id );
-        $params->author_id = $this->settingsController->lpagery_get_author_id( $process_id );
+        $params->spintax_enabled = $this->settingsController->isSpintaxEnabled( $process_id );
+        $params->image_processing_enabled = $this->settingsController->isImageProcessingEnabled( $process_id );
+        $params->author_id = $this->settingsController->getAuthorId( $process_id );
         $params->source_attachment_ids = $source_attachment_ids;
         $params->target_attachment_ids = $target_attachment_ids;
         $params->raw_data = $json_data;
         $params->process_id = $process_id;
         $params->settings = $post_settings;
+        $params->force_update_content = $force_update_content;
+        $params->overwrite_manual_changes = $overwrite_manual_changes;
         return $params;
     }
 
@@ -72,8 +80,7 @@ class InputParamProvider {
         $numeric_keys = array();
         $numeric_values = array();
         $index = 0;
-        $max_placeholders = lpagery_get_placeholder_counts();
-        $placeholder_limit = $max_placeholders["placeholders"] ?? null;
+        $placeholder_limit = $this->installationDateHandler->get_placeholder_counts();
         foreach ( $json_data as $key => $value ) {
             if ( $key == "" ) {
                 continue;

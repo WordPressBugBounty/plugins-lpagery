@@ -2,6 +2,8 @@
 
 namespace LPagery\io;
 
+use LPagery\wpml\WpmlHelper;
+
 class Mapper
 {
     private static $instance;
@@ -20,7 +22,13 @@ class Mapper
 
     public function lpagery_map_post($post)
     {
-        return array("id" => $post->ID, "title" => $post->post_title);
+        $result = array("id" => $post->ID,
+            "title" => $post->post_title,
+            "type" => $post->post_type);
+        if (isset($post->language_code)) {
+            $result["language_code"] = $post->language_code;
+        }
+        return $result;
     }
 
     public function lpagery_map_post_extended($post)
@@ -28,14 +36,78 @@ class Mapper
         if (!is_array($post)) {
             $post = (array)$post;
         }
+        $wpmlInfo = WpmlHelper::get_wpml_language_data($post["ID"]);
 
-        return array(
-            "id" => $post["ID"],
+        $array = array("id" => $post["ID"],
             "title" => $post["post_title"],
             "process_id" => $post["process_id"],
+            "slug" => $post["replaced_slug"],
+            "permalink" => get_permalink($post["ID"]));
+        if($wpmlInfo->language_code){
+            $array["language_code"] = $wpmlInfo->language_code;
+        }
+        return $array;
+    }
+
+    public function lpagery_map_post_for_update_modal($post)
+    {
+        if (!is_array($post)) {
+            $post = (array)$post;
+        }
+        $wpmlInfo = WpmlHelper::get_wpml_language_data($post["ID"]);
+
+        $array = array("id" => $post["ID"],
+            "title" => $post["post_title"],
+            "process_id" => $post["process_id"],
+            "parent" => $post["parent_id"],
+            "status" => $post["post_status"],
+            "template" => $post["template_id"],
+            "slug" => $post["replaced_slug"],
             "permalink" => get_permalink($post["ID"]),
-            "modified" => boolval($post["modified"])
-        );
+            "page_manually_updated_at" => $post["page_manually_updated_at"],
+            "taxonomies" => array_filter(json_decode($post["taxonomies"]), function ($taxonomy) {
+                return isset($taxonomy->id);
+            }));
+        if($wpmlInfo->language_code){
+            $array["language_code"] = $wpmlInfo->language_code;
+        }
+        if(isset($post["page_manually_updated_by"])) {
+            $WP_User = get_user_by("id", $post["page_manually_updated_by"]);
+            if($WP_User) {
+                $array["page_manually_updated_by"] = [
+                    "name" => $WP_User->display_name,
+                    "email" => $WP_User->user_email
+                ];
+            }
+
+        }
+        return $array;
+    }
+
+    private function get_google_sheet_data($lpagery_process)
+    {
+        $data = maybe_unserialize($lpagery_process->google_sheet_data);
+        if ($data === null) {
+            return [
+                "add" => false,
+                "update" => false,
+                "delete" => false
+            ];
+        }
+        
+        // Ensure the data matches the schema
+        $validated_data = [
+            "add" => isset($data["add"]) ? (bool)$data["add"] : false,
+            "update" => isset($data["update"]) ? (bool)$data["update"] : false,
+            "delete" => isset($data["delete"]) ? (bool)$data["delete"] : false
+        ];
+        
+        // Only include url if it's a valid URL
+        if (isset($data["url"]) && filter_var($data["url"], FILTER_VALIDATE_URL)) {
+            $validated_data["url"] = $data["url"];
+        }
+        
+        return $validated_data;
     }
 
     public function lpagery_map_process($lpagery_process)
@@ -49,23 +121,27 @@ class Mapper
         } else {
             $purpose_text = $lpagery_process->purpose . " by " . $user->display_name;
         }
-        [$next_sync, $last_sync, $status] = $this->get_google_sheet_sync_details($lpagery_process);
+        [$next_sync,
+            $last_sync,
+            $status] = $this->get_google_sheet_sync_details($lpagery_process);
 
-        return array(
-            "id" => $lpagery_process->id,
+        return array("id" => $lpagery_process->id,
             "post_id" => $lpagery_process->post_id,
-            "user" => array("name" => $user->display_name, "email" => $user->user_email),
+            "user" => array("name" => $user->display_name,
+                "email" => $user->user_email),
             "post_count" => $lpagery_process->count,
             "display_purpose" => $purpose_text,
-            "google_sheet_data" => maybe_unserialize($lpagery_process->google_sheet_data),
+            "google_sheet_data" => maybe_unserialize(self::get_google_sheet_data($lpagery_process)),
             "raw_purpose" => $lpagery_process->purpose,
             "google_sheet_sync_error" => $lpagery_process->google_sheet_sync_error,
             "next_google_sheet_sync" => $next_sync,
             "last_google_sheet_sync" => $last_sync,
             "google_sheet_sync_status" => $status,
-            "google_sheet_sync_enabled" => filter_var($lpagery_process->google_sheet_sync_enabled, FILTER_VALIDATE_BOOLEAN),
-            "created" => $mysqldate
-        );
+            "queue_count" => $lpagery_process->queue_count,
+            "processed_queue_count" => $lpagery_process->processed_queue_count,
+            "google_sheet_sync_enabled" => filter_var($lpagery_process->google_sheet_sync_enabled,
+                FILTER_VALIDATE_BOOLEAN),
+            "created" => $mysqldate);
     }
 
     public function lpagery_map_process_search($lpagery_process)
@@ -76,42 +152,57 @@ class Mapper
         $mysqldate = date('Y-m-d', $phpdate);
         $post = get_post($lpagery_process->post_id);
         if ($post) {
-            $post_array = array(
-                "title" => $post->post_title,
+            $post_array = array("title" => $post->post_title,
                 "permalink" => get_permalink($post),
                 "type" => get_post_type($post),
-                "deleted" => false
-            );
+                "deleted" => false);
+
+            $wpmlLanguageData = WpmlHelper::get_wpml_language_data($lpagery_process->post_id);
+            if ($wpmlLanguageData->language_code) {
+                $post_array['language_code'] = $wpmlLanguageData->language_code;
+                $post_array['permalink'] = $wpmlLanguageData->permalink;
+            }
         } else {
-            $post_array = array(
-                "title" => "Deleted (ID: " . $lpagery_process->post_id . ")",
-                "deleted" => true
-            );
+            $post_array = array("title" => "Deleted (ID: " . $lpagery_process->post_id . ")",
+                "deleted" => true);
         }
 
-        [$next_sync, $last_sync, $status] = $this->get_google_sheet_sync_details($lpagery_process);
-        $google_sheet_data = null;
-        if(isset($lpagery_process->google_sheet_data)) {
-            $unserialize = maybe_unserialize($lpagery_process->google_sheet_data);
-            if($unserialize) {
-                $google_sheet_data = $unserialize["url"];
+        [$next_sync,
+            $last_sync,
+            $status] = $this->get_google_sheet_sync_details($lpagery_process);
+        $google_sheet_url = null;
+        if (isset($lpagery_process->google_sheet_data)) {
+            $sheet_data = maybe_unserialize($lpagery_process->google_sheet_data);
+            if ($sheet_data && isset($sheet_data["url"]) && filter_var($sheet_data["url"], FILTER_VALIDATE_URL)) {
+                $google_sheet_url = $sheet_data["url"];
             }
         }
-        return array(
-            "id" => $lpagery_process->id,
+
+        if (empty($lpagery_process->purpose)) {
+            $post_type = ucfirst(get_post_type($lpagery_process->post_id));
+            $purpose_text = $post_type . " creation set created at " . $mysqldate;
+        } else {
+            $purpose_text = $lpagery_process->purpose;
+        }
+
+        return array("id" => $lpagery_process->id,
             "post_id" => $lpagery_process->post_id,
             "user_id" => $lpagery_process->user_id,
-            "user" => array("name" => $user->display_name, "email" => $user->user_email),
+            "errored" => $lpagery_process->errored,
+            "in_queue" => $lpagery_process->in_queue,
+            "user" => array("name" => $user->display_name,
+                "email" => $user->user_email),
             "post_count" => $lpagery_process->count,
             "display_purpose" => $lpagery_process->purpose,
-            "google_sheet_sync_enabled" => filter_var($lpagery_process->google_sheet_sync_enabled, FILTER_VALIDATE_BOOLEAN),
+            "purpose_with_name" => $purpose_text,
+            "google_sheet_sync_enabled" => filter_var($lpagery_process->google_sheet_sync_enabled,
+                FILTER_VALIDATE_BOOLEAN),
             "created" => $mysqldate,
             "next_google_sheet_sync" => $next_sync,
             "last_google_sheet_sync" => $last_sync,
             "google_sheet_sync_status" => $status,
-            "google_sheet_url" => $google_sheet_data,
-            "post" => $post_array
-        );
+            "google_sheet_url" => $google_sheet_url,
+            "post" => $post_array);
     }
 
 
@@ -128,11 +219,28 @@ class Mapper
             return $unserialized;
         }, $data);
 
+        $unserialized_data = maybe_unserialize($lpagery_process->data);
+        if (!array_key_exists("taxonomy_terms", $unserialized_data)) {
+            $tag_ids = array_map(function ($tag) {
+                $term = get_term_by("name", $tag, "post_tag");
+                return $term ? $term->term_id : null;
+            }, $unserialized_data["tags"] ?? []);
+
+            // Filter out any null values from non-existent terms
+            $cat_ids = array_filter($unserialized_data["categories"] );
+            $tag_ids = array_filter($tag_ids);
+
+            $unserialized_data["taxonomy_terms"] = ["category" => $cat_ids,
+                "post_tag" => $tag_ids];
+        }
+        if (empty($unserialized_data["taxonomy_terms"])) {
+            unset($unserialized_data["taxonomy_terms"]);
+        }
         return array("process" => $mapped_process,
             "data" => $mapped_data,
-            "config_data" => maybe_unserialize($lpagery_process->data),
+            "config_data" => $unserialized_data,
             "google_sheet_sync_enabled" => $lpagery_process->google_sheet_sync_enabled,
-            "google_sheet_data" => maybe_unserialize($lpagery_process->google_sheet_data),
+            "google_sheet_data" => $this->get_google_sheet_data($lpagery_process)
         );
     }
 
@@ -141,6 +249,9 @@ class Mapper
         $status = $process->google_sheet_sync_status;
         $next_sync = wp_next_scheduled("lpagery_sync_google_sheet");
         $last_sync = strtotime($process->last_google_sheet_sync);
+        if (!$last_sync) {
+            $last_sync = null;
+        }
 
         $current_time = current_time('U', true);
         $interval = wp_get_schedules()[get_option("lpagery_google_sheet_sync_interval", "hourly")]["interval"];
@@ -158,7 +269,9 @@ class Mapper
             // 15 minutes
             $past_due_threshold = $interval + 900;
             if ($time_difference_next_sync >= 0 || !$process->google_sheet_sync_enabled) {
-                return [$next_sync, $last_sync, $status];
+                return [$next_sync,
+                    $last_sync,
+                    $status];
             }
             if ($time_difference_next_sync < 0 && abs($time_difference_next_sync) <= $past_due_threshold) {
                 $status = "PLANNED";
@@ -167,7 +280,9 @@ class Mapper
             }
         }
 
-        return [$next_sync, $last_sync, $status];
+        return [$next_sync,
+            $last_sync,
+            $status];
 
     }
 

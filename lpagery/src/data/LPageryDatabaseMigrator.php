@@ -4,6 +4,7 @@ namespace LPagery\data;
 
 use LPagery\factories\InputParamProviderFactory;
 use LPagery\factories\SubstitutionHandlerFactory;
+use LPagery\utils\Utils;
 use Throwable;
 
 class LPageryDatabaseMigrator
@@ -32,11 +33,13 @@ class LPageryDatabaseMigrator
 
         $table_name_process = $wpdb->prefix . 'lpagery_process';
         $table_name_process_post = $wpdb->prefix . 'lpagery_process_post';
+        $table_name_sync_queue = $wpdb->prefix . 'lpagery_sync_queue';
 
 
         $process_table_exists = $this->lpagery_table_exists_migrate($table_name_process);
 
         $process_post_table_exists = $this->lpagery_table_exists_migrate($table_name_process_post);
+        $sync_queue_table_exists = $this->lpagery_table_exists_migrate($table_name_sync_queue);
         $charset_collate = '';
         if (!empty($wpdb->charset)) {
             $charset_collate = "DEFAULT CHARACTER SET $wpdb->charset";
@@ -82,13 +85,32 @@ class LPageryDatabaseMigrator
             $wpdb->query($sql_process_post);
         }
 
+        if(!$sync_queue_table_exists) {
+            $sql_sync_queue = "create table $table_name_sync_queue
+                (
+                    id         bigint auto_increment  primary key,
+                    process_id bigint   not null,
+                    data       longtext not null,
+                    creation_id       text not null,
+                    slug       text not null,
+                    retry       int not null default 0,
+                    created       timestamp not null,
+                    error       text,
+                    key process_id (process_id)
+                )
+                    $charset_collate
+                
+                
+                ";
+            $wpdb->query($sql_sync_queue);
+        }
 
         $db_version = intval(get_option("lpagery_database_version", 0));
         if ($db_version < 2 || !$process_post_table_exists) {
 
             try {
                 $wpdb->query("alter table $table_name_process_post add column  replaced_slug text");
-            } catch (Throwable $e) {
+            } catch (\Throwable $e) {
 
             }
 
@@ -107,7 +129,7 @@ class LPageryDatabaseMigrator
                 if (!$slug) {
                     continue;
                 }
-                $slug = lpagery_sanitize_title_with_dashes($slug);
+                $slug = Utils::lpagery_sanitize_title_with_dashes($slug);
                 $process_id = $result->id;
 
                 $process_post_results = $wpdb->get_results($wpdb->prepare("select id,data FROM $table_name_process_post where lpagery_process_id = %s ",
@@ -139,7 +161,7 @@ class LPageryDatabaseMigrator
         add column  google_sheet_sync_enabled boolean,
         add column  last_google_sheet_sync timestamp,
         add column  config_changed boolean");
-            } catch (Throwable $e) {
+            } catch (\Throwable $e) {
 
             }
             $table_exists = $this->lpagery_table_exists_migrate($table_name_process);
@@ -155,6 +177,7 @@ class LPageryDatabaseMigrator
             $wpdb->query("alter table $table_name_process_post add column lpagery_settings text");
             $wpdb->query("alter table $table_name_process drop column config_changed");
             update_option("lpagery_database_version", 3);
+
         }
 
         $db_version = intval(get_option("lpagery_database_version", 0));
@@ -195,6 +218,23 @@ class LPageryDatabaseMigrator
 
             // Update the database version
             update_option("lpagery_database_version", 5);
+        }
+        if ($db_version < 6 && $this->lpagery_table_exists_migrate($table_name_process)) {
+
+            $wpdb->query("alter table $table_name_process add column queue_count int not null default 0, add column processed_queue_count int  not null default 0");
+            update_option("lpagery_database_version", 6);
+        }
+
+        if ($db_version < 7 && $this->lpagery_table_exists_migrate($table_name_process)) {
+            $wpdb->query("CREATE INDEX idx_lpagery_post ON $wpdb->posts (post_name, post_type, post_status);");
+            $wpdb->query("CREATE INDEX idx_wp_lpagery_process_post ON $table_name_process_post (post_id, lpagery_process_id);");
+            update_option("lpagery_database_version", 7);
+        }
+
+        if ($db_version < 8 && $this->lpagery_table_exists_migrate($table_name_process_post)) {
+            $wpdb->query("ALTER TABLE $table_name_process_post ADD COLUMN page_manually_updated_at timestamp null default null");
+            $wpdb->query("ALTER TABLE $table_name_process_post ADD COLUMN page_manually_updated_by int");
+            update_option("lpagery_database_version", 8);
         }
 
     }

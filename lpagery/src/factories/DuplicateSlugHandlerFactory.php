@@ -12,12 +12,10 @@ class DuplicateSlugHandlerFactory
 {
     public static function create(): DuplicateSlugProvider
     {
-        $substitutionHandler = SubstitutionHandlerFactory::create();
 
         $LPageryDao = LPageryDao::get_instance();
-        $inputParamProvider = InputParamProviderFactory::create();
 
-        $duplicateSlugHelper = DuplicateSlugHelper::get_instance($inputParamProvider, $substitutionHandler);
+        $duplicateSlugHelper = DuplicateSlugHelperFactory::create();
 
         $preparator = SubstitutionDataPreparator::get_instance();
 

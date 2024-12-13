@@ -13,11 +13,8 @@ class PageUpdateDataHandlerFactory
         $substitutionHandler = SubstitutionHandlerFactory::create();
         $LPageryDao = LPageryDao::get_instance();
         $inputParamProvider = InputParamProviderFactory::create();
-        $additionalDataSaver = AdditionalDataSaverFactory::create();
 
-        $pageSaver = PageSaver::get_instance($LPageryDao, $additionalDataSaver);
-        return PageUpdateDataHandler::get_instance($LPageryDao, $inputParamProvider, $substitutionHandler, $pageSaver,
-            DynamicPageAttributeHandlerFactory::create());
+        return PageUpdateDataHandler::get_instance($LPageryDao, $inputParamProvider, $substitutionHandler);
     }
 
 }

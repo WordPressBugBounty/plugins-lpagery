@@ -1,0 +1,58 @@
+{
+  "src/assets/LP_Logo_horizontal_2022_RZ.png": {
+    "file": "assets/LP_Logo_horizontal_2022_RZ-Q98YOlko.png",
+    "src": "src/assets/LP_Logo_horizontal_2022_RZ.png"
+  },
+  "src/assets/lpagery-logo-white-name.png": {
+    "file": "assets/lpagery-logo-white-name-rUztIkea.png",
+    "src": "src/assets/lpagery-logo-white-name.png"
+  },
+  "src/assets/onboarding/CreateThumbnail.png": {
+    "file": "assets/CreateThumbnail-CDNXclqL.png",
+    "src": "src/assets/onboarding/CreateThumbnail.png"
+  },
+  "src/assets/onboarding/ResultCleaningNeu.png": {
+    "file": "assets/ResultCleaningNeu-B1-Fc7vf.png",
+    "src": "src/assets/onboarding/ResultCleaningNeu.png"
+  },
+  "src/assets/onboarding/SourceFileNeu2.png": {
+    "file": "assets/SourceFileNeu2-CbCfJXZi.png",
+    "src": "src/assets/onboarding/SourceFileNeu2.png"
+  },
+  "src/assets/onboarding/SourceThumbnail.png": {
+    "file": "assets/SourceThumbnail-BsSISdPE.png",
+    "src": "src/assets/onboarding/SourceThumbnail.png"
+  },
+  "src/assets/onboarding/Step1Thumbnail.png": {
+    "file": "assets/Step1Thumbnail-Yore500Q.png",
+    "src": "src/assets/onboarding/Step1Thumbnail.png"
+  },
+  "src/assets/onboarding/TemplatePageCleaning.png": {
+    "file": "assets/TemplatePageCleaning-w49AUHLI.png",
+    "src": "src/assets/onboarding/TemplatePageCleaning.png"
+  },
+  "src/assets/pro.svg": {
+    "file": "assets/pro-Du7Eyhe6.svg",
+    "src": "src/assets/pro.svg"
+  },
+  "src/index.tsx": {
+    "file": "assets/index-Dmoo2Ahh.js",
+    "name": "index",
+    "src": "src/index.tsx",
+    "isEntry": true,
+    "css": [
+      "assets/index-VYWxvqQ9.css"
+    ],
+    "assets": [
+      "assets/pro-Du7Eyhe6.svg",
+      "assets/lpagery-logo-white-name-rUztIkea.png",
+      "assets/SourceFileNeu2-CbCfJXZi.png",
+      "assets/TemplatePageCleaning-w49AUHLI.png",
+      "assets/ResultCleaningNeu-B1-Fc7vf.png",
+      "assets/Step1Thumbnail-Yore500Q.png",
+      "assets/CreateThumbnail-CDNXclqL.png",
+      "assets/SourceThumbnail-BsSISdPE.png",
+      "assets/LP_Logo_horizontal_2022_RZ-Q98YOlko.png"
+    ]
+  }
+}

@@ -14,23 +14,22 @@ use LPagery\service\save_page\PageSaver;
 use LPagery\service\settings\SettingsController;
 use LPagery\service\taxonomies\TaxonomySaveHandler;
 use LPagery\data\LPageryDao;
-
-class AdditionalDataSaverFactory
-{
-    public static function create(): AdditionalDataSaver
-    {
+class AdditionalDataSaverFactory {
+    public static function create() : AdditionalDataSaver {
         $substitutionHandler = SubstitutionHandlerFactory::create();
-
-        $pagebuilderHandler = PagebuilderHandler::get_instance($substitutionHandler);
-        $seoPluginHandler = SeoPluginHandler::get_instance($substitutionHandler);
+        $pagebuilderHandler = PagebuilderHandler::get_instance( $substitutionHandler );
+        $seoPluginHandler = SeoPluginHandler::get_instance( $substitutionHandler );
         $wpmlHandler = WpmlHandler::get_instance();
         $fifuHandler = FifuHandler::get_instance();
-
-
-        return AdditionalDataSaver::get_instance($pagebuilderHandler, $seoPluginHandler, $wpmlHandler,
-            $fifuHandler, TaxonomySaveHandler::get_instance($substitutionHandler),
-            MetaDataHandler::get_instance($substitutionHandler));
-
+        $taxonomyHandler = null;
+        return AdditionalDataSaver::get_instance(
+            $pagebuilderHandler,
+            $seoPluginHandler,
+            $wpmlHandler,
+            $fifuHandler,
+            $taxonomyHandler,
+            MetaDataHandler::get_instance( $substitutionHandler )
+        );
     }
 
 }

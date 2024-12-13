@@ -8,7 +8,6 @@ $files_to_include = array(ABSPATH . 'wp-config.php',
 function lpagery_include_if_exists($filepath)
 {
     if (file_exists($filepath)) {
-        error_log("Including file: " . $filepath);
         include_once($filepath);
     } else {
         error_log("File does not exist: " . $filepath);

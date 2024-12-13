@@ -8,9 +8,30 @@ class SettingsController
 {
     private static $instance;
 
-    public function lpagery_filter_post_type($type)
+    const OPTION_GOOGLE_SHEET_SYNC_ENABLED = "lpagery_google_sheet_sync_enabled";
+    const OPTION_GOOGLE_SHEET_SYNC_FORCE_UPDATE = "lpagery_google_sheet_sync_force_update";
+    const OPTION_SYNC_BATCH_SIZE = "lpagery_sync_batch_size";
+    const OPTION_SYNC_OVERWRITE_MANUAL_CHANGES = "lpagery_sync_overwrite_manual_changes";
+    const OPTION_GOOGLE_SHEET_SYNC_INTERVAL = "lpagery_google_sheet_sync_interval";
+
+    /**
+     * Singleton pattern implementation
+     */
+    public static function get_instance(): self
     {
-        return !in_array($type, array("post",
+        if (null === self::$instance) {
+            self::$instance = new self();
+        }
+        return self::$instance;
+    }
+
+    /**
+     * Filters out default WordPress post types
+     */
+    public function filterPostType(string $type): bool
+    {
+        $excludedTypes = [
+            "post",
             "page",
             "attachment",
             "revision",
@@ -23,178 +44,278 @@ class SettingsController
             "wp_template",
             "wp_template_part",
             "wp_global_styles",
-            "wp_navigation"));
+            "wp_navigation",
+        ];
+        return !in_array($type, $excludedTypes, true);
     }
 
-    public function lpagery_get_post_types()
+    /**
+     * Retrieves custom post types
+     */
+    public function getAvailablePostTypes(): array
     {
-        return array_filter(get_post_types(array('public' => true)), [__CLASS__,
-            "lpagery_filter_post_type"]);
+        $postTypes = get_post_types(['public' => true]);
+        return array_filter($postTypes, [$this, 'filterPostType']);
     }
 
-    public function lpagery_save_settings($consistent_update, $spintax, $post_types, $image_processing_enabled, $author_id, $google_sheet_sync_interval, $next_google_sheet_sync, $google_sheet_sync_type)
+    /**
+     * Saves the settings
+     */
+    public function saveSettings(Settings $settings): void
     {
-        $settings = array('spintax' => $spintax,
-            'consistent_update' => $consistent_update,
-            'image_processing' => $image_processing_enabled,
-            'custom_post_types' => $post_types,
-            'author_id' => $author_id);
+        $userId = get_current_user_id();
 
-        update_user_option(get_current_user_id(), 'lpagery_settings', serialize($settings), false);
+        // Update user-specific settings
+        $userSettings = [
+            'spintax' => $settings->spintax,
+            'image_processing' => $settings->image_processing,
+            'custom_post_types' => $settings->custom_post_types,
+            'author_id' => $settings->author_id,
+        ];
 
-        update_option("lpagery_google_sheet_sync_type", $google_sheet_sync_type);
+        update_user_option($userId, 'lpagery_settings', $userSettings, false);
 
-        $option = get_option("lpagery_google_sheet_sync_interval");
+        // Update global settings - store as '1' or '' for better WordPress compatibility
+        update_option(self::OPTION_GOOGLE_SHEET_SYNC_ENABLED, 
+            filter_var($settings->google_sheet_sync_enabled, FILTER_VALIDATE_BOOLEAN) ? '1' : '0');
+        update_option(self::OPTION_GOOGLE_SHEET_SYNC_FORCE_UPDATE, 
+            filter_var($settings->google_sheet_sync_force_update, FILTER_VALIDATE_BOOLEAN) ? '1' : '0');
+        update_option(self::OPTION_SYNC_BATCH_SIZE, $settings->sync_batch_size);
+        update_option(self::OPTION_SYNC_OVERWRITE_MANUAL_CHANGES,
+            filter_var($settings->google_sheet_sync_overwrite_manual_changes, FILTER_VALIDATE_BOOLEAN) ? '1' : '0');
 
-        if (!$option) {
-            add_option("lpagery_google_sheet_sync_interval", $google_sheet_sync_interval);
-            do_action('lpagery_google_sheet_schedule_changed', $next_google_sheet_sync);
+        // Handle Google Sheet sync interval and scheduling
+        $currentInterval = get_option(self::OPTION_GOOGLE_SHEET_SYNC_INTERVAL);
+
+        if (!$currentInterval) {
+            add_option(self::OPTION_GOOGLE_SHEET_SYNC_INTERVAL, $settings->google_sheet_sync_interval);
+            do_action('lpagery_google_sheet_schedule_changed', $settings->next_google_sheet_sync);
         } else {
-            $old_interval = get_option("lpagery_google_sheet_sync_interval", $google_sheet_sync_interval);
-            $old_timestamp = wp_next_scheduled("lpagery_sync_google_sheet");
-            if ($old_interval !== $google_sheet_sync_interval || $old_timestamp != $next_google_sheet_sync) {
-                update_option("lpagery_google_sheet_sync_interval", $google_sheet_sync_interval);
-                do_action('lpagery_google_sheet_schedule_changed', $next_google_sheet_sync);
+            $oldTimestamp = wp_next_scheduled("lpagery_sync_google_sheet");
+
+            if (
+                $currentInterval !== $settings->google_sheet_sync_interval ||
+                $oldTimestamp != $settings->next_google_sheet_sync
+            ) {
+                update_option(self::OPTION_GOOGLE_SHEET_SYNC_INTERVAL, $settings->google_sheet_sync_interval);
+                do_action('lpagery_google_sheet_schedule_changed', $settings->next_google_sheet_sync);
             }
         }
-
     }
 
-    public function lpagery_get_settings()
+    /**
+     * Retrieves the settings
+     */
+    public function getSettings(): Settings
     {
-        return json_encode(maybe_unserialize($this->lpagery_get_settings_internal()));
+        if ($this->isLimitedPlan()) {
+            return $this->getLimitedPlanSettings();
+        }
+
+        $userId = get_current_user_id();
+        $userOptions = maybe_unserialize(get_user_option('lpagery_settings', $userId));
+
+        if (empty($userOptions)) {
+            return $this->getDefaultSettings();
+        }
+
+        return $this->createSettingsFromUserOptions($userOptions);
     }
 
-    private function lpagery_get_settings_internal()
+    /**
+     * Retrieves default settings
+     */
+    private function getDefaultSettings(): Settings
     {
-        if (lpagery_fs()->is_free_plan() || lpagery_fs()->is_plan_or_trial("standard", true)) {
-            return $this->lpagery_get_default_settings();
-        }
-        $user_options = maybe_unserialize(get_user_option('lpagery_settings', get_current_user_id()));
-        if ($user_options == null) {
-            return $this->lpagery_get_default_settings();
-        }
-        if (!isset($user_options["author_id"])) {
-            $user_options["author_id"] = strval(get_current_user_id());
-        }
-        $user_options["google_sheet_sync_interval"] = get_option("lpagery_google_sheet_sync_interval", "hourly");
-        $user_options["google_sheet_sync_type"] = $this->lpagery_get_sheet_sync_type();
-        $user_options["next_google_sheet_sync"] = get_date_from_gmt(date('Y-m-d\TH:i:s.Z\Z',
-            wp_next_scheduled("lpagery_sync_google_sheet")), 'Y-m-d\TH:i');;
-
-        return $user_options;
-    }
-
-    private function lpagery_get_default_settings()
-    {
-        return array("spintax" => false,
-            'image_processing' => false,
-            'consistent_update' => false,
+        $userOptions = [
+            'spintax' => false,
+            'image_processing' => lpagery_fs()->is_plan_or_trial("extended"),
+            'custom_post_types' => [],
             'author_id' => get_current_user_id(),
-            "next_google_sheet_sync" => get_date_from_gmt(date('Y-m-d\TH:i:s.Z\Z',
-                wp_next_scheduled("lpagery_sync_google_sheet")), 'Y-m-d\TH:i'),
-            "google_sheet_sync_interval" => get_option("lpagery_google_sheet_sync_interval", "hourly"),
-            "google_sheet_sync_type" => $this->lpagery_get_sheet_sync_type(),
+        ];
 
-        );
+        return $this->createSettingsFromUserOptions($userOptions);
+    }
+    private function getLimitedPlanSettings(): Settings
+    {
+        $settings = new Settings();
+        $settings->spintax = false;
+        $settings->image_processing = false;
+        $settings->custom_post_types = [];
+        $settings->author_id = get_current_user_id();
+        $settings->google_sheet_sync_interval = "hourly";
+        $settings->sync_batch_size = 0;
+        $settings->next_google_sheet_sync = null;
+        $settings->google_sheet_sync_force_update = false;
+        $settings->google_sheet_sync_overwrite_manual_changes = false;
+        $settings->google_sheet_sync_enabled = false;
+
+        return $settings;
     }
 
-    public static function lpagery_get_sheet_sync_type()
+    /**
+     * Checks if the user is on a limited plan
+     */
+    private function isLimitedPlan(): bool
     {
-        if (lpagery_fs()->is_free_plan() || lpagery_fs()->is_plan_or_trial("standard", true)) {
-            return "off";
-        }
-        if (get_option("lpagery_google_sheet_sync_type") != null) {
-            return get_option("lpagery_google_sheet_sync_type");
-        }
-        $installation_date = lpagery_get_installation_date();
-        if (!$installation_date) {
-            return "rest";
-        }
-        $default_value = "rest";
-        //check installation date before 30.7.2024
-        if ($installation_date->getTimestamp() < 1722321288) {
-            $default_value = "single_process";
-        }
-        return $default_value;
+        return lpagery_fs()->is_free_plan() || lpagery_fs()->is_plan_or_trial("standard", true);
     }
 
-    public function lpagery_get_spintax_enabled($process_id)
+    /**
+     * Creates a Settings object from user options
+     */
+    private function createSettingsFromUserOptions(array $userOptions): Settings
     {
-        $settings = maybe_unserialize(get_user_option('lpagery_settings', $this->get_user_id($process_id)));
+        $settings = new Settings();
+        $settings->spintax = filter_var($userOptions['spintax'] ?? false, FILTER_VALIDATE_BOOLEAN);
+        $settings->image_processing = filter_var($userOptions['image_processing'] ?? lpagery_fs()->is_plan_or_trial("extended"), FILTER_VALIDATE_BOOLEAN);
+        $settings->custom_post_types = array_filter($userOptions['custom_post_types'] ?? [], function($post_type) {
+            return post_type_exists($post_type);
+        });
+        $settings->author_id = $userOptions['author_id'] ?? get_current_user_id();
+        $settings->google_sheet_sync_interval = get_option(self::OPTION_GOOGLE_SHEET_SYNC_INTERVAL, "hourly");
+        $settings->google_sheet_sync_enabled = filter_var($this->getSheetSyncEnabled(), FILTER_VALIDATE_BOOLEAN);
+        $settings->sync_batch_size = $this->getBatchSize();
+        $settings->next_google_sheet_sync = $this->getNextGoogleSheetSync();
+        $settings->google_sheet_sync_force_update = filter_var($this->isForceUpdateEnabled(), FILTER_VALIDATE_BOOLEAN);
+        $settings->google_sheet_sync_overwrite_manual_changes = filter_var($this->isOverwriteManualChangesEnabled(), FILTER_VALIDATE_BOOLEAN);
 
-        if ($settings == null) {
-            return filter_var($this->lpagery_get_default_settings()['spintax'], FILTER_VALIDATE_BOOLEAN);
-        }
-
-        return filter_var($settings['spintax'], FILTER_VALIDATE_BOOLEAN);
+        return $settings;
     }
 
-    private function get_user_id($process_id)
+
+    /**
+     * Retrieves the Google Sheet sync type
+     */
+    public function getSheetSyncEnabled(): bool
     {
-        $current_user_id = get_current_user_id();
-        if (!$current_user_id) {
-            $LPageryDao = LPageryDao::get_instance();
-            $process = $LPageryDao->lpagery_get_process_by_id($process_id);
-            if (empty($process)) {
-                return 0;
+        if ($this->isLimitedPlan()) {
+            return false;
+        }
+        return filter_var(get_option(self::OPTION_GOOGLE_SHEET_SYNC_ENABLED, '1'), FILTER_VALIDATE_BOOLEAN);
+    }
+
+    /**
+     * Retrieves the batch size
+     */
+    public function getBatchSize(): int
+    {
+        return intval (get_option(self::OPTION_SYNC_BATCH_SIZE, 1000));
+    }
+
+    /**
+     * Checks if force update is enabled
+     */
+    public function isForceUpdateEnabled(): bool
+    {
+        return (bool)get_option(self::OPTION_GOOGLE_SHEET_SYNC_FORCE_UPDATE, false);
+    }
+
+    /**
+     * Checks if manual changes overwrite is enabled
+     */
+    public function isOverwriteManualChangesEnabled(): bool
+    {
+        return (bool)get_option(self::OPTION_SYNC_OVERWRITE_MANUAL_CHANGES, false);
+    }
+
+    /**
+     * Checks if image processing is enabled
+     */
+    public function isImageProcessingEnabled($processId = null): bool
+    {
+        $userId = $this->getUserId($processId);
+        $userSettings = $this->getUserSettings($userId);
+
+        return filter_var($userSettings['image_processing'], FILTER_VALIDATE_BOOLEAN);
+    }
+
+    /**
+     * Checks if spintax is enabled
+     */
+    public function isSpintaxEnabled($processId = null): bool
+    {
+        $userId = $this->getUserId($processId);
+        $userSettings = $this->getUserSettings($userId);
+
+        return filter_var($userSettings['spintax'], FILTER_VALIDATE_BOOLEAN);
+    }
+
+    /**
+     * Retrieves the author ID
+     */
+    public function getAuthorId($processId = null): int
+    {
+        $userId = $this->getUserId($processId);
+        $userSettings = $this->getUserSettings($userId);
+
+        return (int)$userSettings['author_id'];
+    }
+
+    /**
+     * Retrieves custom post types
+     */
+    public function getEnabledCustomPostTypes($processId = null): array
+    {
+        $userId = $this->getUserId($processId);
+        $userSettings = $this->getUserSettings($userId);
+
+        return $userSettings['custom_post_types'] ?? [];
+    }
+
+    /**
+     * Retrieves the user ID
+     */
+    private function getUserId($processId = null): int
+    {
+        $userId = get_current_user_id();
+
+        if (!$userId && $processId) {
+            $lpageryDao = LPageryDao::get_instance();
+            $process = $lpageryDao->lpagery_get_process_by_id($processId);
+            if (!empty($process)) {
+                $userId = $process->user_id;
+            } else {
+                $userId = 0;
             }
-            return $process->user_id;
         }
-        return $current_user_id;
+
+        return $userId;
     }
 
-    public static function get_instance()
+    /**
+     * Retrieves user settings
+     */
+    private function getUserSettings($userId = null): array
     {
-        if (null === self::$instance) {
-            self::$instance = new self();
+        if (!$userId) {
+            $userId = get_current_user_id();
         }
-        return self::$instance;
+
+        $userOptions = maybe_unserialize(get_user_option('lpagery_settings', $userId));
+
+        if (empty($userOptions)) {
+            $userOptions = [
+                'spintax' => false,
+                'image_processing' => lpagery_fs()->is_plan_or_trial("extended"),
+                'custom_post_types' => [],
+                'author_id' => get_current_user_id(),
+            ];
+        }
+
+        return $userOptions;
     }
 
-    public function lpagery_get_image_processing_enabled($process_id = null)
+    /**
+     * Retrieves the next Google Sheet sync time
+     */
+    private function getNextGoogleSheetSync(): ?string
     {
-        if (!$process_id) {
-            $user_id = get_current_user_id();
-        } else {
-            $user_id = $this->get_user_id($process_id);
+        $timestamp = wp_next_scheduled("lpagery_sync_google_sheet");
+        if ($timestamp) {
+            $gmtDate = gmdate('Y-m-d\TH:i:s.Z\Z', $timestamp);
+            return get_date_from_gmt($gmtDate, 'Y-m-d\TH:i');
         }
-        $settings = maybe_unserialize(get_user_option('lpagery_settings', $user_id));
-
-        if ($settings == null) {
-            return filter_var($this->lpagery_get_default_settings()['image_processing'], FILTER_VALIDATE_BOOLEAN);
-        }
-
-        return filter_var($settings['image_processing'], FILTER_VALIDATE_BOOLEAN);
+        return null;
     }
-
-    public function lpagery_get_consistent_update_enabled($process_id = null)
-    {
-        if (!$process_id) {
-            $user_id = get_current_user_id();
-        } else {
-            $user_id = $this->get_user_id($process_id);
-        }
-
-        $settings = maybe_unserialize(get_user_option('lpagery_settings', $user_id));
-
-        if ($settings == null || !array_key_exists('consistent_update', $settings)) {
-            return filter_var($this->lpagery_get_default_settings()['consistent_update'], FILTER_VALIDATE_BOOLEAN);
-        }
-
-
-        return filter_var($settings['consistent_update'], FILTER_VALIDATE_BOOLEAN);
-    }
-
-    public function lpagery_get_author_id($process_id)
-    {
-        $settings = maybe_unserialize(get_user_option('lpagery_settings', $this->get_user_id($process_id)));
-
-        if ($settings == null) {
-            return filter_var($this->lpagery_get_default_settings()['author_id'], FILTER_VALIDATE_INT);
-        }
-
-        return filter_var($settings['author_id'], FILTER_VALIDATE_INT);
-    }
-
 }
