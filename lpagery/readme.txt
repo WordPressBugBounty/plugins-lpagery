@@ -4,7 +4,7 @@ Tags: bulk page, seo, local seo, mass page, programmatic seo
 Requires at least: 6.2
 Tested up to: 6.7.1
 Requires PHP: 7.4
-Stable tag: 2.0.1
+Stable tag: 2.0.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -142,6 +142,8 @@ Whether you prefer a specific page builder or theme, LPagery's flexible design e
 * Classic Editor WP
 * Gutenberg
 * SiteOrigin Page Builder
+* Bricks
+* Breakdance
 * Yoast SEO Plugin
 * RankMath SEO
 * All In One SEO
@@ -257,7 +259,6 @@ For gathering anonymized usage analytics to improve the plugin's functionality a
 
 * **Sentry**
 For tracking errors and debugging issues to ensure the stability and reliability of the plugin.
-These integrations are disabled by default and will only be activated if you explicitly provide consent.
 
 * **Enabling/Disabling**
 You can manage your consent for these integrations via the plugin overview page in your WordPress admin dashboard via the opt-out button.
@@ -267,6 +268,31 @@ You can revoke your consent at any time, and the integrations will be disabled i
 We are committed to transparency and your control over your data. For more information, please refer to our Privacy Policy.
 
 == Changelog ==
+
+= 2.0.5 - 2024-12-22 =
+* Feat: Improved Onboarding
+* Feat: Check for Attachments with duplicate names
+* Feat: Trigger Sheet Sync from Dashboard without needing to sync manually
+* Feat: Show Queue Items in Manage
+* Fix: Find correct images for image processing
+* Fix: Set Sheet Sync Status to error if an error occurs
+
+
+= 2.0.4 - 2024-12-17 =
+* Chore: Update Freemius SDK
+
+= 2.0.3 - 2024-12-17 =
+* Feat: Allow assigning of all hierarchical taxonomies
+* Feat: Show example slug and title when checking for duplicates
+* Fix: WPML Query Issue
+* Fix: Breakdance Builder compatibility
+
+
+
+= 2.0.2 - 2024-12-16 =
+* Fix: Improve Deletion
+* Fix: Improve UX of selection if pages should be overwritten
+* Fix: Include Slugs with placeholders when checking for duplicates
 
 = 2.0.1 - 2024-12-13 =
 * Chore: Adapt Readme

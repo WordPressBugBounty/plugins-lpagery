@@ -27,13 +27,13 @@ class WpmlHandler
         }
         $template_language_info = wpml_get_language_information(null, $sourcePostId);
         if ($template_language_info) {
-            $get_language_args = array('element_id' => $sourcePostId, 'element_type' => get_post_type($sourcePostId));
+            $get_language_args = array('element_id' => $sourcePostId,
+                'element_type' => get_post_type($sourcePostId));
             $original_post_language_info = apply_filters('wpml_element_language_details', null, $get_language_args);
-            self::wpml_switch_post_language($original_post_language_info->language_code, $targetPostId);
-        } else {
-            echo "Template post language information not available.";
+            if ($original_post_language_info) {
+                self::wpml_switch_post_language($original_post_language_info->language_code, $targetPostId);
+            }
         }
-
     }
 
     private function wpml_switch_post_language($language, $post_id)

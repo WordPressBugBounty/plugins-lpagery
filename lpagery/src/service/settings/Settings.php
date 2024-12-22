@@ -6,6 +6,7 @@ class Settings
     public bool $image_processing;
     public array $custom_post_types;
     public int $author_id;
+    public string $hierarchical_taxonomy_handling;
     public bool $google_sheet_sync_enabled;
     public bool $google_sheet_sync_force_update;
     public bool $google_sheet_sync_overwrite_manual_changes;

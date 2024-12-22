@@ -63,6 +63,9 @@ class SettingsController
      */
     public function saveSettings(Settings $settings): void
     {
+        if($settings->hierarchical_taxonomy_handling !=='all' && $settings->hierarchical_taxonomy_handling !=='last') {
+            throw new \InvalidArgumentException('Invalid hierarchical taxonomy handling value');
+        }
         $userId = get_current_user_id();
 
         // Update user-specific settings
@@ -70,6 +73,7 @@ class SettingsController
             'spintax' => $settings->spintax,
             'image_processing' => $settings->image_processing,
             'custom_post_types' => $settings->custom_post_types,
+            'hierarchical_taxonomy_handling' => $settings->hierarchical_taxonomy_handling,
             'author_id' => $settings->author_id,
         ];
 
@@ -149,6 +153,7 @@ class SettingsController
         $settings->google_sheet_sync_force_update = false;
         $settings->google_sheet_sync_overwrite_manual_changes = false;
         $settings->google_sheet_sync_enabled = false;
+        $settings->hierarchical_taxonomy_handling = 'last';
 
         return $settings;
     }
@@ -172,6 +177,7 @@ class SettingsController
         $settings->custom_post_types = array_filter($userOptions['custom_post_types'] ?? [], function($post_type) {
             return post_type_exists($post_type);
         });
+        $settings->hierarchical_taxonomy_handling = $userOptions['hierarchical_taxonomy_handling'] ?? 'last';
         $settings->author_id = $userOptions['author_id'] ?? get_current_user_id();
         $settings->google_sheet_sync_interval = get_option(self::OPTION_GOOGLE_SHEET_SYNC_INTERVAL, "hourly");
         $settings->google_sheet_sync_enabled = filter_var($this->getSheetSyncEnabled(), FILTER_VALIDATE_BOOLEAN);
@@ -241,6 +247,14 @@ class SettingsController
         return filter_var($userSettings['spintax'], FILTER_VALIDATE_BOOLEAN);
     }
 
+    public function getHierarchicalTaxonomyHandling($processId = null): string
+    {
+        $userId = $this->getUserId($processId);
+        $userSettings = $this->getUserSettings($userId);
+
+        return $userSettings['hierarchical_taxonomy_handling'] ?? 'last';
+    }
+
     /**
      * Retrieves the author ID
      */
@@ -299,6 +313,7 @@ class SettingsController
                 'spintax' => false,
                 'image_processing' => lpagery_fs()->is_plan_or_trial("extended"),
                 'custom_post_types' => [],
+                'hierarchical_taxonomy_handling' => 'last',
                 'author_id' => get_current_user_id(),
             ];
         }

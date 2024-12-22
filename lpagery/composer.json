@@ -24,7 +24,7 @@
     "ext-dom": "*",
     "ext-fileinfo": "*",
     "ext-curl": "*",
-    "kucrut/vite-for-wp": "^0.9.4",
+    "kucrut/vite-for-wp": "^0.10.0",
     "shuchkin/simplexlsxgen": "^1.4",
     "stechstudio/backoff": "^1.4"
   },

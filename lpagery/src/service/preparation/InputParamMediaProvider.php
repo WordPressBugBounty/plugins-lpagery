@@ -2,9 +2,9 @@
 
 namespace LPagery\service\preparation;
 
+use LPagery\model\BaseParams;
 use LPagery\service\media\AttachmentHelper;
 use LPagery\service\media\AttachmentReplacementProvider;
-use LPagery\model\BaseParams;
 use LPagery\utils\Utils;
 class InputParamMediaProvider {
     public static ?InputParamMediaProvider $instance = null;

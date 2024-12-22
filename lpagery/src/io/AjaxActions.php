@@ -8,6 +8,7 @@ use LPagery\data\SearchPostService;
 use LPagery\factories\CreatePostDelegateFactory;
 use LPagery\factories\DuplicateSlugHandlerFactory;
 use LPagery\io\Mapper;
+use LPagery\service\onboarding\OnboardingService;
 use LPagery\service\PageExportHandler;
 use LPagery\service\settings\SettingsController;
 use LPagery\utils\MemoryUtils;
@@ -291,6 +292,10 @@ function lpagery_upsert_process()
         $data = isset($_POST['data']) ? lpagery_extract_process_data($_POST['data'], $process) : null;
         $lpagery_process_id = $LPageryDao->lpagery_upsert_process($post_id, $process_id, $purpose, $data,
             $google_sheet_data, $sync_enabled);
+        if($google_sheet_enabled && $sync_enabled) {
+
+            wp_schedule_single_event(time(),'lpagery_sync_google_sheet');
+        }
         print_r(json_encode(array("success" => true,
             "process_id" => $lpagery_process_id)));
     } catch (\Throwable $exception) {
@@ -465,5 +470,19 @@ function lpagery_get_google_sheet_scheduled_data()
     // Return only the raw values as JSON
     echo json_encode($response);
     wp_die();
+
 }
 
+add_action('wp_ajax_lpagery_create_onboarding_template_page', 'LPagery\lpagery_create_onboarding_template_page');
+function lpagery_create_onboarding_template_page()
+{
+    check_ajax_referer('lpagery_ajax');
+    $onboardingService = OnboardingService::get_instance();
+    $page_id = $onboardingService->createOnboardingTemplatePage();
+    if(!$page_id) {
+        echo json_encode(array("success" => false));
+        wp_die();
+    }
+    echo json_encode(array("success" => true, "page_id" => $page_id));
+    wp_die();
+}

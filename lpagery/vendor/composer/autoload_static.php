@@ -4,7 +4,7 @@
 
 namespace Composer\Autoload;
 
-class ComposerStaticInite72c1509a07c59f1d8bf648fd8325987
+class ComposerStaticInit1319a04edad46ada0155a4ffbbf7a9c5
 {
     public static $files = array (
         'b7e1c4cbafbabee94a69519a450ea263' => __DIR__ . '/..' . '/kucrut/vite-for-wp/vite-for-wp.php',
@@ -65,6 +65,9 @@ class ComposerStaticInite72c1509a07c59f1d8bf648fd8325987
         'LPagery\\service\\media\\AttachmentHelper' => __DIR__ . '/../..' . '/src/service/media/AttachmentHelper.php',
         'LPagery\\service\\media\\AttachmentReplacementProvider' => __DIR__ . '/../..' . '/src/service/media/AttachmentReplacementProvider.php',
         'LPagery\\service\\media\\AttachmentSaver' => __DIR__ . '/../..' . '/src/service/media/AttachmentSaver.php',
+        'LPagery\\service\\media\\AttachmentSearchResult' => __DIR__ . '/../..' . '/src/service/media/AttachmentSearchResult.php',
+        'LPagery\\service\\media\\AttachmentSearchService' => __DIR__ . '/../..' . '/src/service/media/AttachmentSearchService.php',
+        'LPagery\\service\\onboarding\\OnboardingService' => __DIR__ . '/../..' . '/src/service/onboarding/OnboardingService.php',
         'LPagery\\service\\preparation\\InputParamMediaProvider' => __DIR__ . '/../..' . '/src/service/preparation/InputParamMediaProvider.php',
         'LPagery\\service\\preparation\\InputParamProvider' => __DIR__ . '/../..' . '/src/service/preparation/InputParamProvider.php',
         'LPagery\\service\\save_page\\CreatePostDelegate' => __DIR__ . '/../..' . '/src/service/save_page/CreatePostDelegate.php',
@@ -114,9 +117,9 @@ class ComposerStaticInite72c1509a07c59f1d8bf648fd8325987
     public static function getInitializer(ClassLoader $loader)
     {
         return \Closure::bind(function () use ($loader) {
-            $loader->prefixLengthsPsr4 = ComposerStaticInite72c1509a07c59f1d8bf648fd8325987::$prefixLengthsPsr4;
-            $loader->prefixDirsPsr4 = ComposerStaticInite72c1509a07c59f1d8bf648fd8325987::$prefixDirsPsr4;
-            $loader->classMap = ComposerStaticInite72c1509a07c59f1d8bf648fd8325987::$classMap;
+            $loader->prefixLengthsPsr4 = ComposerStaticInit1319a04edad46ada0155a4ffbbf7a9c5::$prefixLengthsPsr4;
+            $loader->prefixDirsPsr4 = ComposerStaticInit1319a04edad46ada0155a4ffbbf7a9c5::$prefixDirsPsr4;
+            $loader->classMap = ComposerStaticInit1319a04edad46ada0155a4ffbbf7a9c5::$classMap;
 
         }, null, ClassLoader::class);
     }

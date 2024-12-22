@@ -26,79 +26,6 @@ class LPageryDao
         $LPageryDatabaseMigrator->migrate();
     }
 
-
-    public function lpagery_search_attachment($term, $ignore_ending = false)
-    {
-        global $wpdb;
-        if (!$ignore_ending) {
-            $term_with_wildcard = '%' . $term;
-        } else {
-            $term_with_wildcard = '%' . $term . '%';
-        }
-
-        $prepare = $wpdb->prepare("SELECT ID, guid, pm.meta_value as file_name, post_content, post_excerpt, post_title, post_name, post_content_filtered
-            FROM $wpdb->posts p
-            INNER JOIN $wpdb->postmeta pm ON p.ID = pm.post_id
-            WHERE pm.meta_key = '_wp_attached_file' AND pm.meta_value LIKE %s AND p.post_type = 'attachment'
-            ORDER BY post_name", $term_with_wildcard);
-        $results = $wpdb->get_results($prepare);
-
-        if (empty($results)) {
-            return null;
-        }
-
-        // Normalize the term by standardizing the file extension
-        $normalized_term = preg_replace('/\.jpeg$/i', '.jpg', $term);
-
-        if ($ignore_ending) {
-            foreach ($results as $result) {
-                // Extract the basename (filename without path)
-                $basename = basename($result->file_name);
-
-                $normalized_basename = preg_replace('/\.jpeg$/i', '.jpg', $basename);
-
-
-                // remove filename
-                $normalized_basename = preg_replace('/\.[^.]*$/', '', $normalized_basename);
-
-                if (strcasecmp($normalized_term, $normalized_basename) === 0) {
-                    // Found an exact match
-                    return [$result];
-                }
-
-                // Define the pattern to match the term followed by an optional '-digit'
-                $pattern = '/^' . preg_quote($normalized_term, '/') . '(-\d)?$/i';
-                if (preg_match($pattern, $normalized_basename)) {
-                    // Found a match
-                    return [$result];
-                }
-
-
-            }
-            return null;
-        }
-
-
-        // If no exact match is found, return all results
-        return $results;
-    }
-
-
-    public function lpagery_search_attachment_by_id($id)
-    {
-        global $wpdb;
-
-        $prepare = $wpdb->prepare("SELECT ID,post_title, guid FROM $wpdb->posts p where ID = %s and post_type = 'attachment' ",
-            $id);
-
-
-        $result = $wpdb->get_results($prepare);
-        if (empty($result)) {
-            return null;
-        }
-        return (array)$result[0];
-    }
-
     public function lpagery_has_template_pending_changes($id)
     {
         global $wpdb;
@@ -337,7 +264,6 @@ class LPageryDao
         }
         $where_query_text = " WHERE " . implode(' AND ', $where_query) . " ORDER BY created desc";
 
-        error_log($where_query_text);
         $prepare = "select id,
                user_id,
                google_sheet_sync_enabled,
@@ -347,8 +273,8 @@ class LPageryDao
                post_id,
                created,
                 purpose,
-                (select count(lq.id) from $table_name_queue lq where lq.process_id = lp.id and retry > 0) as errored,
-                (select count(lq.id) from $table_name_queue lq where lq.process_id = lp.id) as in_queue,
+                (select count(lq.id) from $table_name_queue lq where lq.process_id = lp.id and error is not null) as errored,
+                (select count(lq.id) from $table_name_queue lq where lq.process_id = lp.id and  error is null) as in_queue,
                 (select count(lpp.id) from $table_name_process_post lpp inner join $wpdb->posts p on p.id = lpp.post_id where lpp.lpagery_process_id = lp.id and p.post_status != 'trash') as count
             from $table_name_process lp $where_query_text";
 
@@ -727,45 +653,51 @@ class LPageryDao
         $language_join = '';
         $language_condition = '';
 
-        // Check if WPML is installed
+        // Check if WPML is installed and get template language if exists
         if (defined('ICL_LANGUAGE_CODE')) {
-            // Get the language of the template post
             $template_language = $wpdb->get_var(
                 $wpdb->prepare(
-                    "SELECT language_code FROM {$wpdb->prefix}icl_translations WHERE element_id = %d AND element_type = %s",
+                    "SELECT language_code FROM {$wpdb->prefix}icl_translations 
+                    WHERE element_id = %d 
+                    AND element_type = %s",
                     $template_id,
                     'post_' . $post_type
                 )
             );
 
-            // Add WPML language join and condition to the query
-            $language_join = "LEFT JOIN {$wpdb->prefix}icl_translations icl ON icl.element_id = p.ID AND icl.element_type = %s";
-            $language_condition = "AND icl.language_code = %s";
+            // Only add WPML conditions if template has a language assigned
+            if ($template_language) {
+                $language_join = "LEFT JOIN {$wpdb->prefix}icl_translations icl 
+                                ON icl.element_id = p.ID 
+                                AND icl.element_type = %s";
+                $language_condition = "AND icl.language_code = %s";
+            }
         }
 
-        // Construct the query with WPML language filtering if applicable
+        // Base query without WPML filtering
         $query = "
-    SELECT p.ID AS id, p.post_name, p.post_type
-    FROM $wpdb->posts p
-    LEFT JOIN $table_name_process_post lpp
-        ON lpp.post_id = p.ID AND lpp.lpagery_process_id = %d
-    $language_join
-    WHERE p.post_type = %s
-        AND p.post_status NOT IN ('inherit', 'attachment')
-        AND lpp.post_id IS NULL
-        $language_condition;
-    ";
+            SELECT p.ID AS id, p.post_name, p.post_type
+            FROM $wpdb->posts p
+            LEFT JOIN $table_name_process_post lpp
+                ON lpp.post_id = p.ID 
+                AND lpp.lpagery_process_id = %d
+            $language_join
+            WHERE p.post_type = %s
+                AND p.post_status NOT IN ('inherit', 'attachment')
+                AND lpp.post_id IS NULL
+                $language_condition
+        ";
 
-        // Prepare the query with or without WPML language filtering
-        $prepared_query = $template_language
+        // Prepare query based on whether we have WPML language
+        $prepared_query = $template_language 
             ? $wpdb->prepare($query, $process_id, 'post_' . $post_type, $post_type, $template_language)
             : $wpdb->prepare($query, $process_id, $post_type);
 
         $all_posts = $wpdb->get_results($prepared_query);
 
-        // Filter posts by the slugs we're interested in
+        // Filter posts by the provided slugs
         $filtered_posts = array();
-        $slugs_lookup = array_flip($slugs); // For faster lookup
+        $slugs_lookup = array_flip($slugs);
 
         foreach ($all_posts as $post) {
             if (isset($slugs_lookup[$post->post_name])) {
@@ -774,6 +706,26 @@ class LPageryDao
             }
         }
 
+        return $filtered_posts;
+    }
+
+    public function lpagery_get_existing_attachments_by_slug($slugs)
+    {
+        global $wpdb;
+
+        $results = $wpdb->get_results($wpdb->prepare("SELECT p.ID, p.post_name
+            FROM $wpdb->posts p
+            WHERE p.post_type = 'attachment'"));
+
+        $slugs_lookup = array_flip($slugs);
+        $filtered_posts = array();
+        foreach ($results as $post) {
+            if (isset($slugs_lookup[$post->post_name])) {
+                $post->permalink = admin_url("upload.php?item={$post->ID}");
+                $filtered_posts[] = $post;
+            }
+        }
+        
         return $filtered_posts;
     }
 
@@ -896,4 +848,36 @@ class LPageryDao
         return null;
     }
 
+    public function lpagery_search_queue_items($process_id, $type, $slug)
+    {
+        global $wpdb;
+        $table_name_queue = $wpdb->prefix . 'lpagery_sync_queue';
+        
+        $where_conditions = ["process_id = %d"];
+        $query_params = [$process_id];
+        
+        // Add type filter
+        if ($type === 'error') {
+            $where_conditions[] = "error IS NOT NULL";
+        } elseif ($type === 'queue') {
+            $where_conditions[] = "error IS NULL";
+        }
+        
+        // Add slug filter if provided
+        if (!empty($slug)) {
+            $where_conditions[] = "slug LIKE %s";
+            $query_params[] = '%' . $wpdb->esc_like($slug) . '%';
+        }
+        
+        $where_clause = implode(' AND ', $where_conditions);
+        $prepare = $wpdb->prepare(
+            "SELECT id, slug, retry as retry_count, error 
+            FROM $table_name_queue 
+            WHERE $where_clause 
+            LIMIT 1000",
+            ...$query_params
+        );
+
+        return $wpdb->get_results($prepare);
+    }
 }

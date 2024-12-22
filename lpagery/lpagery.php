@@ -4,7 +4,7 @@
 Plugin Name: LPagery
 Plugin URI: https://lpagery.io/
 Description: Create hundreds or even thousands of landingpages for local businesses, services etc.
-Version: 2.0.1
+Version: 2.0.5
 Author: LPagery
 License: GPLv2 or later
 */
@@ -45,6 +45,7 @@ if ( function_exists( 'lpagery_fs' ) ) {
                     'menu'            => array(
                         'slug'    => 'lpagery',
                         'contact' => false,
+                        'support' => false,
                     ),
                     'is_live'         => true,
                 ) );
@@ -396,7 +397,7 @@ if ( function_exists( 'lpagery_fs' ) ) {
         $settingsController = SettingsController::get_instance();
         if ( $settingsController->isImageProcessingEnabled() ) {
             $form_fields['lpagery_replace_filename'] = array(
-                'label' => '<img width="25px" height ="25px" src="' . plugin_dir_url( dirname( __FILE__ ) ) . "/" . plugin_basename( dirname( __FILE__ ) ) . '/freemius/assets/img/lpagery.png"/>Download Filename',
+                'label' => '<img width="25px" height ="25px" src="' . plugin_dir_url( dirname( __FILE__ ) ) . "/" . plugin_basename( dirname( __FILE__ ) ) . '/assets/lpagery.png"/>Download Filename',
                 'input' => 'text',
                 'value' => get_post_meta( $post->ID, '_lpagery_replace_filename', true ),
                 'helps' => 'The name for LPagery to be taken for downloading images when using this image as an placeholder. The ending will be populated automatically. Please add placeholders from the input file here (e.g. "my-image-in-{city}")',

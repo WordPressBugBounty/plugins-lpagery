@@ -279,6 +279,15 @@ class Mapper
                 $status = "PAST_DUE";
             }
         }
+        if($status === "FINISHED") {
+            global $wpdb;
+            
+            $exists_error = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}lpagery_sync_queue WHERE error is not null  AND process_id = {$process->id}");
+            if($exists_error) {
+                $status = "ERROR";
+            }
+
+        }
 
         return [$next_sync,
             $last_sync,

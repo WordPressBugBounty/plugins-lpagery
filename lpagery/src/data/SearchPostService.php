@@ -72,6 +72,7 @@ class SearchPostService
                                     LIMIT 100",
                 $term);
         } else {
+
             $prepare = $wpdb->prepare("SELECT p.ID, p.post_title, p.post_type $language_select 
                                     FROM {$wpdb->posts} p 
                                     $language_join
@@ -89,7 +90,7 @@ class SearchPostService
         // Fetch results
         $results = $wpdb->get_results($prepare);
 
-        if($select === "template") {
+        if($select === "template" && $mode == "create" ) {
             $results = array_filter($results, function($result) use ($posts_with_curly_braces) {
                 return !in_array($result->ID, array_column($posts_with_curly_braces, 'ID'));
             });

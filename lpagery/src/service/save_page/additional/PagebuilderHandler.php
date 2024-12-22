@@ -5,12 +5,13 @@ namespace LPagery\service\save_page\additional;
 use Brizy_Editor_Post;
 use Elementor\Plugin as ElementorPlugin;
 use ET_Core_PageResource;
+use LPagery\model\Params;
 use LPagery\service\Beautify_Html;
 use LPagery\service\substitution\SubstitutionHandler;
-use LPagery\model\Params;
 use LPagery\utils\Utils;
 use Mfn_Helper;
-use Throwable;
+use function Breakdance\Data\set_meta as breakdance_set_meta;
+use function Breakdance\Render\generateCacheForPost as breakdance_generate_cache_for_post;
 
 class PagebuilderHandler
 {
@@ -33,7 +34,6 @@ class PagebuilderHandler
     }
 
 
-
     public function lpagery_handle_pagebuilder($sourcePostId, $targetPostId, Params $params)
     {
         if (in_array("{lpagery_content}", $params->keys)) {
@@ -46,6 +46,9 @@ class PagebuilderHandler
         }
         if (in_array('_elementor_version', $post_meta_keys)) {
             self::lpagery_handle_elementor($targetPostId);
+        }
+        if (in_array('_breakdance_data', $post_meta_keys)) {
+            self::lpagery_handle_visual_breakdance($sourcePostId, $targetPostId, $params);
         }
         if (in_array('brizy', $post_meta_keys)) {
             self::lpagery_handle_brizy($sourcePostId, $targetPostId, $params);
@@ -60,7 +63,7 @@ class PagebuilderHandler
         if (in_array('_et_builder_version', $post_meta_keys)) {
             self::lpagery_handle_divi($targetPostId);
         }
-        if(in_array('_seedprod_page', $post_meta_keys) || in_array('_seedprod_page_uuid', $post_meta_keys)){
+        if (in_array('_seedprod_page', $post_meta_keys) || in_array('_seedprod_page_uuid', $post_meta_keys)) {
             self::lpagery_handle_seedprod($sourcePostId, $targetPostId, $params);
         }
 
@@ -71,7 +74,8 @@ class PagebuilderHandler
         global $wpdb;
         $raw_post_content_filtered = ($wpdb->get_var("SELECT post_content_filtered FROM $wpdb->posts WHERE ID = $sourcePostId"));
         $post_content_filtered = $this->substitutionHandler->lpagery_substitute($params, ($raw_post_content_filtered));
-        wp_update_post(array('ID' => $targetPostId, 'post_content_filtered' => wp_slash($post_content_filtered)));
+        wp_update_post(array('ID' => $targetPostId,
+            'post_content_filtered' => wp_slash($post_content_filtered)));
     }
 
     /**
@@ -134,6 +138,37 @@ class PagebuilderHandler
         }
     }
 
+    private function lpagery_handle_visual_breakdance($sourcePostId, $targetPostId, Params $params)
+    {
+        $meta_value = get_post_meta($sourcePostId, "_breakdance_data", true);
+        if (is_string($meta_value) && function_exists('Breakdance\Data\set_meta') ) {
+            $decoded = json_decode($meta_value, true);
+            if (isset($decoded["tree_json_string"])) {
+                delete_post_meta($targetPostId, "_breakdance_data");
+                delete_post_meta($targetPostId, "_breakdance_css_file_paths_cache");
+                delete_post_meta($targetPostId, "_breakdance_dependency_cache");
+
+                $decoded_tree = (json_decode($decoded["tree_json_string"], true));
+                $params->numeric_keys[] = $sourcePostId;
+                $params->numeric_values[] = $targetPostId;
+                $result = $this->substitutionHandler->lpagery_substitute($params, $decoded_tree);
+
+
+                $tree = json_encode($result);
+                breakdance_set_meta($targetPostId, '_breakdance_data', ['tree_json_string' => $tree,]);
+
+                wp_update_post(['ID' => $targetPostId]);
+
+                breakdance_generate_cache_for_post($targetPostId);
+
+                do_action("breakdance_after_save_document", $targetPostId);
+            }
+
+        }
+
+
+    }
+
     private function lpagery_handle_bebuilder($sourcePostId, $targetPostId, Params $params)
     {
         $preview_meta_value = get_post_meta($sourcePostId, "mfn-builder-preview", true);
@@ -171,7 +206,8 @@ class PagebuilderHandler
         $formatted = self::lpagery_do_blocks($post_content);
 
         // Update the post content using wp_update_post
-        wp_update_post(array('ID' => $targetPostId, 'post_content' => $formatted));
+        wp_update_post(array('ID' => $targetPostId,
+            'post_content' => $formatted));
     }
 
     private function lpagery_do_blocks($content)
@@ -201,7 +237,15 @@ class PagebuilderHandler
         }
 
 
-        $beautify = new Beautify_Html(array('indent_inner_html' => false, 'indent_char' => " ", 'indent_size' => 2, 'wrap_line_length' => 9999999999, 'unformatted' => [], 'preserve_newlines' => false, 'max_preserve_newlines' => 9999999999, 'indent_scripts' => 'normal' // keep|separate|normal
+        $beautify = new Beautify_Html(array('indent_inner_html' => false,
+            'indent_char' => " ",
+            'indent_size' => 2,
+            'wrap_line_length' => 9999999999,
+            'unformatted' => [],
+            'preserve_newlines' => false,
+            'max_preserve_newlines' => 9999999999,
+            'indent_scripts' => 'normal'
+            // keep|separate|normal
         ));
         $block_content = $beautify->beautify($block_content, $block['blockName']);
 
@@ -222,25 +266,18 @@ class PagebuilderHandler
             return sprintf("\r\n<!-- wp:%s\r\n %s/-->\r\n", $serialized_block_name, $serialized_attributes);
         }
 
-        return sprintf(
-            "\r\n<!-- wp:%s %s-->\r\n%s\r\n<!-- /wp:%s -->\r\n",
-            $serialized_block_name,
-            $serialized_attributes,
-            $block_content,
-            $serialized_block_name
-        );
+        return sprintf("\r\n<!-- wp:%s %s-->\r\n%s\r\n<!-- /wp:%s -->\r\n", $serialized_block_name,
+            $serialized_attributes, $block_content, $serialized_block_name);
     }
 
     private function lpagery_handle_divi($targetPostId)
     {
         if (class_exists('ET_Core_PageResource')) {
             try {
-                ET_Core_PageResource::remove_static_resources((string) $targetPostId, 'all');
+                ET_Core_PageResource::remove_static_resources((string)$targetPostId, 'all');
             } catch (\Throwable $throwable) {
                 lpagery_info_log("Error removing static divi resources for post " . $targetPostId . " " . $throwable->getMessage());
-                error_log(
-                    "Error removing  divi resources for post " . $targetPostId . " " . $throwable->getMessage()
-                );
+                error_log("Error removing  divi resources for post " . $targetPostId . " " . $throwable->getMessage());
             }
         }
 
