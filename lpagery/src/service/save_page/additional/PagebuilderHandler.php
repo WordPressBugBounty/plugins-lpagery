@@ -169,24 +169,23 @@ class PagebuilderHandler
 
     }
 
-    private function lpagery_handle_bebuilder($sourcePostId, $targetPostId, Params $params)
+    private function lpagery_handle_bebuilder($sourcePostId, $targetPostId, $params)
     {
+        // Handle preview meta
         $preview_meta_value = get_post_meta($sourcePostId, "mfn-builder-preview", true);
-        if (is_string($preview_meta_value)) {
-            $preview_meta_value = maybe_unserialize(base64_decode($preview_meta_value));
-        }
+        $preview_meta_value = maybe_unserialize($preview_meta_value);
         $preview_meta_value = $this->substitutionHandler->lpagery_substitute($params, $preview_meta_value);
         delete_post_meta($targetPostId, "mfn-builder-preview");
-        add_post_meta($targetPostId, "mfn-builder-preview", base64_encode(maybe_serialize($preview_meta_value)));
+        update_post_meta($targetPostId, "mfn-builder-preview", $preview_meta_value);
 
+        // Handle page items meta
         $items_meta_value = get_post_meta($sourcePostId, "mfn-page-items", true);
-        if (is_string($items_meta_value)) {
-            $items_meta_value = maybe_unserialize(base64_decode($items_meta_value));
-        }
+        $items_meta_value = maybe_unserialize($items_meta_value);
         $items_meta_value = $this->substitutionHandler->lpagery_substitute($params, $items_meta_value);
         delete_post_meta($targetPostId, "mfn-page-items");
-        add_post_meta($targetPostId, "mfn-page-items", base64_encode(maybe_serialize($items_meta_value)));
+        update_post_meta($targetPostId, "mfn-page-items", $items_meta_value);
 
+        // Handle Mfn_Helper if available
         if (class_exists("Mfn_Helper")) {
             $object = get_post_meta($targetPostId, 'mfn-page-object', true);
             $object = json_decode($object, true);
