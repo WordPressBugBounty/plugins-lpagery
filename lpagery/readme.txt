@@ -4,7 +4,7 @@ Tags: bulk page, seo, local seo, mass page, programmatic seo
 Requires at least: 6.2
 Tested up to: 6.7.1
 Requires PHP: 7.4
-Stable tag: 2.0.7
+Stable tag: 2.0.9
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -268,6 +268,14 @@ You can revoke your consent at any time, and the integrations will be disabled i
 We are committed to transparency and your control over your data. For more information, please refer to our Privacy Policy.
 
 == Changelog ==
+
+= 2.0.9 - 2024-12-27 =
+* Fix: Image Processing case insensitive search
+* Fix: Show correct duplicate header message
+
+= 2.0.8 - 2024-12-25 =
+* Fix: Trigger Sheet Sync after creating it
+* Fix: allow numeric purposes
 
 = 2.0.7 - 2024-12-23 =
 * Fix: BeBuilder Image Processing
