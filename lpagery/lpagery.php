@@ -4,19 +4,21 @@
 Plugin Name: LPagery
 Plugin URI: https://lpagery.io/
 Description: Create hundreds or even thousands of landingpages for local businesses, services etc.
-Version: 2.0.9
+Version: 2.0.11
 Author: LPagery
 License: GPLv2 or later
 */
 // Create a helper function for easy SDK access.
 use Kucrut\Vite;
 use LPagery\data\LPageryDao;
+use LPagery\factories\GoogleSheetSyncProcessHandlerFactory;
 use LPagery\io\Mapper;
 use LPagery\service\InstallationDateHandler;
 use LPagery\service\settings\SettingsController;
 use LPagery\service\sheet_sync\GoogleSheetQueueWorkerFactory;
 use LPagery\service\sheet_sync\GoogleSheetSyncControllerFactory;
 use LPagery\service\TrackingPermissionService;
+use LPagery\utils\Utils;
 if ( !defined( 'ABSPATH' ) ) {
     exit;
 }
@@ -66,6 +68,9 @@ if ( function_exists( 'lpagery_fs' ) ) {
     define( 'LPAGERY_VERSION', $lpagery_version );
     function lpagery_activate() {
         LPageryDao::get_instance()->init_db();
+        if ( !get_option( "lpagery_queue_create_post_secret" ) ) {
+            add_option( "lpagery_queue_create_post_secret", Utils::generateRandomString( 32 ) );
+        }
     }
 
     register_activation_hook( __FILE__, 'lpagery_activate' );
@@ -85,6 +90,8 @@ if ( function_exists( 'lpagery_fs' ) ) {
                 true
             );
         }
+        // Get current view parameter
+        $current_view = ( isset( $_GET['view'] ) ? $_GET['view'] : '' );
         add_menu_page(
             'LPagery',
             'LPagery',
@@ -93,6 +100,74 @@ if ( function_exists( 'lpagery_fs' ) ) {
             'bootstrap',
             $icon_data_uri
         );
+        // Add submenu items for Pro version
+        add_submenu_page(
+            'lpagery',
+            'Create Pages',
+            'Create Pages',
+            'manage_options',
+            'lpagery&view=create',
+            'bootstrap'
+        );
+        add_submenu_page(
+            'lpagery',
+            'Update Pages',
+            'Update Pages',
+            'manage_options',
+            'lpagery&view=update',
+            'bootstrap'
+        );
+        add_submenu_page(
+            'lpagery',
+            'Manage Pages',
+            'Manage Pages',
+            'manage_options',
+            'lpagery&view=manage',
+            'bootstrap'
+        );
+        add_submenu_page(
+            'lpagery',
+            'Settings',
+            'Settings',
+            'manage_options',
+            'lpagery&view=settings',
+            'bootstrap'
+        );
+        global $submenu;
+        if ( isset( $submenu['lpagery'] ) ) {
+            // Remove the first item which is the duplicate
+            unset($submenu['lpagery'][0]);
+        }
+        // Add filter to modify current menu parent
+        add_filter( 'parent_file', function ( $parent_file ) use($current_view) {
+            global $submenu_file;
+            if ( isset( $_GET['page'] ) && $_GET['page'] === 'lpagery' ) {
+                $submenu_file = 'lpagery&view=' . $current_view;
+            }
+            return $parent_file;
+        } );
+        add_action( 'admin_footer', function () {
+            ?>
+            <script>
+            window.addEventListener('lpageryHeaderChange', function(e) {
+                // Find and update the active menu state
+                jQuery('#adminmenu .wp-submenu li').removeClass('current');
+                jQuery('#adminmenu .wp-submenu a').removeClass('current');
+                
+                // Find the matching menu item and highlight both the link and its parent li
+                var $menuLink = jQuery('#adminmenu .wp-submenu a[href*="lpagery&view=' + e.detail.header + '"]');
+                $menuLink.addClass('current');
+                $menuLink.parent('li').addClass('current');
+                
+                // Also update the first menu item if we're on the main view
+                if (!e.detail.header || e.detail.header === '') {
+                    jQuery('#adminmenu .wp-submenu li:first-child').addClass('current');
+                    jQuery('#adminmenu .wp-submenu li:first-child a').addClass('current');
+                }
+            });
+            </script>
+            <?php 
+        } );
     }
 
     include_once plugin_dir_path( __FILE__ ) . '/src/io/AjaxActions.php';
@@ -426,8 +501,9 @@ if ( function_exists( 'lpagery_fs' ) ) {
         10,
         2
     );
-    if ( lpagery_fs()->is_free_plan() ) {
+    if ( !lpagery_fs()->is_plan_or_trial( 'extended' ) ) {
         wp_clear_scheduled_hook( "lpagery_sync_google_sheet" );
+        wp_clear_scheduled_hook( "lpagery_queue_worker_cron_event" );
     }
     add_action(
         'save_post',
@@ -458,4 +534,25 @@ if ( function_exists( 'lpagery_fs' ) ) {
     lpagery_fs()->add_filter( 'pricing_url', function () {
         return "https://lpagery.io/pricing/?utm_source=free_version&utm_medium=menu_item&utm_campaign=free";
     } );
+    // Add this new function to handle the menu click tracking
+    add_action( 'admin_footer', 'lpagery_add_menu_tracking' );
+    function lpagery_add_menu_tracking() {
+        ?>
+        <script>
+        jQuery(document).ready(function($) {
+            // Target main menu item and specific submenu items
+            $('a[href="admin.php?page=lpagery"], ' + 
+            'a[href*="lpagery&view=create"], ' +
+            'a[href*="lpagery&view=update"], ' +
+            'a[href*="lpagery&view=manage"], ' +
+            'a[href*="lpagery&view=settings"]').on('click', function() {
+                if (!localStorage.getItem('lpagery_intro_showed_free')) {
+                    localStorage.setItem('lpagery_intro_showed_free', 'true');
+                }
+            });
+        });
+        </script>
+        <?php 
+    }
+
 }

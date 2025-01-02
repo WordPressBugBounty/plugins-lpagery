@@ -11,6 +11,7 @@ use LPagery\io\Mapper;
 use LPagery\service\onboarding\OnboardingService;
 use LPagery\service\PageExportHandler;
 use LPagery\service\settings\SettingsController;
+use LPagery\service\sheet_sync\GoogleSheetSyncRestClient;
 use LPagery\utils\MemoryUtils;
 use LPagery\utils\Utils;
 use LPagery\wpml\WpmlHelper;
@@ -294,7 +295,7 @@ function lpagery_upsert_process()
             $google_sheet_data, $sync_enabled);
         if($google_sheet_enabled && $sync_enabled) {
 
-            wp_schedule_single_event(time(),'lpagery_sync_google_sheet');
+            GoogleSheetSyncRestClient::get_instance()->start_sync_for_process($lpagery_process_id);
         }
         print_r(json_encode(array("success" => true,
             "process_id" => $lpagery_process_id)));

@@ -4,7 +4,7 @@ Tags: bulk page, seo, local seo, mass page, programmatic seo
 Requires at least: 6.2
 Tested up to: 6.7.1
 Requires PHP: 7.4
-Stable tag: 2.0.9
+Stable tag: 2.0.11
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -268,6 +268,16 @@ You can revoke your consent at any time, and the integrations will be disabled i
 We are committed to transparency and your control over your data. For more information, please refer to our Privacy Policy.
 
 == Changelog ==
+
+
+= 2.0.11 - 2025-01-02 =
+* Fix: Trigger next sync after current one is finished to prevent duplicated cron-events
+
+
+= 2.0.10 - 2025-01-02 =
+* Feat: Start Sheet Sync per Page Set via Manage
+* Fix: Optimize Parallel Sheet Syncs
+* Fix: Onboarding Styling
 
 = 2.0.9 - 2024-12-27 =
 * Fix: Image Processing case insensitive search

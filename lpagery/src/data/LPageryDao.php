@@ -84,7 +84,7 @@ class LPageryDao
 
         $results = $wpdb->get_results($prepare);
 
-       return $results;
+        return $results;
     }
 
     public function lpagery_upsert_process($post_id, $process_id, $purpose, $data, $google_sheet_data, $google_sheet_sync_enabled)
@@ -181,7 +181,7 @@ class LPageryDao
                 "lpagery_settings" => $lpagery_settings,
                 "template_id" => $template_id,
                 "modified" => current_time('mysql'));
-            if($shouldContentBeUpdated) {
+            if ($shouldContentBeUpdated) {
                 $update_array["page_manually_updated_at"] = null;
                 $update_array["page_manually_updated_by"] = null;
             }
@@ -338,7 +338,6 @@ class LPageryDao
         return empty($results) ? null : $results[0];
 
     }
-
 
 
     public function lpagery_update_process_post_data($process_id, $data, $post_id, $slug, $replaced_slug)
@@ -552,7 +551,7 @@ class LPageryDao
         }
     }
 
-    public function lpagery_get_existing_post_by_id_in_process( int $id)
+    public function lpagery_get_existing_post_by_id_in_process(int $id)
     {
         global $wpdb;
         $table_name_process_post = $wpdb->prefix . 'lpagery_process_post';
@@ -582,6 +581,23 @@ class LPageryDao
                 "google_sheet_data" => maybe_unserialize($element->google_sheet_data),
                 "post_id" => $element->post_id);
         }, $results);
+    }
+
+    public function lpagery_get_process_for_google_sheet_sync($process_id)
+    {
+        global $wpdb;
+        $table_name_process = $wpdb->prefix . 'lpagery_process';
+        $results = $wpdb->get_results($wpdb->prepare("select id, data, post_id, created, google_sheet_data
+            from $table_name_process where google_sheet_sync_enabled and id = %s", $process_id));
+        if (empty($results)) {
+            return null;
+        }
+        $result = (array)$results[0];
+        return array("id" => $result['id'],
+            "created" => $result['created'],
+            "data" => maybe_unserialize($result['data']),
+            "google_sheet_data" => maybe_unserialize($result['google_sheet_data']),
+            "post_id" => $result['post_id']);
     }
 
     public function lpagery_get_process_posts_slugs($process_id)
@@ -655,15 +671,9 @@ class LPageryDao
 
         // Check if WPML is installed and get template language if exists
         if (defined('ICL_LANGUAGE_CODE')) {
-            $template_language = $wpdb->get_var(
-                $wpdb->prepare(
-                    "SELECT language_code FROM {$wpdb->prefix}icl_translations 
+            $template_language = $wpdb->get_var($wpdb->prepare("SELECT language_code FROM {$wpdb->prefix}icl_translations 
                     WHERE element_id = %d 
-                    AND element_type = %s",
-                    $template_id,
-                    'post_' . $post_type
-                )
-            );
+                    AND element_type = %s", $template_id, 'post_' . $post_type));
 
             // Only add WPML conditions if template has a language assigned
             if ($template_language) {
@@ -689,9 +699,8 @@ class LPageryDao
         ";
 
         // Prepare query based on whether we have WPML language
-        $prepared_query = $template_language 
-            ? $wpdb->prepare($query, $process_id, 'post_' . $post_type, $post_type, $template_language)
-            : $wpdb->prepare($query, $process_id, $post_type);
+        $prepared_query = $template_language ? $wpdb->prepare($query, $process_id, 'post_' . $post_type, $post_type,
+            $template_language) : $wpdb->prepare($query, $process_id, $post_type);
 
         $all_posts = $wpdb->get_results($prepared_query);
 
@@ -725,10 +734,9 @@ class LPageryDao
                 $filtered_posts[] = $post;
             }
         }
-        
+
         return $filtered_posts;
     }
-
 
 
     private function lpagery_table_exists()
@@ -852,32 +860,57 @@ class LPageryDao
     {
         global $wpdb;
         $table_name_queue = $wpdb->prefix . 'lpagery_sync_queue';
-        
+
         $where_conditions = ["process_id = %d"];
         $query_params = [$process_id];
-        
+
         // Add type filter
         if ($type === 'error') {
             $where_conditions[] = "error IS NOT NULL";
         } elseif ($type === 'queue') {
             $where_conditions[] = "error IS NULL";
         }
-        
+
         // Add slug filter if provided
         if (!empty($slug)) {
             $where_conditions[] = "slug LIKE %s";
             $query_params[] = '%' . $wpdb->esc_like($slug) . '%';
         }
-        
+
         $where_clause = implode(' AND ', $where_conditions);
-        $prepare = $wpdb->prepare(
-            "SELECT id, slug, retry as retry_count, error 
+        $prepare = $wpdb->prepare("SELECT id, slug, retry as retry_count, error 
             FROM $table_name_queue 
             WHERE $where_clause 
-            LIMIT 1000",
-            ...$query_params
-        );
+            LIMIT 1000", ...$query_params);
 
         return $wpdb->get_results($prepare);
     }
+
+    public function is_sheet_data_downloading(): bool
+    {
+        global $wpdb;
+        $table_name_process = $wpdb->prefix . 'lpagery_process';
+        $prepare = $wpdb->prepare("SELECT EXISTS (
+                SELECT id
+                FROM $table_name_process
+                WHERE google_sheet_sync_enabled
+                AND google_sheet_sync_status IN ('DOWNLOADING_DATA', 'CRON_STARTED')
+            ) as is_syncing;");
+        $result = (array)$wpdb->get_results($prepare)[0];
+        return boolval($result['is_syncing']);
+    }
+
+    public function get_next_set_to_be_synced() : ?int
+    {
+        global $wpdb;
+        $table_name_process = $wpdb->prefix . 'lpagery_process';
+        $next_id = $wpdb->get_var("SELECT id from $table_name_process where google_sheet_sync_status = 'CRON_STARTED' and google_sheet_sync_enabled LIMIT 1");
+
+        if($next_id) {
+            return intval($next_id);
+        }
+        return null;
+
+    }
 }
+

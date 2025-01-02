@@ -36,12 +36,12 @@
     "src": "src/assets/pro.svg"
   },
   "src/index.tsx": {
-    "file": "assets/index-ayYV07ZS.js",
+    "file": "assets/index-CnzB2Kt8.js",
     "name": "index",
     "src": "src/index.tsx",
     "isEntry": true,
     "css": [
-      "assets/index-Dc41mxAV.css"
+      "assets/index-CwMm8UWY.css"
     ],
     "assets": [
       "assets/pro-Du7Eyhe6.svg",

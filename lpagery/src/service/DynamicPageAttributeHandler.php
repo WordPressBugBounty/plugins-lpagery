@@ -40,8 +40,6 @@ class DynamicPageAttributeHandler {
     public function lpagery_get_parent( BaseParams $params, $post_type, $parent_id_from_dashboard ) {
         $json_data = $params->raw_data ?? array();
         if ( !array_key_exists( "lpagery_parent", $json_data ) ) {
-            error_log( "Parent not found in JSON data" );
-            error_log( json_encode( $json_data ) );
             return $this->lpageryDao->lpagery_find_post_by_id( $parent_id_from_dashboard );
         }
         $lpagery_parent_term = $json_data["lpagery_parent"];
