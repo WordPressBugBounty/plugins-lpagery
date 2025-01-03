@@ -4,7 +4,7 @@
 Plugin Name: LPagery
 Plugin URI: https://lpagery.io/
 Description: Create hundreds or even thousands of landingpages for local businesses, services etc.
-Version: 2.0.11
+Version: 2.0.12
 Author: LPagery
 License: GPLv2 or later
 */
@@ -78,18 +78,6 @@ if ( function_exists( 'lpagery_fs' ) ) {
     function lpagery_setup_menu() {
         $icon_base64 = 'PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4KPCEtLSBHZW5lcmF0b3I6IEFkb2JlIElsbHVzdHJhdG9yIDI2LjIuMSwgU1ZHIEV4cG9ydCBQbHVnLUluIC4gU1ZHIFZlcnNpb246IDYuMDAgQnVpbGQgMCkgIC0tPgo8c3ZnIHZlcnNpb249IjEuMSIgaWQ9IkViZW5lXzEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIHg9IjBweCIgeT0iMHB4IgoJIHZpZXdCb3g9IjAgMCA1MjcuMTYgNjc0LjQ1IiBzdHlsZT0iZW5hYmxlLWJhY2tncm91bmQ6bmV3IDAgMCA1MjcuMTYgNjc0LjQ1OyIgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+CjxzdHlsZSB0eXBlPSJ0ZXh0L2NzcyI+Cgkuc3Qwe2ZpbGw6I0ZGRkZGRjt9Cgkuc3Qxe2ZpbGw6bm9uZTtzdHJva2U6I0ZGRkZGRjtzdHJva2Utd2lkdGg6MztzdHJva2UtbWl0ZXJsaW1pdDoxMDt9Cjwvc3R5bGU+CjxwYXRoIGNsYXNzPSJzdDAiIGQ9Ik0yNTAuNDUsMzQ3LjYySDExMi4zOWMwLTAuMDEsMC0wLjAyLDAtMC4wMmwtMC4wMSwwLjAxbDAtMTg0LjQ5YzAtMzEuMDMtMjUuMTUtNTYuMTgtNTYuMTgtNTYuMTgKCWMwLDAsMCwwLTAuMDEsMEMyNS4xNiwxMDYuOTMsMCwxMzIuMDksMCwxNjMuMTFsMCwyNDAuNjJjMCwyOS44OSwyMi4wOCw1NC4yOSw1MS40OSw1Ni4wNGMxLjU4LDAuMTMsMy4xNiwwLjIyLDQuNzcsMC4yMgoJbDg5LjkxLTAuMTRsMzQuMzktMC4wMmwwLjAzLTAuMDNsMi4wMSwwTDI1MC40NSwzNDcuNjJ6Ii8+CjxwYXRoIGNsYXNzPSJzdDAiIGQ9Ik01MDMuODcsMjg2Ljc1Yy0xLjMyLTAuOTYtMi42OC0xLjg5LTQuMS0yLjc1TDM4OC43LDIxNi43OGwtMC4wMSwwbDAsMGwtMTAuNTUtNi4zOWwtMzIuMDItMTcuOTlsLTI5LjU1LDQ4LjMzCglsLTI4LjM5LDQ2LjMxbDEwNS4zMSw2My45YzAsMC4wMS0wLjAxLDAuMDMtMC4wMSwwLjAzbDAuMDIsMGwtOTUuNzIsMTU3LjcyYy0xNi4wOSwyNi41My03LjY0LDYxLjA5LDE4Ljg5LDc3LjE4CgljMjYuNTMsMTYuMSw2MS4wOSw3LjY0LDc3LjE4LTE4Ljg5bDEyNC44My0yMDUuNzFDNTM0LjE2LDMzNS43Nyw1MjcuOTgsMzAzLjUyLDUwMy44NywyODYuNzV6Ii8+CjxsaW5lIGNsYXNzPSJzdDEiIHgxPSI1Ni45NyIgeTE9IjY2NS4yNCIgeDI9IjQ2My43OCIgeTI9IjAiLz4KPC9zdmc+Cg==';
         $icon_data_uri = 'data:image/svg+xml;base64,' . $icon_base64;
-        if ( !TrackingPermissionService::get_instance( InstallationDateHandler::get_instance() )->getPermissions()->getIntercom() ) {
-            lpagery_fs()->add_submenu_link_item(
-                lpagery_fs()->get_text_inline( 'Contact Us', 'contact-us' ),
-                "https://lpagery.io/contact/",
-                'lpagery_contact',
-                'manage_options',
-                WP_FS__DEFAULT_PRIORITY,
-                true,
-                'fs_external_contact',
-                true
-            );
-        }
         // Get current view parameter
         $current_view = ( isset( $_GET['view'] ) ? $_GET['view'] : '' );
         add_menu_page(
@@ -168,6 +156,42 @@ if ( function_exists( 'lpagery_fs' ) ) {
             </script>
             <?php 
         } );
+        if ( !TrackingPermissionService::get_instance( InstallationDateHandler::get_instance() )->getPermissions()->getIntercom() ) {
+            add_submenu_page(
+                'lpagery',
+                // Parent slug
+                'Contact Us',
+                // Page title
+                'Contact Us',
+                // Menu title
+                'manage_options',
+                // Capability
+                'lpagery_contact',
+                // Menu slug
+                function () {
+                    // Callback function to handle redirect
+                    wp_redirect( 'https://lpagery.io/contact/' );
+                    exit;
+                }
+            );
+            // Add JavaScript to handle the redirect
+            add_action( 'admin_footer', function () {
+                ?>
+                <script>
+                jQuery(document).ready(function($) {
+                    // Directly modify the menu item when the page loads
+                    $('a[href*="admin.php?page=lpagery_contact"]').attr('href', 'https://lpagery.io/contact/').attr('target', '_blank');
+                    
+                    // Prevent the default navigation and redirect if someone clicks before JS runs
+                    $(document).on('click', 'a[href*="admin.php?page=lpagery_contact"]', function(e) {
+                        e.preventDefault();
+                        window.open('https://lpagery.io/contact/', '_blank');
+                    });
+                });
+                </script>
+                <?php 
+            } );
+        }
     }
 
     include_once plugin_dir_path( __FILE__ ) . '/src/io/AjaxActions.php';
@@ -504,6 +528,7 @@ if ( function_exists( 'lpagery_fs' ) ) {
     if ( !lpagery_fs()->is_plan_or_trial( 'extended' ) ) {
         wp_clear_scheduled_hook( "lpagery_sync_google_sheet" );
         wp_clear_scheduled_hook( "lpagery_queue_worker_cron_event" );
+        wp_clear_scheduled_hook( "lpagery_trigger_cron_started_syncs" );
     }
     add_action(
         'save_post',

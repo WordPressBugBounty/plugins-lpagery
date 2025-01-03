@@ -294,8 +294,7 @@ function lpagery_upsert_process()
         $lpagery_process_id = $LPageryDao->lpagery_upsert_process($post_id, $process_id, $purpose, $data,
             $google_sheet_data, $sync_enabled);
         if($google_sheet_enabled && $sync_enabled) {
-
-            GoogleSheetSyncRestClient::get_instance()->start_sync_for_process($lpagery_process_id);
+            wp_schedule_single_event(time(), 'lpagery_start_sync_for_process', array(intval($lpagery_process_id)));
         }
         print_r(json_encode(array("success" => true,
             "process_id" => $lpagery_process_id)));

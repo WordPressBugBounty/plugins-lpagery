@@ -432,7 +432,7 @@ class LPageryDao
         global $wpdb;
 
         $table_name_process_post = $wpdb->prefix . 'lpagery_process_post';
-        $prepare = $wpdb->prepare("select p.id
+        $prepare = $wpdb->prepare("select p.id, p.post_type, p.post_title, p.post_name
 				from $wpdb->posts p
          inner join $table_name_process_post lpp on p.ID = lpp.post_id where lpp.lpagery_process_id = %s and p.post_status != 'trash'",
             $process_id);
@@ -451,11 +451,11 @@ class LPageryDao
         $wpdb->delete($table_name_process, array("id" => $process_id));
     }
 
-    public function lpagery_delete_process_post($process_id, $post_id)
+    public function lpagery_delete_process_post($post_id)
     {
         global $wpdb;
         $table_name_process_post = $wpdb->prefix . 'lpagery_process_post';
-        $wpdb->delete($table_name_process_post, array("lpagery_process_id" => $process_id,
+        $wpdb->delete($table_name_process_post, array(
             "post_id" => $post_id));
     }
 
@@ -910,6 +910,17 @@ class LPageryDao
             return intval($next_id);
         }
         return null;
+
+    }
+
+    public function lpagery_update_process_template(int $processId, int $templateId)
+    {
+        global $wpdb;
+        $table_name_process = $wpdb->prefix . 'lpagery_process';
+        $previous_template = $wpdb->get_var($wpdb->prepare("SELECT post_id FROM $table_name_process WHERE id = %d", $processId));
+        $wpdb->update($table_name_process, array("post_id" => $templateId), array("id" => $processId));
+        $table_name_process_post = $wpdb->prefix . 'lpagery_process_post';
+        $wpdb->update($table_name_process_post, array("template_id" => $templateId), array("lpagery_process_id" => $processId, "template_id" => $previous_template));
 
     }
 }

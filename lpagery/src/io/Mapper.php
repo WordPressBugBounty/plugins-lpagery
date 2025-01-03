@@ -152,10 +152,14 @@ class Mapper
         $mysqldate = date('Y-m-d', $phpdate);
         $post = get_post($lpagery_process->post_id);
         if ($post) {
-            $post_array = array("title" => $post->post_title,
+            $title = $post->post_title;
+            if($post->post_status === "trash") {
+                $title = "Trashed (" .  $post->post_title . ")";
+            }
+            $post_array = array("title" => $title,
                 "permalink" => get_permalink($post),
                 "type" => get_post_type($post),
-                "deleted" => false);
+                "deleted" => $post->post_status === "trash");
 
             $wpmlLanguageData = WpmlHelper::get_wpml_language_data($lpagery_process->post_id);
             if ($wpmlLanguageData->language_code) {
@@ -279,15 +283,28 @@ class Mapper
                 $status = "PAST_DUE";
             }
         }
+        global $wpdb;
+        $exists_error = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}lpagery_sync_queue WHERE error is not null  AND process_id = {$process->id}");
+        $exists_pending = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}lpagery_sync_queue WHERE error is null  AND process_id = {$process->id}");
+
+        if($status === "RUNNING") {
+            if(!$exists_pending) {
+                $status = "FINISHED";
+            }
+        }
+
         if($status === "FINISHED") {
-            global $wpdb;
-            
-            $exists_error = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}lpagery_sync_queue WHERE error is not null  AND process_id = {$process->id}");
+
             if($exists_error) {
                 $status = "ERROR";
             }
 
+            if($exists_pending) {
+                $status = "WAITING_FOR_PROCESSING";
+            }
+
         }
+
 
         return [$next_sync,
             $last_sync,

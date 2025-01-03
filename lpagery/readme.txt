@@ -4,7 +4,7 @@ Tags: bulk page, seo, local seo, mass page, programmatic seo
 Requires at least: 6.2
 Tested up to: 6.7.1
 Requires PHP: 7.4
-Stable tag: 2.0.11
+Stable tag: 2.0.12
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -269,6 +269,12 @@ We are committed to transparency and your control over your data. For more infor
 
 == Changelog ==
 
+= 2.0.12 - 2025-01-03 =
+* Feat: Bulk Delete Performance Optimizations
+* Feat: Allow "published" as status in lpagery_status
+* Feat: Allow to re-assign template page if it was deleted
+* Fix: Wrong menu when plugin not activated yet
+* Fix: Fixing an Edge-Case where the Sheet Sync doesnt start
 
 = 2.0.11 - 2025-01-02 =
 * Fix: Trigger next sync after current one is finished to prevent duplicated cron-events
