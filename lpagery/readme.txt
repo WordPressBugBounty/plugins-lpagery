@@ -4,7 +4,7 @@ Tags: bulk page, seo, local seo, mass page, programmatic seo
 Requires at least: 6.2
 Tested up to: 6.7.1
 Requires PHP: 7.4
-Stable tag: 2.0.12
+Stable tag: 2.0.13
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -268,6 +268,11 @@ You can revoke your consent at any time, and the integrations will be disabled i
 We are committed to transparency and your control over your data. For more information, please refer to our Privacy Policy.
 
 == Changelog ==
+
+= 2.0.12 - 2025-01-04 =
+* Feat: Add Post Type and ID to Page Select
+* Fix: BeBuilder base64 encoded content
+* Fix: Add ending to attachment when it is missing during save
 
 = 2.0.12 - 2025-01-03 =
 * Feat: Bulk Delete Performance Optimizations

@@ -235,4 +235,9 @@ class Utils
             $option_name));
         return maybe_unserialize($option_value);
     }
+
+    public static function is_base_64_encoded($string)
+    {
+        return base64_encode(base64_decode($string, true)) === $string;
+    }
 }

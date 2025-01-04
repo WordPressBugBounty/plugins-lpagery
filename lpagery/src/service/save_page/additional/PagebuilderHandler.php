@@ -173,19 +173,23 @@ class PagebuilderHandler
     {
         // Handle preview meta
         $preview_meta_value = get_post_meta($sourcePostId, "mfn-builder-preview", true);
+        if (Utils::is_base_64_encoded($preview_meta_value)) {
+            $preview_meta_value = base64_decode($preview_meta_value);
+        }
         $preview_meta_value = maybe_unserialize($preview_meta_value);
         $preview_meta_value = $this->substitutionHandler->lpagery_substitute($params, $preview_meta_value);
         delete_post_meta($targetPostId, "mfn-builder-preview");
         update_post_meta($targetPostId, "mfn-builder-preview", $preview_meta_value);
 
-        // Handle page items meta
         $items_meta_value = get_post_meta($sourcePostId, "mfn-page-items", true);
+        if (Utils::is_base_64_encoded($items_meta_value)) {
+            $items_meta_value = base64_decode($items_meta_value);
+        }
         $items_meta_value = maybe_unserialize($items_meta_value);
         $items_meta_value = $this->substitutionHandler->lpagery_substitute($params, $items_meta_value);
         delete_post_meta($targetPostId, "mfn-page-items");
         update_post_meta($targetPostId, "mfn-page-items", $items_meta_value);
 
-        // Handle Mfn_Helper if available
         if (class_exists("Mfn_Helper")) {
             $object = get_post_meta($targetPostId, 'mfn-page-object', true);
             $object = json_decode($object, true);
@@ -281,5 +285,6 @@ class PagebuilderHandler
         }
 
     }
+    
 
 }

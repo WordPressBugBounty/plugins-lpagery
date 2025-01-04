@@ -23,8 +23,16 @@ class Mapper
     public function lpagery_map_post($post)
     {
         $result = array("id" => $post->ID,
-            "title" => $post->post_title,
-            "type" => $post->post_type);
+            "title" => $post->post_title);
+            
+        if (isset($post->post_type)) {
+            $post_type = get_post_type_object($post->post_type);
+            if ($post_type) {
+                $result["type_label"] = $post_type->labels->singular_name;
+                $result["type"] = $post_type->name;
+            }
+        }
+
         if (isset($post->language_code)) {
             $result["language_code"] = $post->language_code;
         }
