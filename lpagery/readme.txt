@@ -4,7 +4,7 @@ Tags: bulk page, seo, local seo, mass page, programmatic seo
 Requires at least: 6.2
 Tested up to: 6.7.1
 Requires PHP: 7.4
-Stable tag: 2.0.13
+Stable tag: 2.0.14
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -148,6 +148,7 @@ Whether you prefer a specific page builder or theme, LPagery's flexible design e
 * RankMath SEO
 * All In One SEO
 * SEOPress
+* Link Whisper
 * And nearly all other themes and pagebuilders
 
 We designed LPagery to work with nearly all themes and pagebuilders so even if your theme/pagebuilder is not on this list, it will probably work too!
@@ -269,7 +270,18 @@ We are committed to transparency and your control over your data. For more infor
 
 == Changelog ==
 
-= 2.0.12 - 2025-01-04 =
+= 2.0.14 - 2025-01-10 =
+* Feat: Add Support for Link Whisper
+* Feat: Show Label in CPT-Select
+* Feat: Add Support for image processing when month/year directories are disabled
+* Feat: Add check before creation for not existing placeholder in slug
+* Fix: Search for Attachments without Ending
+* Fix: Reassign Template Dialog Styling
+* Fix: Sync Status when finished
+* Fix: Type Error in CPT-Select
+
+
+= 2.0.13 - 2025-01-04 =
 * Feat: Add Post Type and ID to Page Select
 * Fix: BeBuilder base64 encoded content
 * Fix: Add ending to attachment when it is missing during save

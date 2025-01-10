@@ -37,6 +37,7 @@ return array(
     'LPagery\\service\\delete\\DeleteProcessService' => $baseDir . '/src/service/delete/DeleteProcessService.php',
     'LPagery\\service\\duplicates\\DuplicateSlugHelper' => $baseDir . '/src/service/duplicates/DuplicateSlugHelper.php',
     'LPagery\\service\\duplicates\\DuplicateSlugProvider' => $baseDir . '/src/service/duplicates/DuplicateSlugProvider.php',
+    'LPagery\\service\\duplicates\\DuplicateSlugResult' => $baseDir . '/src/service/duplicates/DuplicateSlugResult.php',
     'LPagery\\service\\media\\AttachmentHelper' => $baseDir . '/src/service/media/AttachmentHelper.php',
     'LPagery\\service\\media\\AttachmentReplacementProvider' => $baseDir . '/src/service/media/AttachmentReplacementProvider.php',
     'LPagery\\service\\media\\AttachmentSaver' => $baseDir . '/src/service/media/AttachmentSaver.php',

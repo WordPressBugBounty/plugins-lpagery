@@ -295,7 +295,7 @@ class Mapper
         $exists_error = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}lpagery_sync_queue WHERE error is not null  AND process_id = {$process->id}");
         $exists_pending = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}lpagery_sync_queue WHERE error is null  AND process_id = {$process->id}");
 
-        if($status === "RUNNING") {
+        if($status === "RUNNING" || $status ==="PAUSED_WAITING_FOR_NEXT_BATCH" || $status === "WAITING_FOR_PROCESSING") {
             if(!$exists_pending) {
                 $status = "FINISHED";
             }

@@ -11,7 +11,6 @@ use LPagery\io\Mapper;
 use LPagery\service\onboarding\OnboardingService;
 use LPagery\service\PageExportHandler;
 use LPagery\service\settings\SettingsController;
-use LPagery\service\sheet_sync\GoogleSheetSyncRestClient;
 use LPagery\utils\MemoryUtils;
 use LPagery\utils\Utils;
 use LPagery\wpml\WpmlHelper;
@@ -354,8 +353,13 @@ function lpagery_get_duplicated_slugs()
         $data = $_POST['data'] ?? null;
         $template_id = intval($_POST['post_id']);
 
+        $json_decode = json_decode(wp_unslash($_POST['keys']), true);
+        $keys = isset($_POST['keys']) ? array_map('sanitize_text_field', $json_decode) : [];
+        
+
+
         $duplicateSlugHandler = DuplicateSlugHandlerFactory::create();
-        echo json_encode($duplicateSlugHandler->lpagery_get_duplicated_slugs($data, $process_id, $slug, $template_id));
+        echo json_encode($duplicateSlugHandler->lpagery_get_duplicated_slugs($data, $template_id, $slug, $process_id, $keys));
     } catch (\Throwable $throwable) {
         echo json_encode(array("success" => false,
             "exception" => $throwable->__toString()));

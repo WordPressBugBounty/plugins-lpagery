@@ -3,6 +3,7 @@
 namespace LPagery\service\settings;
 
 use LPagery\data\LPageryDao;
+use WP_Post_Type;
 
 class SettingsController
 {
@@ -28,7 +29,7 @@ class SettingsController
     /**
      * Filters out default WordPress post types
      */
-    public function filterPostType(string $type): bool
+    public function filterPostType(WP_Post_Type $type): bool
     {
         $excludedTypes = [
             "post",
@@ -46,7 +47,7 @@ class SettingsController
             "wp_global_styles",
             "wp_navigation",
         ];
-        return !in_array($type, $excludedTypes, true);
+        return !in_array($type->name, $excludedTypes, true);
     }
 
     /**
@@ -54,8 +55,14 @@ class SettingsController
      */
     public function getAvailablePostTypes(): array
     {
-        $postTypes = get_post_types(['public' => true]);
-        return array_filter($postTypes, [$this, 'filterPostType']);
+        $postTypes = get_post_types(['public' => true], "objects");
+        $filtered = array_filter($postTypes, [$this,
+            'filterPostType']);
+        $result = array_map(function ($type) {
+            return ["name"  => $type->name, "label" => $type->label];
+        }, $filtered);
+        
+        return array_values($result);
     }
 
     /**
@@ -171,12 +178,15 @@ class SettingsController
      */
     private function createSettingsFromUserOptions(array $userOptions): Settings
     {
+        $custom_post_types  = $userOptions['custom_post_types'];
+        if(!is_array($custom_post_types)) {
+            $custom_post_types = [];
+        }
+        $custom_post_types = array_values($custom_post_types);
         $settings = new Settings();
         $settings->spintax = filter_var($userOptions['spintax'] ?? false, FILTER_VALIDATE_BOOLEAN);
         $settings->image_processing = filter_var($userOptions['image_processing'] ?? lpagery_fs()->is_plan_or_trial("extended"), FILTER_VALIDATE_BOOLEAN);
-        $settings->custom_post_types = array_filter($userOptions['custom_post_types'] ?? [], function($post_type) {
-            return post_type_exists($post_type);
-        });
+        $settings->custom_post_types = $custom_post_types;
         $settings->hierarchical_taxonomy_handling = $userOptions['hierarchical_taxonomy_handling'] ?? 'last';
         $settings->author_id = $userOptions['author_id'] ?? get_current_user_id();
         $settings->google_sheet_sync_interval = get_option(self::OPTION_GOOGLE_SHEET_SYNC_INTERVAL, "hourly");
