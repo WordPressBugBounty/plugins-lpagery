@@ -4,7 +4,7 @@ Tags: bulk page, seo, local seo, mass page, programmatic seo
 Requires at least: 6.2
 Tested up to: 6.7.1
 Requires PHP: 7.4
-Stable tag: 2.0.14
+Stable tag: 2.0.16
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -269,6 +269,14 @@ You can revoke your consent at any time, and the integrations will be disabled i
 We are committed to transparency and your control over your data. For more information, please refer to our Privacy Policy.
 
 == Changelog ==
+
+= 2.0.16 - 2025-01-20 =
+* Feat: Update Page Status with Sheet Sync
+* Fix: Describing warning in free version when template without placeholder in title selected
+* Fix: Show error to user if server error occurs
+
+= 2.0.15 - 2025-01-10 =
+* Fix: Find existing image when downloading and existing image is suffixed with "-scaled"
 
 = 2.0.14 - 2025-01-10 =
 * Feat: Add Support for Link Whisper

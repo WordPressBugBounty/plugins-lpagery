@@ -237,5 +237,14 @@ class LPageryDatabaseMigrator
             update_option("lpagery_database_version", 8);
         }
 
+        if ($db_version < 9 && $this->lpagery_table_exists_migrate($table_name_process_post)) {
+            $wpdb->query("ALTER TABLE $table_name_sync_queue ADD COLUMN status_from_dashboard varchar(255) not null default '-1'");
+            $wpdb->query("ALTER TABLE $table_name_sync_queue ADD COLUMN publish_timestamp timestamp null default null");
+            $wpdb->query("ALTER TABLE $table_name_sync_queue ADD COLUMN force_update boolean not null default false");
+            $wpdb->query("ALTER TABLE $table_name_sync_queue ADD COLUMN overwrite_manual_changes boolean not null default false");
+            update_option("lpagery_database_version", 9);
+
+        }
+
     }
 }

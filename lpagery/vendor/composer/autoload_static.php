@@ -54,6 +54,7 @@ class ComposerStaticInit1319a04edad46ada0155a4ffbbf7a9c5
         'LPagery\\model\\BaseParams' => __DIR__ . '/../..' . '/src/model/BaseParams.php',
         'LPagery\\model\\PageCreationDashboardSettings' => __DIR__ . '/../..' . '/src/model/PageCreationDashboardSettings.php',
         'LPagery\\model\\Params' => __DIR__ . '/../..' . '/src/model/Params.php',
+        'LPagery\\model\\ProcessSheetSyncParams' => __DIR__ . '/../..' . '/src/model/ProcessSheetSyncParams.php',
         'LPagery\\model\\TrackingPermissions' => __DIR__ . '/../..' . '/src/model/TrackingPermissions.php',
         'LPagery\\service\\Beautify_Html' => __DIR__ . '/../..' . '/src/service/Beautify_Html.php',
         'LPagery\\service\\DynamicPageAttributeHandler' => __DIR__ . '/../..' . '/src/service/DynamicPageAttributeHandler.php',

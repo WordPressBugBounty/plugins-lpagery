@@ -96,8 +96,8 @@ class CreatePostDelegate {
         if ( !$template_post ) {
             throw new Exception("Post with ID " . $templatePath . " not found");
         }
-        $force_update_content = filter_var( $_POST["force_update_content"] ?? false, FILTER_VALIDATE_BOOLEAN );
-        $overwrite_manual_changes = filter_var( $_POST["overwrite_manual_changes"] ?? false, FILTER_VALIDATE_BOOLEAN );
+        $force_update_content = filter_var( $REQUEST_PAYLOAD["force_update_content"] ?? false, FILTER_VALIDATE_BOOLEAN );
+        $overwrite_manual_changes = filter_var( $REQUEST_PAYLOAD["overwrite_manual_changes"] ?? false, FILTER_VALIDATE_BOOLEAN );
         $data = $REQUEST_PAYLOAD['data'] ?? null;
         if ( isset( $REQUEST_PAYLOAD["page_id_to_be_updated"] ) && !$data ) {
             $process_post_data = $this->lpageryDao->lpagery_get_process_post_data( intval( $REQUEST_PAYLOAD["page_id_to_be_updated"] ) );

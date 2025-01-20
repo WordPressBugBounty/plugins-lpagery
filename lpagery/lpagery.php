@@ -4,7 +4,7 @@
 Plugin Name: LPagery
 Plugin URI: https://lpagery.io/
 Description: Create hundreds or even thousands of landingpages for local businesses, services etc.
-Version: 2.0.14
+Version: 2.0.16
 Author: LPagery
 License: GPLv2 or later
 */
@@ -13,6 +13,7 @@ use Kucrut\Vite;
 use LPagery\data\LPageryDao;
 use LPagery\factories\GoogleSheetSyncProcessHandlerFactory;
 use LPagery\io\Mapper;
+use LPagery\model\ProcessSheetSyncParams;
 use LPagery\service\InstallationDateHandler;
 use LPagery\service\settings\SettingsController;
 use LPagery\service\sheet_sync\GoogleSheetQueueWorkerFactory;

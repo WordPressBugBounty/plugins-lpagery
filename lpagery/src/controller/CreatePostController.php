@@ -81,8 +81,12 @@ class CreatePostController
         $params["process_id"] = $process_id;
         $params["creation_id"] = $creation_id;
         $params["data"] = maybe_unserialize($queue_item["data"]);
-        $params["force_update_content"] = $this->settingsController->isForceUpdateEnabled();
-        $params["overwrite_manual_changes"] = $this->settingsController->isOverwriteManualChangesEnabled();
+        $params["force_update_content"] = ($queue_item["force_update"] ?? false) || $this->settingsController->isForceUpdateEnabled();
+        $params["overwrite_manual_changes"] = ($queue_item["overwrite_manual_changes"] ?? false) || $this->settingsController->isOverwriteManualChangesEnabled();
+        $params["publish_timestamp"] = $queue_item["publish_timestamp"] ?? null;
+        if(isset($queue_item["status_from_dashboard"])) {
+            $params["status"] = $queue_item["status_from_dashboard"];
+        }
 
         $response = $this->createPostDelegate->lpagery_create_post($params, $processed_slugs, $operations);
         if ($creation_id && $response->slug && $response->mode !== "ignored") {

@@ -8,6 +8,7 @@ use LPagery\data\SearchPostService;
 use LPagery\factories\CreatePostDelegateFactory;
 use LPagery\factories\DuplicateSlugHandlerFactory;
 use LPagery\io\Mapper;
+use LPagery\model\ProcessSheetSyncParams;
 use LPagery\service\onboarding\OnboardingService;
 use LPagery\service\PageExportHandler;
 use LPagery\service\settings\SettingsController;
@@ -293,7 +294,26 @@ function lpagery_upsert_process()
         $lpagery_process_id = $LPageryDao->lpagery_upsert_process($post_id, $process_id, $purpose, $data,
             $google_sheet_data, $sync_enabled);
         if($google_sheet_enabled && $sync_enabled) {
-            wp_schedule_single_event(time(), 'lpagery_start_sync_for_process', array(intval($lpagery_process_id)));
+
+            $update_settings = $_POST['update_settings'] ?? [];
+            
+            $is_force_update = !empty($update_settings['force_update']) && rest_sanitize_boolean($update_settings['force_update']);
+            $is_overwrite_manual_changes = !empty($update_settings['overwrite_manual_changes']) && rest_sanitize_boolean($update_settings['overwrite_manual_changes']);
+            
+            $publish_timestamp = isset($update_settings['publish_timestamp']) ? sanitize_text_field($update_settings['publish_timestamp']) : null;
+
+            $status = $data["status"] ?? '-1';
+            
+            $processSheetSyncParams = new ProcessSheetSyncParams(
+                intval($lpagery_process_id), 
+                $is_force_update,
+                $is_overwrite_manual_changes, 
+                $status,
+                $publish_timestamp
+            );
+            
+            
+            wp_schedule_single_event(time(), 'lpagery_start_sync_for_process', array($processSheetSyncParams));
         }
         print_r(json_encode(array("success" => true,
             "process_id" => $lpagery_process_id)));

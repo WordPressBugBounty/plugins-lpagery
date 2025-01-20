@@ -26,6 +26,7 @@ return array(
     'LPagery\\model\\BaseParams' => $baseDir . '/src/model/BaseParams.php',
     'LPagery\\model\\PageCreationDashboardSettings' => $baseDir . '/src/model/PageCreationDashboardSettings.php',
     'LPagery\\model\\Params' => $baseDir . '/src/model/Params.php',
+    'LPagery\\model\\ProcessSheetSyncParams' => $baseDir . '/src/model/ProcessSheetSyncParams.php',
     'LPagery\\model\\TrackingPermissions' => $baseDir . '/src/model/TrackingPermissions.php',
     'LPagery\\service\\Beautify_Html' => $baseDir . '/src/service/Beautify_Html.php',
     'LPagery\\service\\DynamicPageAttributeHandler' => $baseDir . '/src/service/DynamicPageAttributeHandler.php',
