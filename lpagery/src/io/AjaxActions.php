@@ -158,7 +158,7 @@ function lpagery_get_taxonomies()
 
     $result = array_map(function ($taxonomy) {
         return array("name" => $taxonomy->name,
-            "label" => $taxonomy->label);
+            "label" => $taxonomy->label != null ? $taxonomy->label : $taxonomy->name);
     }, $taxonomies);
     echo(json_encode(array_values($result)));
     wp_die();
@@ -510,3 +510,36 @@ function lpagery_create_onboarding_template_page()
     echo json_encode(array("success" => true, "page_id" => $page_id));
     wp_die();
 }
+
+add_action('wp_ajax_lpagery_assign_page_set_to_me', 'LPagery\lpagery_assign_page_set_to_me');
+function lpagery_assign_page_set_to_me() {
+    check_ajax_referer('lpagery_ajax');
+    try {
+        $process_id = isset($_POST['process_id']) ? (int)$_POST['process_id'] : null;
+        if (!$process_id) {
+            throw new \Exception('Process ID is required');
+        }
+
+        $LPageryDao = LPageryDao::get_instance();
+        $process = $LPageryDao->lpagery_get_process_by_id($process_id);
+        
+        if (!$process) {
+            throw new \Exception('Process not found');
+        }
+
+        $current_user_id = get_current_user_id();
+        $LPageryDao->lpagery_update_process_user($process_id, $current_user_id);
+
+        echo json_encode(array(
+            "success" => true,
+            "process_id" => $process_id
+        ));
+    } catch (\Throwable $exception) {
+        echo json_encode(array(
+            "success" => false,
+            "exception" => $exception->getMessage()
+        ));
+    }
+    wp_die();
+}
+

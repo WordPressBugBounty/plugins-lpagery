@@ -13,5 +13,5 @@ class Settings
     public int $sync_batch_size;
     public string $google_sheet_sync_interval;
     public ?string $next_google_sheet_sync;
-
+    public ?bool $wp_cron_disabled;
 }

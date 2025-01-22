@@ -4,7 +4,7 @@ Tags: bulk page, seo, local seo, mass page, programmatic seo
 Requires at least: 6.2
 Tested up to: 6.7.1
 Requires PHP: 7.4
-Stable tag: 2.0.16
+Stable tag: 2.0.18
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -269,6 +269,16 @@ You can revoke your consent at any time, and the integrations will be disabled i
 We are committed to transparency and your control over your data. For more information, please refer to our Privacy Policy.
 
 == Changelog ==
+
+= 2.0.18 - 2025-01-22 =
+* Fix: Settings in free version
+
+= 2.0.17 - 2025-01-22 =
+* Feat: Assign User to Page Set if creator is deleted
+* Feat: Show hint in settings if wp cron is disabled
+* Fix: Allow null values on user name and email for deleted users
+* Fix: Improve WPML detection
+
 
 = 2.0.16 - 2025-01-20 =
 * Feat: Update Page Status with Sheet Sync

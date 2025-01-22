@@ -161,6 +161,7 @@ class SettingsController
         $settings->google_sheet_sync_overwrite_manual_changes = false;
         $settings->google_sheet_sync_enabled = false;
         $settings->hierarchical_taxonomy_handling = 'last';
+        $settings->wp_cron_disabled = defined('DISABLE_WP_CRON') && DISABLE_WP_CRON;
 
         return $settings;
     }
@@ -195,7 +196,7 @@ class SettingsController
         $settings->next_google_sheet_sync = $this->getNextGoogleSheetSync();
         $settings->google_sheet_sync_force_update = filter_var($this->isForceUpdateEnabled(), FILTER_VALIDATE_BOOLEAN);
         $settings->google_sheet_sync_overwrite_manual_changes = filter_var($this->isOverwriteManualChangesEnabled(), FILTER_VALIDATE_BOOLEAN);
-
+        $settings->wp_cron_disabled = defined('DISABLE_WP_CRON') && DISABLE_WP_CRON;
         return $settings;
     }
 

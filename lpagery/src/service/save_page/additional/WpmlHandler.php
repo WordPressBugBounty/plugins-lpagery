@@ -2,6 +2,7 @@
 
 namespace LPagery\service\save_page\additional;
 
+use LPagery\wpml\WpmlHelper;
 use WPML_Terms_Translations;
 
 class WpmlHandler
@@ -22,7 +23,7 @@ class WpmlHandler
 
     public function lpagery_handle_wpml($sourcePostId, $targetPostId)
     {
-        if (!defined('ICL_SITEPRESS_VERSION')) {
+        if (!WpmlHelper::is_wpml_installed()) {
             return;
         }
         $template_language_info = wpml_get_language_information(null, $sourcePostId);

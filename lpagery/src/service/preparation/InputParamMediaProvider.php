@@ -6,6 +6,7 @@ use LPagery\model\BaseParams;
 use LPagery\service\media\AttachmentHelper;
 use LPagery\service\media\AttachmentReplacementProvider;
 use LPagery\utils\Utils;
+use LPagery\wpml\WpmlHelper;
 class InputParamMediaProvider {
     public static ?InputParamMediaProvider $instance = null;
 

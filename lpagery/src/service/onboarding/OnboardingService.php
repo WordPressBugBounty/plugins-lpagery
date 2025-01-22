@@ -1,5 +1,7 @@
 <?php
 namespace LPagery\service\onboarding;
+use LPagery\wpml\WpmlHelper;
+
 class OnboardingService
 {
 
@@ -31,7 +33,7 @@ class OnboardingService
         );
 
         // Add WPML language if the plugin is active
-        if (defined('ICL_SITEPRESS_VERSION')) {
+        if (WpmlHelper::is_wpml_installed()) {
             global $sitepress;
             if ($sitepress) {
                 $page_data['wpml_language'] = $sitepress->get_current_language();

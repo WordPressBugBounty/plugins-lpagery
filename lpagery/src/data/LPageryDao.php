@@ -6,7 +6,7 @@ use Exception;
 use LPagery\factories\InputParamProviderFactory;
 use LPagery\factories\SubstitutionHandlerFactory;
 use LPagery\model\Params;
-
+use LPagery\wpml\WpmlHelper;
 class LPageryDao
 {
     private static $instance;
@@ -670,7 +670,7 @@ class LPageryDao
         $language_condition = '';
 
         // Check if WPML is installed and get template language if exists
-        if (defined('ICL_LANGUAGE_CODE')) {
+        if (WpmlHelper::is_wpml_installed()) {
             $template_language = $wpdb->get_var($wpdb->prepare("SELECT language_code FROM {$wpdb->prefix}icl_translations 
                     WHERE element_id = %d 
                     AND element_type = %s", $template_id, 'post_' . $post_type));
@@ -921,7 +921,13 @@ class LPageryDao
         $wpdb->update($table_name_process, array("post_id" => $templateId), array("id" => $processId));
         $table_name_process_post = $wpdb->prefix . 'lpagery_process_post';
         $wpdb->update($table_name_process_post, array("template_id" => $templateId), array("lpagery_process_id" => $processId, "template_id" => $previous_template));
+    }
 
+    public function lpagery_update_process_user(int $process_id, int $user_id)
+    {
+        global $wpdb;
+        $table_name_process = $wpdb->prefix . 'lpagery_process';
+        return $wpdb->update($table_name_process, array("user_id" => $user_id), array("id" => $process_id));
     }
 }
 

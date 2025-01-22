@@ -1,6 +1,8 @@
 <?php
 namespace LPagery\data;
 
+use LPagery\wpml\WpmlHelper;
+
 class SearchPostService
 {
     private static $instance;
@@ -38,7 +40,7 @@ class SearchPostService
         $language_select = '';
         $language_join = '';
 
-        if (defined('ICL_LANGUAGE_CODE')) {
+        if (WpmlHelper::is_wpml_installed()) {
             // Add language code to the select statement
             $language_select = ", icl.language_code";
             $language_join = "LEFT JOIN {$wpdb->prefix}icl_translations icl ON icl.element_id = p.ID AND icl.element_type = CONCAT('post_', p.post_type)";
