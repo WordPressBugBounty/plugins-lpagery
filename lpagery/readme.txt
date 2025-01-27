@@ -4,7 +4,7 @@ Tags: bulk page, seo, local seo, mass page, programmatic seo
 Requires at least: 6.2
 Tested up to: 6.7.1
 Requires PHP: 7.4
-Stable tag: 2.0.18
+Stable tag: 2.0.20
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -36,6 +36,7 @@ Effortlessly mass generate unlimited SEO-optimized pages in bulk with LPagery. B
 
 == Here's How LPagery Makes Your Life Easier ==
 
+[youtube https://www.youtube.com/watch?v=fOlVlxhSAXk]
 
 **Step 1: Design Your Template**
    Create one template page in WordPress using any theme or page builder. Add {placeholders} (e.g., {city}, {service}) where dynamic data will go, and LPagery will handle the rest.
@@ -269,6 +270,13 @@ You can revoke your consent at any time, and the integrations will be disabled i
 We are committed to transparency and your control over your data. For more information, please refer to our Privacy Policy.
 
 == Changelog ==
+
+= 2.0.20 - 2025-01-27 =
+* Fix: Parsing Errors
+
+
+= 2.0.19 - 2025-01-22 =
+* Fix: Remove SQL Query which used JSON_ARRAYAGG (not available on some database engines)
 
 = 2.0.18 - 2025-01-22 =
 * Fix: Settings in free version

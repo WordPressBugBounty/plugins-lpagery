@@ -72,10 +72,7 @@ class Mapper
             "template" => $post["template_id"],
             "slug" => $post["replaced_slug"],
             "permalink" => get_permalink($post["ID"]),
-            "page_manually_updated_at" => $post["page_manually_updated_at"],
-            "taxonomies" => array_filter(json_decode($post["taxonomies"]), function ($taxonomy) {
-                return isset($taxonomy->id);
-            }));
+            "page_manually_updated_at" => $post["page_manually_updated_at"]);
         if($wpmlInfo->language_code){
             $array["language_code"] = $wpmlInfo->language_code;
         }
@@ -142,8 +139,8 @@ class Mapper
             "google_sheet_data" => maybe_unserialize(self::get_google_sheet_data($lpagery_process)),
             "raw_purpose" => $lpagery_process->purpose,
             "google_sheet_sync_error" => $lpagery_process->google_sheet_sync_error,
-            "next_google_sheet_sync" => $next_sync,
-            "last_google_sheet_sync" => $last_sync,
+            "next_google_sheet_sync" => $next_sync ? $next_sync : null,
+            "last_google_sheet_sync" => $last_sync ? $last_sync : null,
             "google_sheet_sync_status" => $status,
             "queue_count" => $lpagery_process->queue_count,
             "processed_queue_count" => $lpagery_process->processed_queue_count,

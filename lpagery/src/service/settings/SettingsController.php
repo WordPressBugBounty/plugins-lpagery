@@ -263,7 +263,11 @@ class SettingsController
         $userId = $this->getUserId($processId);
         $userSettings = $this->getUserSettings($userId);
 
-        return $userSettings['hierarchical_taxonomy_handling'] ?? 'last';
+        $hierarchical_taxonomy_handling = $userSettings['hierarchical_taxonomy_handling'];
+        if(!$hierarchical_taxonomy_handling || !in_array($hierarchical_taxonomy_handling, ['all', 'last'])) {
+            return 'last';
+        }
+        return $hierarchical_taxonomy_handling;
     }
 
     /**

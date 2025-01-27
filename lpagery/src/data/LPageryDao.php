@@ -65,13 +65,9 @@ class LPageryDao
                      p.post_type,
                     lpp.page_manually_updated_at,
                     lpp.page_manually_updated_by,    
-                    lpp.replaced_slug AS replaced_slug,
-                     JSON_ARRAYAGG(JSON_OBJECT('taxonomy', tax.taxonomy, 'term', t.term_id)) AS taxonomies
+                    lpp.replaced_slug AS replaced_slug
               FROM {$wpdb->posts} p
               INNER JOIN {$table_name_process_post} lpp ON p.ID = lpp.post_id
-              LEFT JOIN {$wpdb->term_relationships} tr ON tr.object_id = p.ID
-              LEFT JOIN {$wpdb->term_taxonomy} tax ON tax.term_taxonomy_id = tr.term_taxonomy_id
-              LEFT JOIN {$wpdb->terms} t ON t.term_id = tax.term_id
               WHERE p.post_status != 'trash'";
 
         if ($process_id) {
