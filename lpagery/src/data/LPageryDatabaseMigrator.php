@@ -246,5 +246,12 @@ class LPageryDatabaseMigrator
 
         }
 
+        if ($db_version < 10 && $this->lpagery_table_exists_migrate($table_name_process_post)) {
+
+            $wpdb->query("CREATE INDEX idx_lpagery_post_type_status ON $wpdb->posts ( post_type, post_status);");
+            update_option("lpagery_database_version", 10);
+
+        }
+
     }
 }

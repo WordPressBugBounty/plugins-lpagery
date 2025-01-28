@@ -5,6 +5,7 @@ namespace LPagery\service\duplicates;
 
 use LPagery\service\substitution\SubstitutionDataPreparator;
 use LPagery\data\LPageryDao;
+use LPagery\utils\Utils;
 
 
 class DuplicateSlugProvider
@@ -38,11 +39,11 @@ class DuplicateSlugProvider
         preg_match_all('/{([^}]+)}/', $slug, $matches);
         $placeholders = $matches[1];
         $missing = [];
-
         foreach ($placeholders as $placeholder) {
             $found = false;
             foreach ($keys as $key) {
-                if (strtolower($placeholder) === strtolower($key)) {
+
+                if (strtolower($placeholder) === strtolower(Utils::lpagery_sanitize_title_with_dashes($key))) {
                     $found = true;
                     break;
                 }

@@ -27,6 +27,7 @@ class SubstitutionHandler {
     }
 
     public function lpagery_substitute_slug( BaseParams $params, $content ) {
+        $content = Utils::lpagery_sanitize_title_with_dashes( $content );
         $params_copy = new BaseParams();
         $sanitized_data = array();
         $sanitized_keys = array();
