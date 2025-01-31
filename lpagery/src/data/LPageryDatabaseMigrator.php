@@ -253,5 +253,22 @@ class LPageryDatabaseMigrator
 
         }
 
+        if ($db_version < 11 && $this->lpagery_table_exists_migrate($table_name_process_post)) {
+            $table_name_image_search_cache = $wpdb->prefix . 'lpagery_image_search_result_cache';
+
+            $sql_image_search_cache = "CREATE TABLE {$table_name_image_search_cache} (
+                id            bigint auto_increment primary key,
+                search_term   text   not null,
+                attachment_id bigint not null,
+                file_name     text not null,
+                image_found boolean not null
+            ) $charset_collate";
+            
+            $wpdb->query($sql_image_search_cache);
+            $wpdb->query("CREATE INDEX index_image_search_result_search_term ON {$table_name_image_search_cache} (search_term(191))");
+            
+            update_option("lpagery_database_version", 11);
+        }
+
     }
 }

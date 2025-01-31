@@ -2,10 +2,9 @@
 
 namespace LPagery;
 
-use LPagery\controller\CreatePostController;
 use LPagery\data\LPageryDao;
 use LPagery\data\SearchPostService;
-use LPagery\factories\CreatePostDelegateFactory;
+use LPagery\factories\CreatePostControllerFactory;
 use LPagery\factories\DuplicateSlugHandlerFactory;
 use LPagery\io\Mapper;
 use LPagery\model\ProcessSheetSyncParams;
@@ -52,8 +51,7 @@ function lpagery_create_posts()
     ob_start();
 
     try {
-        $createPostController = CreatePostController::get_instance(CreatePostDelegateFactory::create(),
-            LPageryDao::get_instance(), SettingsController::get_instance());
+        $createPostController = CreatePostControllerFactory::create();
         $result = $createPostController->lpagery_create_posts_ajax($_POST);
         $ob_get_contents = ob_get_clean();
     } catch (\Throwable $exception) {

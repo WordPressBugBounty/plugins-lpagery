@@ -8,5 +8,4 @@ class BaseParams
     public array $numeric_values = array();
     public array $raw_data =array();
 
-
 }

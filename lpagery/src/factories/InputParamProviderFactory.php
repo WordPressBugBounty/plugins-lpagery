@@ -7,10 +7,10 @@ use LPagery\service\media\AttachmentHelper;
 use LPagery\service\media\AttachmentReplacementProvider;
 use LPagery\service\media\AttachmentSaver;
 use LPagery\service\media\AttachmentSearchService;
+use LPagery\service\media\CacheableAttachmentSearchService;
 use LPagery\service\preparation\InputParamMediaProvider;
 use LPagery\service\preparation\InputParamProvider;
 use LPagery\service\settings\SettingsController;
-use LPagery\data\LPageryDao;
 class InputParamProviderFactory {
     /**
      * @return InputParamProvider

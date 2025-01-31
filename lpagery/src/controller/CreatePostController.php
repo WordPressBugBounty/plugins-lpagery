@@ -3,6 +3,8 @@
 namespace LPagery\controller;
 
 use LPagery\data\LPageryDao;
+use LPagery\service\media\AttachmentSearchService;
+use LPagery\service\media\CacheableAttachmentSearchService;
 use LPagery\service\save_page\CreatePostDelegate;
 use LPagery\service\settings\SettingsController;
 use LPagery\utils\MemoryUtils;
@@ -20,22 +22,25 @@ class CreatePostController
     private CreatePostDelegate $createPostDelegate;
     private LPageryDao $LPageryDao;
     private SettingsController $settingsController;
+    private ?CacheableAttachmentSearchService $cacheableAttachmentSearchService;
 
-    public function __construct(CreatePostDelegate $createPostDelegate, LPageryDao $LPageryDao, SettingsController $settingsController)
+    public function __construct(CreatePostDelegate $createPostDelegate, LPageryDao $LPageryDao, SettingsController $settingsController, ?CacheableAttachmentSearchService $cacheableAttachmentSearchService)
     {
         $this->createPostDelegate = $createPostDelegate;
         $this->LPageryDao = $LPageryDao;
         $this->settingsController = $settingsController;
-
+        $this->cacheableAttachmentSearchService = $cacheableAttachmentSearchService;
     }
 
-    public static function get_instance(CreatePostDelegate $createPostDelegate, LPageryDao $LPageryDao, SettingsController $settingsController)
+
+    public static function get_instance(CreatePostDelegate $createPostDelegate, LPageryDao $LPageryDao, SettingsController $settingsController, ?CacheableAttachmentSearchService $cacheableAttachmentSearchService): CreatePostController
     {
         if (null === self::$instance) {
-            self::$instance = new self($createPostDelegate, $LPageryDao, $settingsController);
+            self::$instance = new self($createPostDelegate, $LPageryDao, $settingsController, $cacheableAttachmentSearchService);
         }
         return self::$instance;
     }
+
 
     public function lpagery_create_posts_rest(WP_REST_Request $request)
     {
@@ -108,6 +113,10 @@ class CreatePostController
         $nonce_validity = check_ajax_referer('lpagery_ajax');
         $creation_id = $post_data["creation_id"];
         $is_last_page = filter_var($post_data["is_last_page"], FILTER_VALIDATE_BOOLEAN);
+        $index = intval($post_data["index"]);
+        if($index ==0 && $this->cacheableAttachmentSearchService) {
+           $this->cacheableAttachmentSearchService->evict_cache();
+        }
 
 
         $transient_key = "lpagery_$creation_id";
@@ -122,7 +131,6 @@ class CreatePostController
         if ($creation_id && $response->slug) {
             $processed_slugs[] = $response->slug;
             if (!$is_last_page) {
-                error_log("set transient");
                 set_transient($transient_key, $processed_slugs, 60);
             }
         }
