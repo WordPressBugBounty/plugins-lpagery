@@ -56,8 +56,8 @@ class LPageryDatabaseMigrator
 			    created timestamp,
 			    data  longtext,
 			    primary key  (id),
-			     key  post_id(post_id) ,
-			     key  user_id(user_id) 
+			     key  process_post_id(post_id) ,
+			     key  process_user_id(user_id) 
             ) $charset_collate";
 
 
@@ -70,9 +70,9 @@ class LPageryDatabaseMigrator
 			    modified           timestamp ,
 			    data  longtext,
 			    primary key  (id),
-			     key  lpagery_process_id(lpagery_process_id) ,
-			     key  post_id(post_id),
-			    key lpagery_post_id(lpagery_post_id)
+			     key  process_post_lpagery_process_id(lpagery_process_id) ,
+			     key  process_post_post_id(post_id),
+			    key process_post_lpagery_post_id(lpagery_post_id)
             ) $charset_collate";
 
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
@@ -96,7 +96,7 @@ class LPageryDatabaseMigrator
                     retry       int not null default 0,
                     created       timestamp not null,
                     error       text,
-                    key process_id (process_id)
+                    key sync_queue_process_id (process_id)
                 )
                     $charset_collate
                 
@@ -268,6 +268,15 @@ class LPageryDatabaseMigrator
             $wpdb->query("CREATE INDEX index_image_search_result_search_term ON {$table_name_image_search_cache} (search_term(191))");
             
             update_option("lpagery_database_version", 11);
+        }
+        if ($db_version < 12 && $this->lpagery_table_exists_migrate($table_name_process_post)) {
+            $wpdb->query("ALTER TABLE $table_name_sync_queue  add column  existing_page_update_action varchar(100) not null default 'create' ");
+            $wpdb->query("ALTER TABLE $table_name_sync_queue  add column  parent_id int not null default 0;");
+            $wpdb->query("ALTER TABLE $table_name_process_post  add column parent_search_term text ");
+            $wpdb->query("ALTER TABLE $table_name_process  add column include_parent_as_identifier boolean not null default false ");
+            $wpdb->query("ALTER TABLE $table_name_process  add column existing_page_update_action varchar(100) not null default 'create' ");
+            update_option("lpagery_database_version", 12);
+
         }
 
     }

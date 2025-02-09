@@ -6,20 +6,22 @@ class ProcessSheetSyncParams implements  \JsonSerializable
     private bool $force_update;
     private bool $overwrite_manual_changes;
     private string $new_status;
+    private string $existing_page_update_action;
     private ?string $publish_timestamp;
 
     public static function processOnly(int $process_id): ProcessSheetSyncParams
     {
-        return new ProcessSheetSyncParams($process_id, false, false, '-1', null);
+        return new ProcessSheetSyncParams($process_id, false, false, '-1', '',null);
     }
 
-    public function __construct($process_id, $force_update, $overwrite_manual_changes,  $new_status, $publish_timestamp)
+    public function __construct($process_id, $force_update, $overwrite_manual_changes,  $new_status,$existing_page_update_action, $publish_timestamp)
     {
         $this->process_id = $process_id;
         $this->force_update = $force_update;
         $this->overwrite_manual_changes = $overwrite_manual_changes;
         $this->new_status = $new_status;
         $this->publish_timestamp = $publish_timestamp;
+        $this->existing_page_update_action = $existing_page_update_action;
     }
 
     public function getProcessId()
@@ -41,6 +43,10 @@ class ProcessSheetSyncParams implements  \JsonSerializable
     {
         return $this->overwrite_manual_changes;
     }
+    public function getExistingPageUpdateAction()
+    {
+        return $this->existing_page_update_action;
+    }
 
     public function getPublishTimestamp()
     {
@@ -59,6 +65,7 @@ class ProcessSheetSyncParams implements  \JsonSerializable
         $this->overwrite_manual_changes = $data['overwrite_manual_changes'];
         $this->new_status = $data['new_status'];
         $this->publish_timestamp = $data['publish_timestamp'];
+        $this->existing_page_update_action = $data['existing_page_update_action'];
     }
 
     public function jsonSerialize(): array
@@ -69,6 +76,7 @@ class ProcessSheetSyncParams implements  \JsonSerializable
             'overwrite_manual_changes' => $this->overwrite_manual_changes,
             'new_status' => $this->new_status,
             'publish_timestamp' => $this->publish_timestamp,
+            'existing_page_update_action' => $this->existing_page_update_action
         ];
     }
 }

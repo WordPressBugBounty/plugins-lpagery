@@ -98,6 +98,7 @@ class CreatePostDelegate {
         }
         $force_update_content = filter_var( $REQUEST_PAYLOAD["force_update_content"] ?? false, FILTER_VALIDATE_BOOLEAN );
         $overwrite_manual_changes = filter_var( $REQUEST_PAYLOAD["overwrite_manual_changes"] ?? false, FILTER_VALIDATE_BOOLEAN );
+        $existing_page_update_action = sanitize_text_field( $REQUEST_PAYLOAD["existing_page_update_action"] ) ?? "create";
         $data = $REQUEST_PAYLOAD['data'] ?? null;
         if ( isset( $REQUEST_PAYLOAD["page_id_to_be_updated"] ) && !$data ) {
             $process_post_data = $this->lpageryDao->lpagery_get_process_post_data( intval( $REQUEST_PAYLOAD["page_id_to_be_updated"] ) );
@@ -121,13 +122,16 @@ class CreatePostDelegate {
         $pageCreationSettings->status_from_process = $status_from_process;
         $pageCreationSettings->publish_datetime = $datetime;
         $pageCreationSettings->status_from_dashboard = $status_from_dashboard;
+        $include_parent_as_identifier = filter_var( $process_by_id->include_parent_as_identifier, FILTER_VALIDATE_BOOLEAN );
         $params = $this->inputParamProvider->lpagery_provide_input_params(
             $json_decode,
             $process_id,
             $template_post->ID,
             $pageCreationSettings,
             $force_update_content,
-            $overwrite_manual_changes
+            $overwrite_manual_changes,
+            $include_parent_as_identifier,
+            $existing_page_update_action
         );
         if ( in_array( "create", $operations ) ) {
             $postSaveHelper = new PostFieldProvider(
@@ -145,7 +149,12 @@ class CreatePostDelegate {
                 null
             );
         }
-        return new SavePageResult("ignored", "unknown_operation", $this->pageUpdateDataHandler->getSlugToBeUpdated( $json_decode, $process_id ));
+        return new SavePageResult(
+            "ignored",
+            "unknown_operation",
+            $this->pageUpdateDataHandler->getSlugToBeUpdated( $json_decode, $process_id ),
+            null
+        );
     }
 
     private function get_taxonomy_terms( $process_config ) {

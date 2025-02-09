@@ -68,7 +68,18 @@ class PostFieldProvider {
 
     public function get_parent() : int {
         $parent_id = 0;
+        if ( !is_post_type_hierarchical( $this->template_post->post_type ) ) {
+            return 0;
+        }
         return $parent_id;
+    }
+
+    public function get_parent_search_term() : ?string {
+        $search_term = 0;
+        if ( !is_post_type_hierarchical( $this->template_post->post_type ) ) {
+            return null;
+        }
+        return $search_term;
     }
 
     public function get_status( $publish_datetime ) {

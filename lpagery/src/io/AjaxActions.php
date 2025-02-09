@@ -8,6 +8,9 @@ use LPagery\factories\CreatePostControllerFactory;
 use LPagery\factories\DuplicateSlugHandlerFactory;
 use LPagery\io\Mapper;
 use LPagery\model\ProcessSheetSyncParams;
+use LPagery\service\delete\DeletePageService;
+use LPagery\service\delete\DeleteProcessService;
+use LPagery\service\delete\ResetLPageryService;
 use LPagery\service\onboarding\OnboardingService;
 use LPagery\service\PageExportHandler;
 use LPagery\service\settings\SettingsController;
@@ -21,12 +24,43 @@ function lpagery_sanitize_slug()
 {
     check_ajax_referer('lpagery_ajax');
     $parent_id = (int)$_POST['parent_id'];
+    $template_id = (int)($_POST["template_id"] ?? 0);
     if (empty($_POST['slug'])) {
-        return '';
+        echo json_encode(["url" => ""]);
+        wp_die();
     }
-    $slug = strtolower(Utils::lpagery_sanitize_title_with_dashes($_POST['slug']));
 
-    echo json_encode(["url" => site_url(get_page_uri($parent_id) . "/" . $slug)]);
+    $slug = strtolower(Utils::lpagery_sanitize_title_with_dashes($_POST['slug']));
+    $base_url = '';
+
+    // Get post type slug if template exists
+    if ($template_id > 0) {
+        $post_type = get_post_type($template_id);
+        $post_type_obj = get_post_type_object($post_type);
+        if ($post_type_obj) {
+            // First try to get the rewrite slug if set
+            if (isset($post_type_obj->rewrite['slug'])) {
+                $base_url .= $post_type_obj->rewrite['slug'] . '/';
+            } // If no rewrite slug and it's not 'post' or 'page', use the post type name
+            else if (!in_array($post_type, ['post',
+                'page'])) {
+                $base_url .= $post_type . '/';
+            }
+        }
+    }
+
+    // Add parent path if parent exists
+    if ($parent_id) {
+        $parent_path = trim(get_page_uri($parent_id), '/');
+        if ($parent_path) {
+            $base_url .= $parent_path . '/';
+        }
+    }
+
+    // Combine everything for the final URL
+    $final_url = site_url($base_url . $slug);
+
+    echo json_encode(["url" => $final_url]);
     wp_die();
 }
 
@@ -274,6 +308,7 @@ function lpagery_upsert_process()
         $google_sheet_data = null;
         $sync_enabled = false;
         $sheet_url = filter_var(urldecode($request_google_sheet_data["url"] ?? ''), FILTER_VALIDATE_URL);
+        $include_parent_as_identifier = filter_var($_POST["include_parent_as_identifier"] ?? false, FILTER_VALIDATE_BOOLEAN);
         if ($google_sheet_enabled && $sheet_url) {
             $create = filter_var($request_google_sheet_data["add"] ?? false, FILTER_VALIDATE_BOOLEAN);
             $update = filter_var($request_google_sheet_data["update"] ?? false, FILTER_VALIDATE_BOOLEAN);
@@ -290,27 +325,23 @@ function lpagery_upsert_process()
 
         $data = isset($_POST['data']) ? lpagery_extract_process_data($_POST['data'], $process) : null;
         $lpagery_process_id = $LPageryDao->lpagery_upsert_process($post_id, $process_id, $purpose, $data,
-            $google_sheet_data, $sync_enabled);
-        if($google_sheet_enabled && $sync_enabled) {
+            $google_sheet_data, $sync_enabled, $include_parent_as_identifier);
+        if ($google_sheet_enabled && $sync_enabled) {
 
             $update_settings = $_POST['update_settings'] ?? [];
-            
+
             $is_force_update = !empty($update_settings['force_update']) && rest_sanitize_boolean($update_settings['force_update']);
             $is_overwrite_manual_changes = !empty($update_settings['overwrite_manual_changes']) && rest_sanitize_boolean($update_settings['overwrite_manual_changes']);
-            
+            $existing_page_update_action = !empty($update_settings['existing_page_update_action']) ? sanitize_text_field($update_settings['existing_page_update_action']) : 'create';
+
             $publish_timestamp = isset($update_settings['publish_timestamp']) ? sanitize_text_field($update_settings['publish_timestamp']) : null;
 
             $status = $data["status"] ?? '-1';
-            
-            $processSheetSyncParams = new ProcessSheetSyncParams(
-                intval($lpagery_process_id), 
-                $is_force_update,
-                $is_overwrite_manual_changes, 
-                $status,
-                $publish_timestamp
-            );
-            
-            
+
+            $processSheetSyncParams = new ProcessSheetSyncParams(intval($lpagery_process_id), $is_force_update,
+                $is_overwrite_manual_changes, $status,$existing_page_update_action, $publish_timestamp);
+
+
             wp_schedule_single_event(time(), 'lpagery_start_sync_for_process', array($processSheetSyncParams));
         }
         print_r(json_encode(array("success" => true,
@@ -370,14 +401,16 @@ function lpagery_get_duplicated_slugs()
 
         $data = $_POST['data'] ?? null;
         $template_id = intval($_POST['post_id']);
+        $parent_id = intval($_POST['parent_id'] ?? 0);
+        $includeParentAsIdentifier = rest_sanitize_boolean($_POST["includeParentAsIdentifier"] ?? false);
 
         $json_decode = json_decode(wp_unslash($_POST['keys']), true);
         $keys = isset($_POST['keys']) ? array_map('sanitize_text_field', $json_decode) : [];
-        
 
 
         $duplicateSlugHandler = DuplicateSlugHandlerFactory::create();
-        echo json_encode($duplicateSlugHandler->lpagery_get_duplicated_slugs($data, $template_id, $slug, $process_id, $keys));
+        echo json_encode($duplicateSlugHandler->lpagery_get_duplicated_slugs($data, $template_id,$includeParentAsIdentifier, $parent_id, $slug,
+            $process_id, $keys));
     } catch (\Throwable $throwable) {
         echo json_encode(array("success" => false,
             "exception" => $throwable->__toString()));
@@ -445,7 +478,6 @@ function lpagery_get_post()
     }
     $wpml_data = WpmlHelper::get_wpml_language_data($post_id);
     $array = array("title" => $WP_Post->post_title,
-        "type" => $WP_Post->post_type,
         "found" => true,
         "permalink" => get_permalink($post_id));
     if ($wpml_data->language_code) {
@@ -453,7 +485,22 @@ function lpagery_get_post()
     }
 
     $post_type_object = get_post_type_object($WP_Post->post_type);
-    $array["hierarchical"] = $post_type_object && is_post_type_hierarchical($WP_Post->post_type);
+
+    if ($post_type_object->name) {
+        // Get the original English labels
+        $singular = $WP_Post->post_type === 'post' ? 'Post' : ($WP_Post->post_type === 'page' ? 'Page' : ucfirst(str_replace(['_',
+            '-'], ' ', $post_type_object->name)));
+
+        $plural = $WP_Post->post_type === 'post' ? 'Posts' : ($WP_Post->post_type === 'page' ? 'Pages' : ucfirst(str_replace(['_',
+                '-'], ' ', $post_type_object->name)) . 's');
+
+        $post_type_array = array("name" => $post_type_object->name,
+            "singular" => $singular,
+            "plural" => $plural,
+            "hierarchical" => $post_type_object && is_post_type_hierarchical($WP_Post->post_type));
+        $array["type"] = $post_type_array;
+    }
+
     echo json_encode($array);
     wp_die();
 }
@@ -501,16 +548,18 @@ function lpagery_create_onboarding_template_page()
     check_ajax_referer('lpagery_ajax');
     $onboardingService = OnboardingService::get_instance();
     $page_id = $onboardingService->createOnboardingTemplatePage();
-    if(!$page_id) {
+    if (!$page_id) {
         echo json_encode(array("success" => false));
         wp_die();
     }
-    echo json_encode(array("success" => true, "page_id" => $page_id));
+    echo json_encode(array("success" => true,
+        "page_id" => $page_id));
     wp_die();
 }
 
 add_action('wp_ajax_lpagery_assign_page_set_to_me', 'LPagery\lpagery_assign_page_set_to_me');
-function lpagery_assign_page_set_to_me() {
+function lpagery_assign_page_set_to_me()
+{
     check_ajax_referer('lpagery_ajax');
     try {
         $process_id = isset($_POST['process_id']) ? (int)$_POST['process_id'] : null;
@@ -520,7 +569,7 @@ function lpagery_assign_page_set_to_me() {
 
         $LPageryDao = LPageryDao::get_instance();
         $process = $LPageryDao->lpagery_get_process_by_id($process_id);
-        
+
         if (!$process) {
             throw new \Exception('Process not found');
         }
@@ -528,16 +577,30 @@ function lpagery_assign_page_set_to_me() {
         $current_user_id = get_current_user_id();
         $LPageryDao->lpagery_update_process_user($process_id, $current_user_id);
 
-        echo json_encode(array(
-            "success" => true,
-            "process_id" => $process_id
-        ));
+        echo json_encode(array("success" => true,
+            "process_id" => $process_id));
     } catch (\Throwable $exception) {
-        echo json_encode(array(
-            "success" => false,
-            "exception" => $exception->getMessage()
-        ));
+        echo json_encode(array("success" => false,
+            "exception" => $exception->getMessage()));
     }
+    wp_die();
+}
+
+add_action('wp_ajax_lpagery_reset_data', 'LPagery\lpagery_reset_data');
+function lpagery_reset_data()
+{
+    check_ajax_referer('lpagery_ajax');
+
+    // Get delete_pages parameter
+    $delete_pages = isset($_POST['delete_pages']) ? rest_sanitize_boolean($_POST['delete_pages']) : false;
+
+    $lpageryDao = LPageryDao::get_instance();
+    $deleteProcessService = DeleteProcessService::getInstance($lpageryDao, DeletePageService::getInstance($lpageryDao));
+
+
+    ResetLPageryService::getInstance($deleteProcessService)->resetLPagery($delete_pages);
+
+
     wp_die();
 }
 

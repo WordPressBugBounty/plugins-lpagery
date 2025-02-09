@@ -15,7 +15,7 @@ class DuplicateSlugHelperFactory
 
         $inputParamProvider = InputParamProviderFactory::create();
 
-        return DuplicateSlugHelper::get_instance($inputParamProvider, $substitutionHandler);
+        return DuplicateSlugHelper::get_instance($inputParamProvider, $substitutionHandler, DynamicPageAttributeHandlerFactory::create());
     }
 
 }

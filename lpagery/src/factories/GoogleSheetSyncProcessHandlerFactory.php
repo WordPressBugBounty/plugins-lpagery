@@ -23,7 +23,9 @@ class GoogleSheetSyncProcessHandlerFactory
                 SubstitutionHandlerFactory::create(),
                 DeletePageService::getInstance($LPageryDao)
             ),
-            DuplicateSlugHelperFactory::create()
+            DuplicateSlugHelperFactory::create(),
+            DynamicPageAttributeHandlerFactory::create(),
+            InputParamProviderFactory::create()
         );
     }
 } 

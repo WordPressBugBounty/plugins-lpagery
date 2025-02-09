@@ -37,8 +37,12 @@ class DynamicPageAttributeHandler {
         return "publish";
     }
 
-    public function lpagery_get_parent( BaseParams $params, $post_type, $parent_id_from_dashboard ) {
+    public function lpagery_get_parent( BaseParams $params, $post_type, ?int $parent_id_from_dashboard ) : ?array {
+        if ( !is_post_type_hierarchical( $post_type ) ) {
+            return null;
+        }
         $json_data = $params->raw_data ?? array();
+        $parent_id_from_dashboard = $parent_id_from_dashboard ?? 0;
         if ( !array_key_exists( "lpagery_parent", $json_data ) ) {
             return $this->lpageryDao->lpagery_find_post_by_id( $parent_id_from_dashboard );
         }

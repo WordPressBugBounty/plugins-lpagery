@@ -5,46 +5,50 @@ namespace LPagery\service\duplicates;
 use JsonSerializable;
 
 class DuplicateSlugResult implements JsonSerializable {
-    private bool $allSlugsAreTheSame;
+    private bool $slugContainsPlaceholder;
     private array $duplicates;
     private array $existingSlugs;
     private array $numericSlugs;
     private bool $titleContainsPlaceholder;
     private array $attachmentSlugEquals;
+    private bool $foundDuplicatedSlugsWithDifferentParents;
     private array $missingPlaceholders;
 
     public function __construct(
-        bool $allSlugsAreTheSame,
+        bool $slugContainsPlaceholder,
         array $duplicates,
         array $existingSlugs,
         array $numericSlugs,
         bool $titleContainsPlaceholder,
         array $attachmentSlugEquals,
+        bool $foundDuplicatedSlugsWithDifferentParents,
         array $missingPlaceholders = []
     ) {
-        $this->allSlugsAreTheSame = $allSlugsAreTheSame;
+        $this->slugContainsPlaceholder = $slugContainsPlaceholder;
         $this->duplicates = $duplicates;
         $this->existingSlugs = $existingSlugs;
         $this->numericSlugs = $numericSlugs;
         $this->titleContainsPlaceholder = $titleContainsPlaceholder;
         $this->attachmentSlugEquals = $attachmentSlugEquals;
         $this->missingPlaceholders = $missingPlaceholders;
+        $this->foundDuplicatedSlugsWithDifferentParents = $foundDuplicatedSlugsWithDifferentParents;
     }
 
     public function jsonSerialize(): array {
         return [
-            'all_slugs_are_the_same' => $this->allSlugsAreTheSame,
+            'slug_contains_placeholder' => $this->slugContainsPlaceholder,
             'duplicates' => $this->duplicates,
             'existing_slugs' => $this->existingSlugs,
             'numeric_slugs' => $this->numericSlugs,
             'title_contains_placeholder' => $this->titleContainsPlaceholder,
             'attachment_slug_equals' => $this->attachmentSlugEquals,
-            'missing_placeholders' => $this->missingPlaceholders
+            'missing_placeholders' => $this->missingPlaceholders,
+            'found_duplicated_slugs_with_different_parents' => $this->foundDuplicatedSlugsWithDifferentParents
         ];
     }
 
-    public function getAllSlugsAreTheSame(): bool {
-        return $this->allSlugsAreTheSame;
+    public function getSlugContainsPlaceholder(): bool {
+        return $this->slugContainsPlaceholder;
     }
 
     public function getDuplicates(): array {
@@ -69,5 +73,9 @@ class DuplicateSlugResult implements JsonSerializable {
 
     public function getMissingPlaceholders(): array {
         return $this->missingPlaceholders;
+    }
+
+    public function getFoundDuplicatedSlugsWithDifferentParents(): bool {
+        return $this->foundDuplicatedSlugsWithDifferentParents;
     }
 } 

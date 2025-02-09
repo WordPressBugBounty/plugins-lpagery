@@ -2,9 +2,7 @@
 
 namespace LPagery\factories;
 
-use LPagery\service\duplicates\DuplicateSlugHelper;
 use LPagery\service\duplicates\DuplicateSlugProvider;
-use LPagery\service\settings\SettingsController;
 use LPagery\service\substitution\SubstitutionDataPreparator;
 use LPagery\data\LPageryDao;
 

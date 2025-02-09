@@ -36,7 +36,9 @@ class InputParamProvider {
         $source_post_id,
         PageCreationDashboardSettings $post_settings,
         bool $force_update_content,
-        bool $overwrite_manual_changes
+        bool $overwrite_manual_changes,
+        bool $include_parent_as_identifier,
+        string $existingPageUpdateAction
     ) : Params {
         $base_params = self::lpagery_get_input_params_without_images( $json_data );
         $source_attachment_ids = array();
@@ -67,6 +69,12 @@ class InputParamProvider {
         $params->settings = $post_settings;
         $params->force_update_content = $force_update_content;
         $params->overwrite_manual_changes = $overwrite_manual_changes;
+        $params->include_parent_as_identifier = $include_parent_as_identifier;
+        if ( in_array( $existingPageUpdateAction, ['create', "ignore", "update"] ) ) {
+            $params->existing_page_update_action = $existingPageUpdateAction;
+        } else {
+            $params->existing_page_update_action = "create";
+        }
         return $params;
     }
 

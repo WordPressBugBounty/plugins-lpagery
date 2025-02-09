@@ -71,6 +71,7 @@ class Mapper
             "status" => $post["post_status"],
             "template" => $post["template_id"],
             "slug" => $post["replaced_slug"],
+            "parent_search_term" => $post["parent_search_term"],
             "permalink" => get_permalink($post["ID"]),
             "page_manually_updated_at" => $post["page_manually_updated_at"]);
         if($wpmlInfo->language_code){
@@ -144,6 +145,7 @@ class Mapper
             "google_sheet_sync_status" => $status,
             "queue_count" => $lpagery_process->queue_count,
             "processed_queue_count" => $lpagery_process->processed_queue_count,
+            "include_parent_as_identifier" => filter_var($lpagery_process->include_parent_as_identifier, FILTER_VALIDATE_BOOLEAN),
             "google_sheet_sync_enabled" => filter_var($lpagery_process->google_sheet_sync_enabled,
                 FILTER_VALIDATE_BOOLEAN),
             "created" => $mysqldate);
@@ -248,7 +250,7 @@ class Mapper
         return array("process" => $mapped_process,
             "data" => $mapped_data,
             "config_data" => $unserialized_data,
-            "google_sheet_sync_enabled" => $lpagery_process->google_sheet_sync_enabled,
+            "google_sheet_sync_enabled" =>  filter_var($lpagery_process->google_sheet_sync_enabled, FILTER_VALIDATE_BOOLEAN),
             "google_sheet_data" => $this->get_google_sheet_data($lpagery_process)
         );
     }

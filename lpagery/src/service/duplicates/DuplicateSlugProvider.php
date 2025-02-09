@@ -3,6 +3,7 @@
 namespace LPagery\service\duplicates;
 
 
+
 use LPagery\service\substitution\SubstitutionDataPreparator;
 use LPagery\data\LPageryDao;
 use LPagery\utils\Utils;
@@ -56,10 +57,10 @@ class DuplicateSlugProvider
         return $missing;
     }
 
-    public function lpagery_get_duplicated_slugs($data, int $post_id, ?string $slug = null, int $process_id = 0, array $keys = []): DuplicateSlugResult
+    public function lpagery_get_duplicated_slugs($data, int $post_id, bool $includeParentAsIdentifier,?int $parent_id, ?string $slug = null, ?int $process_id = 0, array $keys = []): DuplicateSlugResult
     {
         if (!$data) {
-            return new DuplicateSlugResult(true, [], [], [], false, [], []);
+            return new DuplicateSlugResult(true, [], [], [], false, [], false);
         }
 
         if (is_string($data)) {
@@ -74,32 +75,44 @@ class DuplicateSlugProvider
         }
 
         $missing_placeholders = $this->findMissingPlaceholders($slug, $keys);
-        $slugs = $this->duplicateSlugHelper->get_slugs_from_json_input($slug, $json_decode);
+        $slugs_result = $this->duplicateSlugHelper->get_slugs_from_json_input($slug, $json_decode,get_post_type($post_id),$parent_id);
 
-        $all_slugs_are_the_same = $this->duplicateSlugHelper->check_all_slugs_are_the_same($slugs);
+        $slugs = array_map(function ($element) {
+            return $element->slug;
+        }, $slugs_result);
+    
+
         $post = get_post($post_id);
 
         $title_contains_placeholder = $this->duplicateSlugHelper->check_post_title_contains_at_least_one_placeholder($post->post_title, $json_decode);
+        $slug_contains_placeholder = $this->duplicateSlugHelper->check_slug_contains_at_least_one_placeholder($slug, $json_decode);
 
-        if (!empty($missing_placeholders) || $all_slugs_are_the_same || !$title_contains_placeholder) {
-            return new DuplicateSlugResult($all_slugs_are_the_same, [], [], [], $title_contains_placeholder, [], $missing_placeholders);
+
+        if (!empty($missing_placeholders) || !$slug_contains_placeholder || !$title_contains_placeholder) {
+            return new DuplicateSlugResult($slug_contains_placeholder, [], [], [], $title_contains_placeholder, [], false,$missing_placeholders );
         }
 
         $post_type = get_post_type($post_id);
 
-        $existing_slugs = $this->lpageryDao->lpagery_get_existing_posts_by_slug($slugs, $post_id, $post_type, $process_id);
-        $duplicates = $this->duplicateSlugHelper->lpagery_find_array_duplicates($slugs);
+        $existing_slugs = $this->lpageryDao->lpagery_get_existing_posts_by_slug($slugs_result, $process_id, $post_type, $post_id );
+        $duplicates = $this->duplicateSlugHelper->lpagery_find_array_duplicates($slugs_result,$includeParentAsIdentifier );
         $attachment_slugs = $this->lpageryDao->lpagery_get_existing_attachments_by_slug($slugs);
-        $numeric_slugs = $this->duplicateSlugHelper->lpagery_find_array_numeric_values($slugs);
+        $numeric_slugs = $this->duplicateSlugHelper->lpagery_find_array_numeric_values($slugs_result);
+
+        $foundDuplicatedSlugsWithDifferentParents = false;
+        if(!$includeParentAsIdentifier) {
+            $foundDuplicatedSlugsWithDifferentParents = $this->duplicateSlugHelper->lpagery_find_duplicated_slugs_with_different_parents($slugs_result);
+        }
 
         return new DuplicateSlugResult(
-            false,
+            $slug_contains_placeholder,
             $duplicates,
             $existing_slugs,
             $numeric_slugs,
             $title_contains_placeholder,
             $attachment_slugs,
-            []
+            $foundDuplicatedSlugsWithDifferentParents,
+            $missing_placeholders
         );
     }
 }

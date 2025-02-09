@@ -89,13 +89,14 @@ class CreatePostController
         $params["force_update_content"] = ($queue_item["force_update"] ?? false) || $this->settingsController->isForceUpdateEnabled();
         $params["overwrite_manual_changes"] = ($queue_item["overwrite_manual_changes"] ?? false) || $this->settingsController->isOverwriteManualChangesEnabled();
         $params["publish_timestamp"] = $queue_item["publish_timestamp"] ?? null;
+        $params["existing_page_update_action"] = $queue_item["existing_page_update_action"] ?? 'create';
         if(isset($queue_item["status_from_dashboard"])) {
             $params["status"] = $queue_item["status_from_dashboard"];
         }
 
         $response = $this->createPostDelegate->lpagery_create_post($params, $processed_slugs, $operations);
         if ($creation_id && $response->slug && $response->mode !== "ignored") {
-            $processed_slugs[] = $response->slug;
+            $processed_slugs[] =  $response->createdPageCacheValue->value;
             set_transient($transient_key, $processed_slugs, 60);
         }
 
@@ -128,8 +129,8 @@ class CreatePostController
         }
 
         $response = $this->createPostDelegate->lpagery_create_post($post_data, $processed_slugs);
-        if ($creation_id && $response->slug) {
-            $processed_slugs[] = $response->slug;
+        if ($creation_id && $response->slug &&  $response->createdPageCacheValue) {
+            $processed_slugs[] = $response->createdPageCacheValue->value;
             if (!$is_last_page) {
                 set_transient($transient_key, $processed_slugs, 60);
             }

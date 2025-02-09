@@ -39,26 +39,29 @@ class PageSaver
     public function savePage(WP_Post $template_post, Params $params, PostFieldProvider $postFieldProvider, array $processed_slugs, ?WP_Post $post_to_be_updated): SavePageResult
     {
         $slug = $postFieldProvider->get_slug();
+        $parent = $postFieldProvider->get_parent();
         $json_decode = $params->raw_data;
         $process_id = $params->process_id;
 
-        $slug_already_processed = $processed_slugs && count($processed_slugs) > 0 && (in_array($slug,
+        $cached_slug = CreatedPageCacheValue::create($params, $slug, $parent);
+        $slug_already_processed = $processed_slugs && count($processed_slugs) > 0 && (in_array($cached_slug->value,
                 $processed_slugs));
+
         if (($slug_already_processed)) {
-            return new SavePageResult("ignored", "duplicated_slug", $slug);
+            return SavePageResult::create("ignored", "duplicated_slug", $slug,$params, $parent);
         }
         $ignore_is_set = isset($json_decode["lpagery_ignore"]) && filter_var($json_decode["lpagery_ignore"],
                 FILTER_VALIDATE_BOOLEAN);
 
         if ($ignore_is_set) {
-            return new SavePageResult("ignored", "lpagery_ignore", $slug);
+            return SavePageResult::create("ignored", "lpagery_ignore", $slug, $params, $parent);
         }
 
         $transient_key = "lpagery_$process_id" . "_" . $slug;
         $process_slug_transient = get_transient($transient_key);
         if ($process_slug_transient) {
             error_log("LPagery Ignoring Post is already processing $slug");
-            return new SavePageResult("ignored", "slug_already_processing", $slug);
+            return SavePageResult::create("ignored", "slug_already_processing", $slug, $params, $parent);
         }
 
         set_transient($transient_key, true, 10);
@@ -70,13 +73,13 @@ class PageSaver
                 $post_to_be_updated, $params);
             if(!$shouldPageBeUpdated) {
                 delete_transient($transient_key);
-                return new SavePageResult("ignored", "data_did_not_change", $slug);
+                return SavePageResult::create("ignored", "data_did_not_change", $slug, $params, $parent);
             }
             $shouldContentBeUpdated = $this->shouldPageBeUpdatedChecker->should_content_be_updated($template_post,
                 $post_to_be_updated, $params);
 
             $new_post = ["ID" => $post_to_be_updated->ID,
-                'post_parent' => $postFieldProvider->get_parent(),
+                'post_parent' => $parent,
                 'post_name' => $postFieldProvider->get_slug(),
                 'post_author' => $postFieldProvider->get_author($process_id),
                 'post_status' => $postFieldProvider->get_status( $postFieldProvider->get_publish_datetime())];
@@ -98,7 +101,7 @@ class PageSaver
                 'comment_status' => $template_post->comment_status,
                 'ping_status' => $template_post->ping_status,
                 'post_password' => $template_post->post_password,
-                'post_parent' => $postFieldProvider->get_parent(),
+                'post_parent' => $parent,
                 'post_name' => $postFieldProvider->get_slug(),
                 'post_mime_type' => $template_post->post_mime_type,
                 'post_status' => $postFieldProvider->get_status( $postFieldProvider->get_publish_datetime()),
@@ -125,12 +128,12 @@ class PageSaver
             throw new Exception(json_encode($post_id->get_all_error_data()));
         }
         try {
-            $result = $this->lpageryDao->lpagery_add_post_to_process($params, $post_id, $template_post->ID, $slug, $shouldContentBeUpdated);
+            $result = $this->lpageryDao->lpagery_add_post_to_process($params, $post_id, $template_post->ID, $slug, $shouldContentBeUpdated, $parent, $postFieldProvider->get_parent_search_term());
             if ($result["error"]) {
                 error_log("LPagery Rolling Back Transaction During creation slug : $slug, Process : $process_id " . $result["error"]);
                 $wpdb->query('ROLLBACK');
                 delete_transient($transient_key);
-                return new SavePageResult("ignored","other_page_with_slug_exists_in_set", $slug);
+                return SavePageResult::create("ignored","other_page_with_slug_exists_in_set", $slug, $params, $parent);
             }
             $created_process_post_id = $result["created_id"];
             $this->additionalDataSaver->saveAdditionalData($post_id, $template_post, $created_process_post_id, $params,
@@ -147,9 +150,9 @@ class PageSaver
         delete_transient($transient_key);
 
         if ($create_mode) {
-            return new SavePageResult("created", "created", $slug);
+            return SavePageResult::create("created", "created", $slug, $params, $parent);
         }
-        return new SavePageResult("updated", $shouldContentBeUpdated ? 'content_updated' : 'config_updated',  $slug);
+        return SavePageResult::create("updated", $shouldContentBeUpdated ? 'content_updated' : 'config_updated',  $slug, $params, $parent);
     }
 
 

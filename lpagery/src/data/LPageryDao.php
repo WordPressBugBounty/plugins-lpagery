@@ -6,7 +6,9 @@ use Exception;
 use LPagery\factories\InputParamProviderFactory;
 use LPagery\factories\SubstitutionHandlerFactory;
 use LPagery\model\Params;
+use LPagery\utils\Utils;
 use LPagery\wpml\WpmlHelper;
+
 class LPageryDao
 {
     private static $instance;
@@ -65,7 +67,10 @@ class LPageryDao
                      p.post_type,
                     lpp.page_manually_updated_at,
                     lpp.page_manually_updated_by,    
-                    lpp.replaced_slug AS replaced_slug
+                    lpp.replaced_slug AS replaced_slug,
+                    lpp.parent_search_term AS parent_search_term
+                    
+                    
               FROM {$wpdb->posts} p
               INNER JOIN {$table_name_process_post} lpp ON p.ID = lpp.post_id
               WHERE p.post_status != 'trash'";
@@ -83,12 +88,13 @@ class LPageryDao
         return $results;
     }
 
-    public function lpagery_upsert_process($post_id, $process_id, $purpose, $data, $google_sheet_data, $google_sheet_sync_enabled)
+    public function lpagery_upsert_process($post_id, $process_id, $purpose, $data, $google_sheet_data, $google_sheet_sync_enabled, bool $include_parent_as_identifier)
     {
         global $wpdb;
         $current_user_id = get_current_user_id();
         $table_name_process = $wpdb->prefix . 'lpagery_process';
         $table_name_process_post = $wpdb->prefix . 'lpagery_process_post';
+
         if (($process_id) <= 0) {
             $wpdb->insert($table_name_process, array("post_id" => $post_id,
                 "user_id" => $current_user_id,
@@ -97,24 +103,40 @@ class LPageryDao
                 "google_sheet_data" => serialize($google_sheet_data),
                 "google_sheet_sync_enabled" => $google_sheet_sync_enabled,
                 "google_sheet_sync_status" => $google_sheet_sync_enabled ? "PLANNED" : null,
+                "include_parent_as_identifier" => $include_parent_as_identifier,
                 "created" => current_time('mysql')));
+            if ($wpdb->last_error) {
+                throw new Exception("Failed to insert process " . $wpdb->last_error);
+            }
             return $wpdb->insert_id;
         } else {
             if ($data) {
+                $wpdb->query("START TRANSACTION");
                 $existing_process = self::lpagery_get_process_by_id($process_id);
                 $old_slug = maybe_unserialize($existing_process->data)["slug"];
                 $new_slug = $data["slug"];
-                $wpdb->update($table_name_process, array("data" => serialize($data),), array("id" => $process_id));
+                $wpdb->update($table_name_process, array("data" => serialize($data),
+                    "include_parent_as_identifier" => $include_parent_as_identifier), array("id" => $process_id));
                 if ($old_slug !== $new_slug) {
                     $process_posts = self::lpagery_get_process_post_input_data($process_id);
-                    foreach ($process_posts as $process_post) {
-                        $params = InputParamProviderFactory::create()->lpagery_get_input_params_without_images(maybe_unserialize($process_post->data));
-                        $slug = SubstitutionHandlerFactory::create()->lpagery_substitute_slug($params, $new_slug);
-                        $slug = sanitize_title($slug);
-                        $wpdb->update($table_name_process_post, array("replaced_slug" => $slug),
-                            array("id" => $process_post->id));
+                    try {
+                        foreach ($process_posts as $process_post) {
+                            $params = InputParamProviderFactory::create()->lpagery_get_input_params_without_images(maybe_unserialize($process_post->data));
+                            $slug = SubstitutionHandlerFactory::create()->lpagery_substitute_slug($params, $new_slug);
+                            $slug_with_braces = Utils::lpagery_sanitize_title_with_dashes($slug);
+                            $slug = sanitize_title($slug);
+                            if ($slug_with_braces !== $slug) {
+                                throw new Exception("Slug $slug_with_braces is not valid. Please make sure to only use placeholders which are available in the current data. If you want to add new data to the slug, please make sure to update the content first.");
+                            }
+                            $wpdb->update($table_name_process_post, array("replaced_slug" => $slug),
+                                array("id" => $process_post->id));
+                        }
+                    } catch (Exception $e) {
+                        $wpdb->query("ROLLBACK");
+                        throw $e;
                     }
                 }
+                $wpdb->query("COMMIT");
             }
             if ($google_sheet_data) {
                 $wpdb->update($table_name_process, array("google_sheet_data" => serialize($google_sheet_data),
@@ -122,6 +144,9 @@ class LPageryDao
             }
             if ($purpose) {
                 $wpdb->update($table_name_process, array("purpose" => $purpose), array("id" => $process_id));
+            }
+            if ($wpdb->last_error) {
+                throw new Exception("Failed to upsert process " . $wpdb->last_error);
             }
         }
 
@@ -139,7 +164,7 @@ class LPageryDao
         return $process_id;
     }
 
-    public function lpagery_add_post_to_process(Params $params, $post_id, $template_id, $replaced_slug, $shouldContentBeUpdated)
+    public function lpagery_add_post_to_process(Params $params, $post_id, $template_id, $replaced_slug, $shouldContentBeUpdated, $parent_id, $parent_search_term)
     {
         global $wpdb;
 
@@ -150,8 +175,8 @@ class LPageryDao
 
         $process_id = $params->process_id;
         $sanitized_slug = sanitize_title($replaced_slug);
-        $prepare = $wpdb->prepare("select lpp.id from $table_name_process_post lpp inner join $wpdb->posts p on p.id = lpp.post_id where lpp.lpagery_process_id = %s and lpp.replaced_slug = %s and lpp.post_id != %s",
-            $process_id, $sanitized_slug, $post_id);
+        $prepare = $wpdb->prepare("select lpp.id from $table_name_process_post lpp inner join $wpdb->posts p on p.id = lpp.post_id where lpp.lpagery_process_id = %s and lpp.replaced_slug = %s and lpp.post_id != %s and p.post_parent = %s",
+            $process_id, $sanitized_slug, $post_id, $parent_id);
         $existing_process_post_with_another_id = $wpdb->get_results($prepare);
         if ($existing_process_post_with_another_id) {
             return array("created_id" => null,
@@ -175,6 +200,7 @@ class LPageryDao
                 "replaced_slug" => $sanitized_slug,
                 "config" => $process_config,
                 "lpagery_settings" => $lpagery_settings,
+                "parent_search_term" => $parent_search_term,
                 "template_id" => $template_id,
                 "modified" => current_time('mysql'));
             if ($shouldContentBeUpdated) {
@@ -194,10 +220,11 @@ class LPageryDao
                 "created" => current_time('mysql'),
                 "replaced_slug" => $sanitized_slug,
                 "config" => $process_config,
+                "parent_search_term" => $parent_search_term,
                 "lpagery_settings" => $lpagery_settings,
                 "template_id" => $template_id,
                 "modified" => current_time('mysql')));
-            if (!$wpdb->insert_id) {
+            if (!$wpdb->insert_id || $wpdb->last_error) {
                 throw new Exception("Failed to add post $post_id to process $process_id " . $wpdb->last_error);
             }
         }
@@ -295,6 +322,7 @@ class LPageryDao
 			       google_sheet_data,
 			       queue_count,
 			       processed_queue_count,
+			       include_parent_as_identifier,
 			       created,
 			         (select count(lpp.id) from $table_name_process_post lpp inner join $wpdb->posts p on p.id = lpp.post_id where lpp.lpagery_process_id = lp.id and p.post_status != 'trash') as count
 			from $table_name_process lp
@@ -324,6 +352,7 @@ class LPageryDao
 			        lp.queue_count,
 			        lp.processed_queue_count,
 			        lp.created,
+			          lp.include_parent_as_identifier,
 			         (select count(lpp_count.id) from $table_name_process_post lpp_count inner join $wpdb->posts p on p.id = lpp_count.post_id where lpp_count.lpagery_process_id = lp.id and p.post_status != 'trash') as count
 
 			from $table_name_process lp
@@ -451,8 +480,7 @@ class LPageryDao
     {
         global $wpdb;
         $table_name_process_post = $wpdb->prefix . 'lpagery_process_post';
-        $wpdb->delete($table_name_process_post, array(
-            "post_id" => $post_id));
+        $wpdb->delete($table_name_process_post, array("post_id" => $post_id));
     }
 
     public function lpagery_find_post_by_name_and_type_equal($search_term, $post_type)
@@ -520,24 +548,32 @@ class LPageryDao
         return (array)$results[0];
     }
 
-    public function lpagery_get_existing_post_by_slug_in_process(int $process_id, string $slug)
+    public function lpagery_get_existing_post_by_slug_in_process(int $process_id, string $slug, ?int $parent_id)
     {
         global $wpdb;
         $table_name_process_post = $wpdb->prefix . 'lpagery_process_post';
 
-        $prepare = $wpdb->prepare("select p.ID, post_title, lpagery_process_id as 'process_id', post_name,post_content_filtered,post_excerpt,post_content,post_status,post_parent,post_date, lpp.data as data, lpp.replaced_slug as replaced_slug,   lpp.page_manually_updated_at,  lpp.page_manually_updated_by
+        $parent_condition = $parent_id !== null ? "AND p.post_parent = %d" : "";
+        $query_params = array($process_id,
+            $slug);
+        if ($parent_id !== null) {
+            $query_params[] = $parent_id;
+        }
+
+        $prepare = $wpdb->prepare("select p.ID, post_title, lpagery_process_id as 'process_id', post_name,post_content_filtered,post_excerpt,post_content,post_status,post_parent,post_date, lpp.data as data, lpp.replaced_slug as replaced_slug, lpp.page_manually_updated_at, lpp.page_manually_updated_by
                     from $wpdb->posts p
                              inner join $table_name_process_post lpp on lpp.post_id = p.id
                     where lpp.lpagery_process_id = %s
-                    and (lpp.replaced_slug = %s) order by post_name", $process_id, $slug);
+                      $parent_condition
+                    and (lpp.replaced_slug = %s) order by post_name", ...$query_params);
         $results = $wpdb->get_results($prepare);
         if (empty($results)) {
-
-            $prepare = $wpdb->prepare("select p.ID, post_title, lpagery_process_id as 'process_id', post_name,post_content_filtered,post_excerpt,post_content,post_status,post_parent,post_date,  lpp.data as data, lpp.replaced_slug as replaced_slug, lpp.page_manually_updated_at,  lpp.page_manually_updated_by
+            $prepare = $wpdb->prepare("select p.ID, post_title, lpagery_process_id as 'process_id', post_name,post_content_filtered,post_excerpt,post_content,post_status,post_parent,post_date, lpp.data as data, lpp.replaced_slug as replaced_slug, lpp.page_manually_updated_at, lpp.page_manually_updated_by
                     from $wpdb->posts p
                              inner join $table_name_process_post lpp on lpp.post_id = p.id
                     where lpp.lpagery_process_id = %s
-                    and (p.post_name = %s) order by post_name", $process_id, $slug);
+                      $parent_condition
+                    and (p.post_name = %s) order by post_name", ...$query_params);
             $results = $wpdb->get_results($prepare);
         }
         if (empty($results)) {
@@ -545,6 +581,30 @@ class LPageryDao
         } else {
             return (array)$results[0];
         }
+    }
+
+    public function lpagery_get_existing_post_not_managed_by_lpagery(string $slug, string $post_type, ?int $parent)
+    {
+        global $wpdb;
+        $table_name_process_post = $wpdb->prefix . 'lpagery_process_post';
+
+        $prepare = $wpdb->prepare("SELECT p.ID, p.post_name, p.post_type, p.post_parent
+            FROM $wpdb->posts p
+            WHERE p.post_type = %s
+            AND p.post_status NOT IN ('inherit', 'attachment')
+            AND p.post_name = %s
+            AND p.post_parent = %d
+            AND NOT EXISTS (
+                SELECT 1 
+                FROM $table_name_process_post lpp 
+                WHERE lpp.post_id = p.ID
+            )", $post_type, $slug, $parent ?? 0);
+
+        $results = $wpdb->get_results($prepare);
+        if (empty($results)) {
+            return null;
+        }
+        return (array)$results[0];
     }
 
     public function lpagery_get_existing_post_by_id_in_process(int $id)
@@ -651,13 +711,13 @@ class LPageryDao
 
     }
 
-    public function lpagery_get_existing_posts_by_slug($slugs, $process_id, $post_type, $template_id)
+    public function lpagery_get_existing_posts_by_slug($slug_with_parents, $process_id, $post_type, $template_id)
     {
         global $wpdb;
         $table_name_process_post = $wpdb->prefix . 'lpagery_process_post';
 
-        if (empty($slugs)) {
-            return array();
+        if (empty($slug_with_parents)) {
+            //return array();
         }
 
         // Initialize language filtering variables
@@ -680,9 +740,10 @@ class LPageryDao
             }
         }
 
+
         // Base query without WPML filtering
         $query = "
-            SELECT p.ID AS id, p.post_name, p.post_type
+            SELECT p.ID AS id, p.post_name, p.post_type, p.post_parent, exists(select id from $table_name_process_post lpp where lpp.post_id = p.id and lpp.lpagery_process_id != %d) as exists_in_other_set
             FROM $wpdb->posts p
             LEFT JOIN $table_name_process_post lpp
                 ON lpp.post_id = p.ID 
@@ -694,19 +755,24 @@ class LPageryDao
                 $language_condition
         ";
 
+
         // Prepare query based on whether we have WPML language
-        $prepared_query = $template_language ? $wpdb->prepare($query, $process_id, 'post_' . $post_type, $post_type,
-            $template_language) : $wpdb->prepare($query, $process_id, $post_type);
+        $prepared_query = $template_language ? $wpdb->prepare($query, $process_id,$process_id, 'post_' . $post_type, $post_type,
+            $template_language) : $wpdb->prepare($query, $process_id,$process_id, $post_type);
 
         $all_posts = $wpdb->get_results($prepared_query);
 
         // Filter posts by the provided slugs
         $filtered_posts = array();
-        $slugs_lookup = array_flip($slugs);
 
         foreach ($all_posts as $post) {
-            if (isset($slugs_lookup[$post->post_name])) {
+            $found_posts = array_filter($slug_with_parents, function ($element) use ($post) {
+                return $element->slug == $post->post_name && $element->parent_id == $post->post_parent;
+
+            });
+            if (!empty($found_posts)) {
                 $post->permalink = get_permalink($post->id);
+                $post->exists_in_other_set = filter_var($post->exists_in_other_set, FILTER_VALIDATE_BOOLEAN);
                 $filtered_posts[] = $post;
             }
         }
@@ -896,13 +962,13 @@ class LPageryDao
         return boolval($result['is_syncing']);
     }
 
-    public function get_next_set_to_be_synced() : ?int
+    public function get_next_set_to_be_synced(): ?int
     {
         global $wpdb;
         $table_name_process = $wpdb->prefix . 'lpagery_process';
         $next_id = $wpdb->get_var("SELECT id from $table_name_process where google_sheet_sync_status = 'CRON_STARTED' and google_sheet_sync_enabled LIMIT 1");
 
-        if($next_id) {
+        if ($next_id) {
             return intval($next_id);
         }
         return null;
@@ -913,17 +979,26 @@ class LPageryDao
     {
         global $wpdb;
         $table_name_process = $wpdb->prefix . 'lpagery_process';
-        $previous_template = $wpdb->get_var($wpdb->prepare("SELECT post_id FROM $table_name_process WHERE id = %d", $processId));
+        $previous_template = $wpdb->get_var($wpdb->prepare("SELECT post_id FROM $table_name_process WHERE id = %d",
+            $processId));
         $wpdb->update($table_name_process, array("post_id" => $templateId), array("id" => $processId));
         $table_name_process_post = $wpdb->prefix . 'lpagery_process_post';
-        $wpdb->update($table_name_process_post, array("template_id" => $templateId), array("lpagery_process_id" => $processId, "template_id" => $previous_template));
+        $wpdb->update($table_name_process_post, array("template_id" => $templateId),
+            array("lpagery_process_id" => $processId,
+                "template_id" => $previous_template));
+        if ($wpdb->last_error) {
+            throw new Exception("Failed to lpagery_update_process_template  " . $wpdb->last_error);
+        }
     }
 
     public function lpagery_update_process_user(int $process_id, int $user_id)
     {
         global $wpdb;
         $table_name_process = $wpdb->prefix . 'lpagery_process';
-        return $wpdb->update($table_name_process, array("user_id" => $user_id), array("id" => $process_id));
+        $wpdb->update($table_name_process, array("user_id" => $user_id), array("id" => $process_id));
+        if ($wpdb->last_error) {
+            throw new Exception("Failed to lpagery_update_process_user  " . $wpdb->last_error);
+        }
     }
 }
 
