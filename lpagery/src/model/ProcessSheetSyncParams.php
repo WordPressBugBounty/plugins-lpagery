@@ -60,12 +60,15 @@ class ProcessSheetSyncParams implements  \JsonSerializable
 
     public function __unserialize(array $data): void
     {
-        $this->process_id = $data['process_id'];
-        $this->force_update = $data['force_update'];
-        $this->overwrite_manual_changes = $data['overwrite_manual_changes'];
-        $this->new_status = $data['new_status'];
+        if(!$data) {
+            $data  = [];
+        }
+        $this->process_id = $data['process_id'] ?? 0;
+        $this->force_update = $data['force_update'] ?? false;
+        $this->overwrite_manual_changes = $data['overwrite_manual_changes'] ?? false;
+        $this->new_status = $data['new_status'] ?? '-1';
         $this->publish_timestamp = $data['publish_timestamp'];
-        $this->existing_page_update_action = $data['existing_page_update_action'];
+        $this->existing_page_update_action = $data['existing_page_update_action'] ?? 'create';
     }
 
     public function jsonSerialize(): array
