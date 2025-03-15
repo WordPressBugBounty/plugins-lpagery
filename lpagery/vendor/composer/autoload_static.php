@@ -63,6 +63,7 @@ class ComposerStaticInit1319a04edad46ada0155a4ffbbf7a9c5
         'LPagery\\service\\InstallationDateHandler' => __DIR__ . '/../..' . '/src/service/InstallationDateHandler.php',
         'LPagery\\service\\PageExportHandler' => __DIR__ . '/../..' . '/src/service/PageExportHandler.php',
         'LPagery\\service\\TrackingPermissionService' => __DIR__ . '/../..' . '/src/service/TrackingPermissionService.php',
+        'LPagery\\service\\caching\\PurgeCachingPluginsService' => __DIR__ . '/../..' . '/src/service/caching/PurgeCachingPluginsService.php',
         'LPagery\\service\\delete\\DeletePageService' => __DIR__ . '/../..' . '/src/service/delete/DeletePageService.php',
         'LPagery\\service\\delete\\DeleteProcessService' => __DIR__ . '/../..' . '/src/service/delete/DeleteProcessService.php',
         'LPagery\\service\\delete\\ResetLPageryService' => __DIR__ . '/../..' . '/src/service/delete/ResetLPageryService.php',

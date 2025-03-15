@@ -3,6 +3,7 @@
 namespace LPagery\factories;
 
 use LPagery\data\LPageryDao;
+use LPagery\service\caching\PurgeCachingPluginsService;
 use LPagery\service\DynamicPageAttributeHandler;
 use LPagery\service\FindPostService;
 use LPagery\service\save_page\CreatePostDelegate;
@@ -22,7 +23,13 @@ class CreatePostDelegateFactory {
         $additionalDataSaver = AdditionalDataSaverFactory::create();
         $shouldPageBeUpdatedChecker = null;
         $pageUpdateDataHandler = null;
-        $pageCreator = PageSaver::get_instance( $LPageryDao, $additionalDataSaver, $shouldPageBeUpdatedChecker );
+        $purgeCachingPluginsService = PurgeCachingPluginsService::get_instance();
+        $pageCreator = PageSaver::get_instance(
+            $LPageryDao,
+            $additionalDataSaver,
+            $shouldPageBeUpdatedChecker,
+            $purgeCachingPluginsService
+        );
         return CreatePostDelegate::get_instance(
             $LPageryDao,
             $inputParamProvider,

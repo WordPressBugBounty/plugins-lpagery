@@ -35,6 +35,7 @@ return array(
     'LPagery\\service\\InstallationDateHandler' => $baseDir . '/src/service/InstallationDateHandler.php',
     'LPagery\\service\\PageExportHandler' => $baseDir . '/src/service/PageExportHandler.php',
     'LPagery\\service\\TrackingPermissionService' => $baseDir . '/src/service/TrackingPermissionService.php',
+    'LPagery\\service\\caching\\PurgeCachingPluginsService' => $baseDir . '/src/service/caching/PurgeCachingPluginsService.php',
     'LPagery\\service\\delete\\DeletePageService' => $baseDir . '/src/service/delete/DeletePageService.php',
     'LPagery\\service\\delete\\DeleteProcessService' => $baseDir . '/src/service/delete/DeleteProcessService.php',
     'LPagery\\service\\delete\\ResetLPageryService' => $baseDir . '/src/service/delete/ResetLPageryService.php',

@@ -5,6 +5,7 @@ namespace LPagery\service\save_page;
 use Exception;
 use LPagery\data\LPageryDao;
 use LPagery\model\Params;
+use LPagery\service\caching\PurgeCachingPluginsService;
 use LPagery\service\save_page\additional\AdditionalDataSaver;
 use LPagery\service\save_page\update\ShouldPageBeUpdatedChecker;
 use WP_Post;
@@ -15,19 +16,21 @@ class PageSaver
     private LPageryDao $lpageryDao;
     private AdditionalDataSaver $additionalDataSaver;
     private ?ShouldPageBeUpdatedChecker $shouldPageBeUpdatedChecker;
+    private PurgeCachingPluginsService $purgeCachingPluginsService;
 
 
-    public function __construct(LPageryDao $lpageryDao, AdditionalDataSaver $additionalDataSaver, ?ShouldPageBeUpdatedChecker $shouldPageBeUpdatedChecker)
+    public function __construct(LPageryDao $lpageryDao, AdditionalDataSaver $additionalDataSaver, ?ShouldPageBeUpdatedChecker $shouldPageBeUpdatedChecker, PurgeCachingPluginsService $purgeCachingPluginsService)
     {
         $this->lpageryDao = $lpageryDao;
         $this->additionalDataSaver = $additionalDataSaver;
         $this->shouldPageBeUpdatedChecker = $shouldPageBeUpdatedChecker;
+        $this->purgeCachingPluginsService = $purgeCachingPluginsService;
     }
 
-    public static function get_instance(LPageryDao $lpageryDao, AdditionalDataSaver $additionalDataSaver, ?ShouldPageBeUpdatedChecker $shouldPageBeUpdatedChecker)
+    public static function get_instance(LPageryDao $lpageryDao, AdditionalDataSaver $additionalDataSaver, ?ShouldPageBeUpdatedChecker $shouldPageBeUpdatedChecker, PurgeCachingPluginsService $purgeCachingPluginsService)
     {
         if (null === self::$instance) {
-            self::$instance = new self($lpageryDao, $additionalDataSaver, $shouldPageBeUpdatedChecker);
+            self::$instance = new self($lpageryDao, $additionalDataSaver, $shouldPageBeUpdatedChecker, $purgeCachingPluginsService);
         }
         return self::$instance;
     }
@@ -148,6 +151,7 @@ class PageSaver
 
         $wpdb->query('COMMIT');
         delete_transient($transient_key);
+        $this->purgeCachingPluginsService->purge_caching_plugins($post_id);
 
         if ($create_mode) {
             return SavePageResult::create("created", "created", $slug, $params, $parent);

@@ -4,7 +4,7 @@ Tags: bulk page, seo, local seo, mass page, programmatic seo
 Requires at least: 6.2
 Tested up to: 6.7.1
 Requires PHP: 7.4
-Stable tag: 2.1.3
+Stable tag: 2.1.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -270,6 +270,14 @@ You can revoke your consent at any time, and the integrations will be disabled i
 We are committed to transparency and your control over your data. For more information, please refer to our Privacy Policy.
 
 == Changelog ==
+
+= 2.1.5 - 2025-03-13 =
+* Feat: Purge Cache after creating a page
+* Feat: Use new API for fetching cities and google sheet data
+
+= 2.1.4 - 2025-02-18 =
+* Fix: Replace empty values in Google Sheet Sync
+
 
 = 2.1.3 - 2025-02-11 =
 * Fix: Fix merging existing and new slugs in ui for update
