@@ -2,15 +2,17 @@
 Contributors: niklaslindemann, jonaslindemann
 Tags: bulk page, seo, local seo, mass page, programmatic seo
 Requires at least: 6.2
-Tested up to: 6.7.1
+Tested up to: 6.7.2
 Requires PHP: 7.4
-Stable tag: 2.1.5
+Stable tag: 2.1.6
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
 Effortlessly mass generate unlimited SEO-optimized pages in bulk with LPagery. Boost traffic, save time, and grow your business in just 5 minutes!
 
 == Description ==
+Try it out on your free dummy site: Click here to get a live interactive demo => [https://tastewp.com/recipe/lpagery](https://tastewp.com/recipe/lpagery).
+
 
 **"Get 10x more organic traffic and reach more customers effortlessly with LPagery."**
 
@@ -270,6 +272,10 @@ You can revoke your consent at any time, and the integrations will be disabled i
 We are committed to transparency and your control over your data. For more information, please refer to our Privacy Policy.
 
 == Changelog ==
+
+= 2.1.6 - 2025-03-22 =
+* Fix: Allow dynamic parent when updating pages when parent is part of the identifier
+* Feat: Show a note to the user when the slug contains a slash for creating hierarchical content
 
 = 2.1.5 - 2025-03-13 =
 * Feat: Purge Cache after creating a page
