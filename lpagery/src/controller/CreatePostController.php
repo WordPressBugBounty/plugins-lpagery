@@ -72,6 +72,15 @@ class CreatePostController
         } else {
             $processed_slugs = maybe_unserialize($processed_slugs);
         }
+        $queue_transient_key = 'lpagery_queue_processing' . $queue_item["id"];
+        $currently_processing = get_transient($queue_transient_key);
+        $already_processed = in_array($queue_item["slug"], $processed_slugs);
+        if ($already_processed || $currently_processing) {
+            return array("success" => true,
+                "slug" => $queue_item["slug"]);
+        }
+
+        set_transient($queue_transient_key, true, 60);
         $process_id = $queue_item['process_id'];
         $process = $this->LPageryDao->lpagery_get_process_by_id($process_id);
         $google_sheet_data = maybe_unserialize($process->google_sheet_data);
@@ -104,6 +113,7 @@ class CreatePostController
 
         $result_array = array("success" => true,
             "slug" => $replaced_slug);
+        delete_transient($queue_transient_key);
 
         return ($result_array);
     }
