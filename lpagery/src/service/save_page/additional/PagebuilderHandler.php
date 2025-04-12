@@ -67,6 +67,10 @@ class PagebuilderHandler
             self::lpagery_handle_seedprod($sourcePostId, $targetPostId, $params);
         }
 
+        if (in_array('_bricks_page_settings', $post_meta_keys) || in_array('_bricks_page_content_2', $post_meta_keys)) {
+            self::lpagery_handle_bricks($sourcePostId, $targetPostId, $params);
+        }
+
     }
 
     private function lpagery_handle_seedprod($sourcePostId, $targetPostId, Params $params)
@@ -141,7 +145,7 @@ class PagebuilderHandler
     private function lpagery_handle_visual_breakdance($sourcePostId, $targetPostId, Params $params)
     {
         $meta_value = get_post_meta($sourcePostId, "_breakdance_data", true);
-        if (is_string($meta_value) && function_exists('Breakdance\Data\set_meta') ) {
+        if (is_string($meta_value) && function_exists('Breakdance\Data\set_meta')) {
             $decoded = json_decode($meta_value, true);
             if (isset($decoded["tree_json_string"])) {
                 delete_post_meta($targetPostId, "_breakdance_data");
@@ -285,6 +289,28 @@ class PagebuilderHandler
         }
 
     }
-    
+
+    private function lpagery_handle_bricks($source_post_id, $target_post_id, Params $params)
+    {
+        $settings_value = get_post_meta($source_post_id, '_bricks_page_settings', true);
+        if ($settings_value) {
+            $bricks_settings = maybe_unserialize($settings_value);
+            $replaced_settings = $this->substitutionHandler->lpagery_substitute($params, $bricks_settings);
+            delete_post_meta($target_post_id, "_bricks_page_settings");
+            add_post_meta($target_post_id, "_bricks_page_settings", $replaced_settings);
+        }
+
+
+        $content_value = get_post_meta($source_post_id, '_bricks_page_content_2', true);
+        if ($content_value) {
+            $bricks_content = maybe_unserialize($content_value);
+            $replaced_content = $this->substitutionHandler->lpagery_substitute($params, $bricks_content);
+            delete_post_meta($target_post_id, "_bricks_page_content_2");
+            add_post_meta($target_post_id, "_bricks_page_content_2", $replaced_content);
+        }
+
+
+    }
+
 
 }

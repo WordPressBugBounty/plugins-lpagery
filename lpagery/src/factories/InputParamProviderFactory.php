@@ -4,6 +4,7 @@ namespace LPagery\factories;
 
 use LPagery\service\InstallationDateHandler;
 use LPagery\service\media\AttachmentHelper;
+use LPagery\service\media\AttachmentMetadataUpdater;
 use LPagery\service\media\AttachmentReplacementProvider;
 use LPagery\service\media\AttachmentSaver;
 use LPagery\service\media\AttachmentSearchService;

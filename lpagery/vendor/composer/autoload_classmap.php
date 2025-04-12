@@ -44,6 +44,7 @@ return array(
     'LPagery\\service\\duplicates\\DuplicateSlugResult' => $baseDir . '/src/service/duplicates/DuplicateSlugResult.php',
     'LPagery\\service\\duplicates\\ExistingSlugResult' => $baseDir . '/src/service/duplicates/ExistingSlugResult.php',
     'LPagery\\service\\media\\AttachmentHelper' => $baseDir . '/src/service/media/AttachmentHelper.php',
+    'LPagery\\service\\media\\AttachmentMetadataUpdater' => $baseDir . '/src/service/media/AttachmentMetadataUpdater.php',
     'LPagery\\service\\media\\AttachmentReplacementProvider' => $baseDir . '/src/service/media/AttachmentReplacementProvider.php',
     'LPagery\\service\\media\\AttachmentSaver' => $baseDir . '/src/service/media/AttachmentSaver.php',
     'LPagery\\service\\media\\AttachmentSearchResult' => $baseDir . '/src/service/media/AttachmentSearchResult.php',

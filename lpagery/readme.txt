@@ -4,7 +4,7 @@ Tags: bulk page, seo, local seo, mass page, programmatic seo
 Requires at least: 6.2
 Tested up to: 6.7.2
 Requires PHP: 7.4
-Stable tag: 2.1.7
+Stable tag: 2.2.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -272,6 +272,14 @@ You can revoke your consent at any time, and the integrations will be disabled i
 We are committed to transparency and your control over your data. For more information, please refer to our Privacy Policy.
 
 == Changelog ==
+
+= 2.2.0 - 2025-04-12 =
+* Feat: Allow image metadata replacements for existing images
+* Fix: Use get_permalink instead of get_page_link for interlinking
+
+
+= 2.1.8 - 2025-04-08 =
+* Fix: Deserialize Bricks Data before processing
 
 = 2.1.7 - 2025-04-06 =
 * Fix: Early abort Google Sheet Sync if item is currently processing to avoid race conditions

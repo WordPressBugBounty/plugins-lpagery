@@ -72,6 +72,7 @@ class ComposerStaticInit1319a04edad46ada0155a4ffbbf7a9c5
         'LPagery\\service\\duplicates\\DuplicateSlugResult' => __DIR__ . '/../..' . '/src/service/duplicates/DuplicateSlugResult.php',
         'LPagery\\service\\duplicates\\ExistingSlugResult' => __DIR__ . '/../..' . '/src/service/duplicates/ExistingSlugResult.php',
         'LPagery\\service\\media\\AttachmentHelper' => __DIR__ . '/../..' . '/src/service/media/AttachmentHelper.php',
+        'LPagery\\service\\media\\AttachmentMetadataUpdater' => __DIR__ . '/../..' . '/src/service/media/AttachmentMetadataUpdater.php',
         'LPagery\\service\\media\\AttachmentReplacementProvider' => __DIR__ . '/../..' . '/src/service/media/AttachmentReplacementProvider.php',
         'LPagery\\service\\media\\AttachmentSaver' => __DIR__ . '/../..' . '/src/service/media/AttachmentSaver.php',
         'LPagery\\service\\media\\AttachmentSearchResult' => __DIR__ . '/../..' . '/src/service/media/AttachmentSearchResult.php',

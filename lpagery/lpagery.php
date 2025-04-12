@@ -4,7 +4,7 @@
 Plugin Name: LPagery
 Plugin URI: https://lpagery.io/
 Description: Create hundreds or even thousands of landingpages for local businesses, services etc.
-Version: 2.1.7
+Version: 2.2.0
 Author: LPagery
 License: GPLv2 or later
 */
@@ -488,12 +488,12 @@ if ( function_exists( 'lpagery_fs' ) ) {
         }
         if ( $found_post ) {
             $title = ( empty( $title ) ? $found_post['post_title'] : $title );
-            return '<a class="lpagery_link_anchor" href="' . esc_url( get_page_link( $found_post['id'] ) ) . '" target="' . esc_attr( $target ) . '">' . esc_html( $title ) . '</a>';
+            return '<a class="lpagery_link_anchor" href="' . esc_url( get_permalink( $found_post['id'] ) ) . '" target="' . esc_attr( $target ) . '">' . esc_html( $title ) . '</a>';
         }
         return null;
     }
 
-    function lpagery_add_replace_filename(  $form_fields, $post  ) {
+    function lpagery_add_media_fields(  $form_fields, $post  ) {
         $settingsController = SettingsController::get_instance();
         if ( $settingsController->isImageProcessingEnabled() ) {
             $form_fields['lpagery_replace_filename'] = array(
@@ -502,13 +502,19 @@ if ( function_exists( 'lpagery_fs' ) ) {
                 'value' => get_post_meta( $post->ID, '_lpagery_replace_filename', true ),
                 'helps' => 'The name for LPagery to be taken for downloading images when using this image as an placeholder. The ending will be populated automatically. Please add placeholders from the input file here (e.g. "my-image-in-{city}")',
             );
+            $form_fields['lpagery_update_metadata'] = array(
+                'label' => '<img width="25px" height="25px" src="' . plugin_dir_url( dirname( __FILE__ ) ) . "/" . plugin_basename( dirname( __FILE__ ) ) . '/assets/lpagery.png"/>Update Metadata',
+                'input' => 'html',
+                'html'  => '<input type="checkbox" name="attachments[' . $post->ID . '][lpagery_update_metadata]" value="1" ' . checked( get_post_meta( $post->ID, '_lpagery_update_metadata', true ), '1', false ) . ' />',
+                'helps' => 'Check this box to update the image metadata of existing replacement images when processing this image',
+            );
         }
         return $form_fields;
     }
 
     add_filter(
         'attachment_fields_to_edit',
-        'lpagery_add_replace_filename',
+        'lpagery_add_media_fields',
         10,
         2
     );
@@ -516,6 +522,11 @@ if ( function_exists( 'lpagery_fs' ) ) {
         if ( isset( $attachment['lpagery_replace_filename'] ) ) {
             // Update or add the custom field value
             update_post_meta( $post['ID'], '_lpagery_replace_filename', $attachment['lpagery_replace_filename'] );
+        }
+        if ( isset( $attachment['lpagery_update_metadata'] ) ) {
+            update_post_meta( $post['ID'], '_lpagery_update_metadata', '1' );
+        } else {
+            update_post_meta( $post['ID'], '_lpagery_update_metadata', '0' );
         }
         return $post;
     }
