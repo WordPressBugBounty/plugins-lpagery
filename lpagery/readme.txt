@@ -2,9 +2,9 @@
 Contributors: niklaslindemann, jonaslindemann
 Tags: bulk page, seo, local seo, mass page, programmatic seo
 Requires at least: 6.2
-Tested up to: 6.7.2
+Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 2.2.0
+Stable tag: 2.2.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -272,6 +272,11 @@ You can revoke your consent at any time, and the integrations will be disabled i
 We are committed to transparency and your control over your data. For more information, please refer to our Privacy Policy.
 
 == Changelog ==
+
+= 2.2.1 - 2025-04-28 =
+* Fix: Allow replacements for non-ascii symbols
+* Fix: Only enable numeric replacements if key and values are numeric
+* Fix: Allow pending post status
 
 = 2.2.0 - 2025-04-12 =
 * Feat: Allow image metadata replacements for existing images

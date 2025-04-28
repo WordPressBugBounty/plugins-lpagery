@@ -119,6 +119,17 @@ class SubstitutionHandler {
                 $currentValue = "";
             }
             $content = str_ireplace( $key_value, $currentValue, $content );
+            // Check if key contains non-ASCII (e.g., umlauts)
+            if ( preg_match( '/[^\\x00-\\x7F]/', $key_value ) ) {
+                echo "Key contains non-ASCII characters: " . $key_value;
+                // Unicode-aware, case-insensitive replace
+                $pattern = '/' . preg_quote( $key_value, '/' ) . '/iu';
+                $content = preg_replace( $pattern, $currentValue, $content );
+            } else {
+                // Fast path for ASCII
+                $content = str_ireplace( $key_value, $currentValue, $content );
+            }
+            $content = str_ireplace( $key_value, $currentValue, $content );
         }
         return $content;
     }

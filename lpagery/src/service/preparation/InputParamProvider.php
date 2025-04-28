@@ -106,7 +106,7 @@ class InputParamProvider {
             $suffix = ( !str_ends_with( $key, "}" ) ? "}" : "" );
             $keys[] = $prefix . $key . $suffix;
             $values[] = $value;
-            if ( is_numeric( $key ) ) {
+            if ( is_numeric( $key ) && is_numeric( $value ) ) {
                 $numeric_keys[] = $key;
                 $numeric_values[] = $value;
             }
