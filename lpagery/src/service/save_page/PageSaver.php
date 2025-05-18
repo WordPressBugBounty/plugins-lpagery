@@ -45,6 +45,7 @@ class PageSaver
         $parent = $postFieldProvider->get_parent();
         $json_decode = $params->raw_data;
         $process_id = $params->process_id;
+        $client_generated_slug = $params->settings->client_generated_slug;
 
         $cached_slug = CreatedPageCacheValue::create($params, $slug, $parent);
         $slug_already_processed = $processed_slugs && count($processed_slugs) > 0 && (in_array($cached_slug->value,
@@ -131,7 +132,7 @@ class PageSaver
             throw new Exception(json_encode($post_id->get_all_error_data()));
         }
         try {
-            $result = $this->lpageryDao->lpagery_add_post_to_process($params, $post_id, $template_post->ID, $slug, $shouldContentBeUpdated, $parent, $postFieldProvider->get_parent_search_term());
+            $result = $this->lpageryDao->lpagery_add_post_to_process($params, $post_id, $template_post->ID, $slug, $shouldContentBeUpdated, $parent, $postFieldProvider->get_parent_search_term(), $client_generated_slug);
             if ($result["error"]) {
                 error_log("LPagery Rolling Back Transaction During creation slug : $slug, Process : $process_id " . $result["error"]);
                 $wpdb->query('ROLLBACK');

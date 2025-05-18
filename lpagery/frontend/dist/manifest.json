@@ -3,9 +3,17 @@
     "file": "assets/LP_Logo_horizontal_2022_RZ-Q98YOlko.png",
     "src": "src/assets/LP_Logo_horizontal_2022_RZ.png"
   },
+  "src/assets/app_logo.png": {
+    "file": "assets/app_logo-Ccz1w2qC.png",
+    "src": "src/assets/app_logo.png"
+  },
   "src/assets/lpagery-logo-white-name.png": {
     "file": "assets/lpagery-logo-white-name-rUztIkea.png",
     "src": "src/assets/lpagery-logo-white-name.png"
+  },
+  "src/assets/lpagery.png": {
+    "file": "assets/lpagery-Dqtsc9_R.png",
+    "src": "src/assets/lpagery.png"
   },
   "src/assets/onboarding/CreateThumbnail.png": {
     "file": "assets/CreateThumbnail-CDNXclqL.png",
@@ -35,17 +43,24 @@
     "file": "assets/pro-Du7Eyhe6.svg",
     "src": "src/assets/pro.svg"
   },
+  "src/assets/wordpress.png": {
+    "file": "assets/wordpress-DKXsAQ5N.png",
+    "src": "src/assets/wordpress.png"
+  },
   "src/index.tsx": {
-    "file": "assets/index-q_qBuVZT.js",
+    "file": "assets/index-Dn1fTmR1.js",
     "name": "index",
     "src": "src/index.tsx",
     "isEntry": true,
     "css": [
-      "assets/index-BkiDB8Jf.css"
+      "assets/index-CJinIa2V.css"
     ],
     "assets": [
       "assets/pro-Du7Eyhe6.svg",
+      "assets/wordpress-DKXsAQ5N.png",
+      "assets/app_logo-Ccz1w2qC.png",
       "assets/lpagery-logo-white-name-rUztIkea.png",
+      "assets/lpagery-Dqtsc9_R.png",
       "assets/SourceFileNeu2-CbCfJXZi.png",
       "assets/TemplatePageCleaning-w49AUHLI.png",
       "assets/ResultCleaningNeu-B1-Fc7vf.png",

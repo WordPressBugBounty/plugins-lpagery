@@ -1,5 +1,48 @@
 # @kucrut/vite-for-wp
 
+## 0.11.5
+
+### Patch Changes
+
+- 9cbd76f: Update JS dependencies
+
+## 0.11.4
+
+### Patch Changes
+
+- 8892f2a: wp_scripts: Fix externalised jsx-runtime
+
+## 0.11.3
+
+### Patch Changes
+
+- 96ed25c: Externalise react/jsx-runtime
+- d4bf568: Update wp-globals
+- 4191c01: Clean-up typings
+
+## 0.11.2
+
+### Patch Changes
+
+- 27da37f: Update readme
+
+## 0.11.1
+
+### Patch Changes
+
+- b188938: Fix wp_scripts on dev mode
+
+## 0.11.0
+
+### Minor Changes
+
+- b1e4f21: Fix wp_scripts plugin
+
+### Patch Changes
+
+- 6111279: Update dependencies (20250310)
+- 89ff79c: Update GH actions to use the latest versions
+
 ## 0.10.0
 
 ### Minor Changes

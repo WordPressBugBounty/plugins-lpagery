@@ -42,6 +42,15 @@ class SubstitutionDataPreparator
             throw new Exception("INVALID DATA " . $data);
         }
 
+        return $this->recursive_sanitize_array($json_decode);
+    }
+
+    /**
+     * @param array $json_decode
+     * @return array|array[]
+     */
+    public function recursive_sanitize_array(array $json_decode): array
+    {
         if (!is_array($json_decode[0] ?? null)) {
             $json_decode = array_map('urldecode', $json_decode);
             $json_decode = array_map(self::class . '::lpagery_sanitize_text', $json_decode);
@@ -55,6 +64,7 @@ class SubstitutionDataPreparator
         }
         return $json_decode;
     }
+
     /** @phpstan-ignore method.unused*/
     private function lpagery_sanitize_text($value)
     {

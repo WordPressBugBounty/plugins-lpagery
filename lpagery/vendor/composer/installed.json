@@ -2,23 +2,23 @@
     "packages": [
         {
             "name": "kucrut/vite-for-wp",
-            "version": "v0.10.0",
-            "version_normalized": "0.10.0.0",
+            "version": "v0.11.5",
+            "version_normalized": "0.11.5.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/kucrut/vite-for-wp.git",
-                "reference": "b582254a7e4f6976c0798717c83d75eba093810f"
+                "reference": "40ae2a7890ad23cafa0f7f028f6628f8cab5fbae"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/kucrut/vite-for-wp/zipball/b582254a7e4f6976c0798717c83d75eba093810f",
-                "reference": "b582254a7e4f6976c0798717c83d75eba093810f",
+                "url": "https://api.github.com/repos/kucrut/vite-for-wp/zipball/40ae2a7890ad23cafa0f7f028f6628f8cab5fbae",
+                "reference": "40ae2a7890ad23cafa0f7f028f6628f8cab5fbae",
                 "shasum": ""
             },
             "require-dev": {
                 "wp-coding-standards/wpcs": "^3.0"
             },
-            "time": "2024-12-18T07:15:27+00:00",
+            "time": "2025-04-23T11:49:08+00:00",
             "type": "library",
             "installation-source": "dist",
             "autoload": {
@@ -38,23 +38,23 @@
             "description": "Vite integration for WordPress plugins and themes development.",
             "support": {
                 "issues": "https://github.com/kucrut/vite-for-wp/issues",
-                "source": "https://github.com/kucrut/vite-for-wp/tree/v0.10.0"
+                "source": "https://github.com/kucrut/vite-for-wp/tree/v0.11.5"
             },
             "install-path": "../kucrut/vite-for-wp"
         },
         {
             "name": "shuchkin/simplexlsxgen",
-            "version": "1.4.13",
-            "version_normalized": "1.4.13.0",
+            "version": "1.4.14",
+            "version_normalized": "1.4.14.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/shuchkin/simplexlsxgen.git",
-                "reference": "a44de02fe239e45cc86469b33509b542e73abeb8"
+                "reference": "b697b98533e9d573b49ff2e0a27258b59dcfc7b3"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/shuchkin/simplexlsxgen/zipball/a44de02fe239e45cc86469b33509b542e73abeb8",
-                "reference": "a44de02fe239e45cc86469b33509b542e73abeb8",
+                "url": "https://api.github.com/repos/shuchkin/simplexlsxgen/zipball/b697b98533e9d573b49ff2e0a27258b59dcfc7b3",
+                "reference": "b697b98533e9d573b49ff2e0a27258b59dcfc7b3",
                 "shasum": ""
             },
             "require": {
@@ -62,7 +62,7 @@
                 "ext-zlib": "*",
                 "php": ">=5.4"
             },
-            "time": "2024-10-13T11:37:57+00:00",
+            "time": "2025-03-06T18:40:23+00:00",
             "type": "library",
             "installation-source": "dist",
             "autoload": {
@@ -94,29 +94,29 @@
             ],
             "support": {
                 "issues": "https://github.com/shuchkin/simplexlsxgen/issues",
-                "source": "https://github.com/shuchkin/simplexlsxgen/tree/1.4.13"
+                "source": "https://github.com/shuchkin/simplexlsxgen/tree/1.4.14"
             },
             "install-path": "../shuchkin/simplexlsxgen"
         },
         {
             "name": "stechstudio/backoff",
-            "version": "1.4",
-            "version_normalized": "1.4.0.0",
+            "version": "1.6",
+            "version_normalized": "1.6.0.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/stechstudio/backoff.git",
-                "reference": "cfbc47e8925652a0cd6f5b419f665081c8796ca6"
+                "reference": "baab60fdce9dc8ab63a17b28e636b991785ab027"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/stechstudio/backoff/zipball/cfbc47e8925652a0cd6f5b419f665081c8796ca6",
-                "reference": "cfbc47e8925652a0cd6f5b419f665081c8796ca6",
+                "url": "https://api.github.com/repos/stechstudio/backoff/zipball/baab60fdce9dc8ab63a17b28e636b991785ab027",
+                "reference": "baab60fdce9dc8ab63a17b28e636b991785ab027",
                 "shasum": ""
             },
             "require-dev": {
                 "phpunit/phpunit": "^10.0"
             },
-            "time": "2024-08-29T21:43:13+00:00",
+            "time": "2025-04-08T13:44:27+00:00",
             "type": "library",
             "installation-source": "dist",
             "autoload": {
@@ -140,7 +140,7 @@
             "description": "PHP library providing retry functionality with multiple backoff strategies and jitter support",
             "support": {
                 "issues": "https://github.com/stechstudio/backoff/issues",
-                "source": "https://github.com/stechstudio/backoff/tree/1.4"
+                "source": "https://github.com/stechstudio/backoff/tree/1.6"
             },
             "install-path": "../stechstudio/backoff"
         }

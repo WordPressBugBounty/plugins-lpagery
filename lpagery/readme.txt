@@ -2,9 +2,9 @@
 Contributors: niklaslindemann, jonaslindemann
 Tags: bulk page, seo, local seo, mass page, programmatic seo
 Requires at least: 6.2
-Tested up to: 6.8
+Tested up to: 6.8.1
 Requires PHP: 7.4
-Stable tag: 2.2.1
+Stable tag: 2.3.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -272,6 +272,11 @@ You can revoke your consent at any time, and the integrations will be disabled i
 We are committed to transparency and your control over your data. For more information, please refer to our Privacy Policy.
 
 == Changelog ==
+
+= 2.3.0 - 2025-05-18 =
+* Feat: Auto renew nonce to prevent 403 errors
+* Fix: Only replace HTML in image processing when image got actually replaced
+* Fix: Delete Pages checkbox default enabled
 
 = 2.2.1 - 2025-04-28 =
 * Fix: Allow replacements for non-ascii symbols

@@ -77,7 +77,8 @@ class CreatePostDelegate {
             define( 'DOING_LPAGERY_CREATION', true );
         }
         $process_id = (int) ($REQUEST_PAYLOAD['process_id'] ?? 0);
-        $page_id_to_be_updated = $REQUEST_PAYLOAD["page_id_to_be_updated"] ?? null;
+        $page_id_to_be_updated = ( isset( $REQUEST_PAYLOAD['page_id_to_be_updated'] ) ? intval( $REQUEST_PAYLOAD['page_id_to_be_updated'] ) : null );
+        $client_generated_slug = ( isset( $REQUEST_PAYLOAD['client_generated_slug'] ) ? sanitize_text_field( $REQUEST_PAYLOAD['client_generated_slug'] ) : null );
         if ( $process_id <= 0 && !$page_id_to_be_updated ) {
             throw new Exception("Process ID must be set. This might be an issue with your Database-Version. Please check and consider updating the Database-Version");
         }
@@ -122,6 +123,7 @@ class CreatePostDelegate {
         $pageCreationSettings->status_from_process = $status_from_process;
         $pageCreationSettings->publish_datetime = $datetime;
         $pageCreationSettings->status_from_dashboard = $status_from_dashboard;
+        $pageCreationSettings->client_generated_slug = $client_generated_slug;
         $include_parent_as_identifier = filter_var( $process_by_id->include_parent_as_identifier, FILTER_VALIDATE_BOOLEAN );
         $params = $this->inputParamProvider->lpagery_provide_input_params(
             $json_decode,

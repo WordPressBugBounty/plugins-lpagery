@@ -42,7 +42,7 @@ class CreatePostController
     }
 
 
-    public function lpagery_create_posts_rest(WP_REST_Request $request)
+    public function lpagery_create_posts_queue(WP_REST_Request $request)
     {
         $secret_from_request = strval($request->get_param('secret'));
         $secret = strval(get_option('lpagery_queue_create_post_secret'));
@@ -121,7 +121,7 @@ class CreatePostController
 
     function lpagery_create_posts_ajax($post_data)
     {
-        $nonce_validity = check_ajax_referer('lpagery_ajax');
+
         $creation_id = $post_data["creation_id"];
         $is_last_page = filter_var($post_data["is_last_page"], FILTER_VALIDATE_BOOLEAN);
         $index = intval($post_data["index"]);
@@ -164,8 +164,6 @@ class CreatePostController
             $result_array["updated_reason"] = $response->reason;
         }
 
-
-        $result_array = $this->append_new_nonce_if_needed($nonce_validity, $result_array);
         $this->set_finished_if_last_page($post_data, $is_last_page);
 
         if ($is_last_page) {
@@ -191,18 +189,7 @@ class CreatePostController
     }
 
 
-    /**
-     * @param $nonce_validity
-     * @param array $result_array
-     * @return array
-     */
-    public function append_new_nonce_if_needed($nonce_validity, array $result_array): array
-    {
-        if ($nonce_validity == 2) {
-            $result_array["nonce"] = wp_create_nonce("lpagery_ajax");
-        }
-        return $result_array;
-    }
+
 
     /**
      * @param $post_data

@@ -88,7 +88,7 @@ class LPageryDao
         return $results;
     }
 
-    public function lpagery_upsert_process($post_id, $process_id, $purpose, $data, $google_sheet_data, $google_sheet_sync_enabled, bool $include_parent_as_identifier)
+    public function lpagery_upsert_process($post_id, $process_id, $purpose, $data, $google_sheet_data, $google_sheet_sync_enabled, bool $include_parent_as_identifier, string $managing_system)
     {
         global $wpdb;
         $current_user_id = get_current_user_id();
@@ -104,6 +104,7 @@ class LPageryDao
                 "google_sheet_sync_enabled" => $google_sheet_sync_enabled,
                 "google_sheet_sync_status" => $google_sheet_sync_enabled ? "PLANNED" : null,
                 "include_parent_as_identifier" => $include_parent_as_identifier,
+                'managing_system' => $managing_system,
                 "created" => current_time('mysql')));
             if ($wpdb->last_error) {
                 throw new Exception("Failed to insert process " . $wpdb->last_error);
@@ -164,7 +165,7 @@ class LPageryDao
         return $process_id;
     }
 
-    public function lpagery_add_post_to_process(Params $params, $post_id, $template_id, $replaced_slug, $shouldContentBeUpdated, $parent_id, $parent_search_term)
+    public function lpagery_add_post_to_process(Params $params, $post_id, $template_id, $replaced_slug, $shouldContentBeUpdated, $parent_id, $parent_search_term, $client_generated_slug)
     {
         global $wpdb;
 
@@ -202,6 +203,7 @@ class LPageryDao
                 "lpagery_settings" => $lpagery_settings,
                 "parent_search_term" => $parent_search_term,
                 "template_id" => $template_id,
+                "client_generated_slug" => $client_generated_slug,
                 "modified" => current_time('mysql'));
             if ($shouldContentBeUpdated) {
                 $update_array["page_manually_updated_at"] = null;
@@ -221,6 +223,7 @@ class LPageryDao
                 "replaced_slug" => $sanitized_slug,
                 "config" => $process_config,
                 "parent_search_term" => $parent_search_term,
+                "client_generated_slug" => $client_generated_slug,
                 "lpagery_settings" => $lpagery_settings,
                 "template_id" => $template_id,
                 "modified" => current_time('mysql')));
@@ -255,53 +258,67 @@ class LPageryDao
 
     }
 
-    public function lpagery_search_processes($post_id, $user_id, $search, $empty_filter)
+    public function lpagery_search_processes($post_id, $user_id, $search, $empty_filter, string $managing_system = null)
     {
         global $wpdb;
         $table_name_process = $wpdb->prefix . 'lpagery_process';
         $table_name_process_post = $wpdb->prefix . 'lpagery_process_post';
         $table_name_queue = $wpdb->prefix . 'lpagery_sync_queue';
 
-        $where_query = array();
+        $where_clauses = array();
+        $params = array();
 
         if (is_numeric($post_id) && $post_id > 0) {
-            $where_query[] = "post_id=" . $post_id;
+            $where_clauses[] = "post_id = %d";
+            $params[] = $post_id;
         }
         if (is_numeric($user_id) && $user_id > 0) {
-            $where_query[] = "user_id=" . $user_id;
+            $where_clauses[] = "user_id = %d";
+            $params[] = $user_id;
+        }
+        if ($managing_system) {
+            $where_clauses[] = "managing_system = %s";
+            $params[] = $managing_system;
         }
         if (!empty($search) && $search != 'undefined') {
-            $prepared = '%%%' . $search . '%%';
-            $where_query[] = sprintf("purpose like '%s'", $prepared);
+            $where_clauses[] = "purpose LIKE %s";
+            $params[] = '%' . $wpdb->esc_like($search) . '%';
         }
 
         // Add empty filter condition
         if ($empty_filter === 'non-empty') {
-            $where_query[] = "(select count(lpp.id) from $table_name_process_post lpp inner join $wpdb->posts p on p.id = lpp.post_id where lpp.lpagery_process_id = lp.id and p.post_status != 'trash') > 0";
+            $where_clauses[] = "(SELECT COUNT(lpp.id) FROM $table_name_process_post lpp INNER JOIN {$wpdb->posts} p ON p.id = lpp.post_id WHERE lpp.lpagery_process_id = lp.id AND p.post_status != 'trash') > 0";
         } elseif ($empty_filter === 'empty') {
-            $where_query[] = "(select count(lpp.id) from $table_name_process_post lpp inner join $wpdb->posts p on p.id = lpp.post_id where lpp.lpagery_process_id = lp.id and p.post_status != 'trash') = 0";
+            $where_clauses[] = "(SELECT COUNT(lpp.id) FROM $table_name_process_post lpp INNER JOIN {$wpdb->posts} p ON p.id = lpp.post_id WHERE lpp.lpagery_process_id = lp.id AND p.post_status != 'trash') = 0";
         }
 
-        if (empty($where_query)) {
-            $where_query[] = "true";
+        if (empty($where_clauses)) {
+            $where_query_text = '';
+        } else {
+            $where_query_text = ' WHERE ' . implode(' AND ', $where_clauses);
         }
-        $where_query_text = " WHERE " . implode(' AND ', $where_query) . " ORDER BY created desc";
+        $where_query_text .= ' ORDER BY created desc';
 
-        $prepare = "select id,
+        $query = "SELECT id,
                user_id,
                google_sheet_sync_enabled,
                google_sheet_sync_status,
                last_google_sheet_sync,
                google_sheet_data,
+               managing_system,
                post_id,
                created,
                 purpose,
-                (select count(lq.id) from $table_name_queue lq where lq.process_id = lp.id and error is not null) as errored,
-                (select count(lq.id) from $table_name_queue lq where lq.process_id = lp.id and  error is null) as in_queue,
-                (select count(lpp.id) from $table_name_process_post lpp inner join $wpdb->posts p on p.id = lpp.post_id where lpp.lpagery_process_id = lp.id and p.post_status != 'trash') as count
-            from $table_name_process lp $where_query_text";
+                (SELECT COUNT(lq.id) FROM $table_name_queue lq WHERE lq.process_id = lp.id AND error IS NOT NULL) AS errored,
+                (SELECT COUNT(lq.id) FROM $table_name_queue lq WHERE lq.process_id = lp.id AND  error IS NULL) AS in_queue,
+                (SELECT COUNT(lpp.id) FROM $table_name_process_post lpp INNER JOIN {$wpdb->posts} p ON p.id = lpp.post_id WHERE lpp.lpagery_process_id = lp.id AND p.post_status != 'trash') AS count
+            FROM $table_name_process lp $where_query_text";
 
-        return $wpdb->get_results($prepare);
+        if (!empty($params)) {
+            $query = $wpdb->prepare($query, ...$params);
+        }
+
+        return $wpdb->get_results($query);
     }
 
     public function lpagery_get_process_by_id($process_id)
@@ -324,6 +341,7 @@ class LPageryDao
 			       processed_queue_count,
 			       include_parent_as_identifier,
 			       created,
+			       managing_system,
 			         (select count(lpp.id) from $table_name_process_post lpp inner join $wpdb->posts p on p.id = lpp.post_id where lpp.lpagery_process_id = lp.id and p.post_status != 'trash') as count
 			from $table_name_process lp
 			where id = %s", $process_id);
@@ -660,11 +678,12 @@ class LPageryDao
     {
         global $wpdb;
         $table_name_process_post = $wpdb->prefix . 'lpagery_process_post';
-        $prepared = $wpdb->prepare("select id, post_id, replaced_slug
+        $prepared = $wpdb->prepare("select id, post_id, replaced_slug, client_generated_slug
             from $table_name_process_post where lpagery_process_id = %s", $process_id);
         $result = $wpdb->get_results($prepared);
         return $result;
     }
+
 
     public function lpagery_update_process_sync_status($process_id, $status, $error = null)
     {
@@ -672,16 +691,13 @@ class LPageryDao
         $table_name_process = $wpdb->prefix . 'lpagery_process';
         if ($status == "ERROR") {
             $wpdb->update($table_name_process, array("google_sheet_sync_status" => $status,
-                "google_sheet_sync_error" => $error), array("id" => $process_id,
-                "google_sheet_sync_enabled" => true));
+                "google_sheet_sync_error" => $error), array("id" => $process_id));
         } elseif ($status == "FINISHED") {
             $wpdb->update($table_name_process, array("google_sheet_sync_status" => $status,
                 "google_sheet_sync_error" => null,
-                "last_google_sheet_sync" => current_time('mysql', true)), array("id" => $process_id,
-                "google_sheet_sync_enabled" => true));
+                "last_google_sheet_sync" => current_time('mysql', true)), array("id" => $process_id));
         } else {
-            $wpdb->update($table_name_process, array("google_sheet_sync_status" => $status), array("id" => $process_id,
-                "google_sheet_sync_enabled" => true));
+            $wpdb->update($table_name_process, array("google_sheet_sync_status" => $status), array("id" => $process_id));
         }
     }
 
@@ -999,6 +1015,88 @@ class LPageryDao
         if ($wpdb->last_error) {
             throw new Exception("Failed to lpagery_update_process_user  " . $wpdb->last_error);
         }
+    }
+
+    public function lpagery_update_process_managing_system($id, string $managingSystem)
+    {
+        global $wpdb;
+        $table_name_process = $wpdb->prefix . 'lpagery_process';
+        $wpdb->update($table_name_process, array("managing_system" => $managingSystem), array("id" => $id));
+    }
+
+    /**
+     * Retrieves all app tokens from the database
+     * 
+     * @return array Array of app tokens
+     */
+    public function getAllAppTokens(): array
+    {
+        $get_all_tokens = current_user_can('manage_options');
+  
+        $user_id = get_current_user_id();
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'lpagery_app_tokens';
+        
+        if ($get_all_tokens) {
+            $query = "SELECT id, user_id, created_at, last_used_at, app_user_mail_address 
+                      FROM $table_name 
+                      ORDER BY last_used_at DESC";
+            $results = $wpdb->get_results($query);
+        } else {
+            $query = "SELECT id, user_id, created_at, last_used_at, app_user_mail_address 
+                      FROM $table_name 
+                      WHERE user_id = %d
+                      ORDER BY last_used_at DESC";
+            $results = $wpdb->get_results($wpdb->prepare($query, $user_id));
+        }
+        
+        if (!$results) {
+            return [];
+        }
+        
+        return $results;
+    }
+    
+    /**
+     * Deletes an app token by ID
+     * 
+     * @param int $tokenId The ID of the token to delete
+     * @return bool Whether the operation was successful
+     */
+    public function deleteAppToken(int $tokenId): bool
+    {
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'lpagery_app_tokens';
+        
+        $result = $wpdb->delete(
+            $table_name,
+            ['id' => $tokenId],
+            ['%d']
+        );
+        
+        return $result !== false;
+    }
+    
+    /**
+     * Updates the last_used_at timestamp for a token
+     * 
+     * @param string $token The token that was used
+     * @return bool Whether the update was successful
+     */
+    public function updateTokenLastUsed(string $token): bool
+    {
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'lpagery_app_tokens';
+        
+        $result = $wpdb->update(
+            $table_name,
+            ['last_used_at' => current_time('mysql', true)],
+            ['token' => $token],
+            ['%s'],
+            ['%s']
+        );
+        
+        return $result !== false;
     }
 }
 

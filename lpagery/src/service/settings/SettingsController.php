@@ -289,7 +289,9 @@ class SettingsController
         $userId = $this->getUserId($processId);
         $userSettings = $this->getUserSettings($userId);
 
-        return $userSettings['custom_post_types'] ?? [];
+        $result = $userSettings['custom_post_types'] ?? [];
+        array_push($result, "page", "post");
+        return $result;
     }
 
     /**
@@ -304,6 +306,14 @@ class SettingsController
             $process = $lpageryDao->lpagery_get_process_by_id($processId);
             if (!empty($process)) {
                 $userId = $process->user_id;
+            } else {
+                $userId = 0;
+            }
+        }
+        if(!$userId) {
+            $user = get_user_by('id', $processId);
+            if($user) {
+                $userId = $user->ID;
             } else {
                 $userId = 0;
             }

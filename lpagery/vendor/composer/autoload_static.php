@@ -4,7 +4,7 @@
 
 namespace Composer\Autoload;
 
-class ComposerStaticInit1319a04edad46ada0155a4ffbbf7a9c5
+class ComposerStaticInit9ce1146811f463879e4fbda7faf40773
 {
     public static $files = array (
         'b7e1c4cbafbabee94a69519a450ea263' => __DIR__ . '/..' . '/kucrut/vite-for-wp/vite-for-wp.php',
@@ -36,6 +36,12 @@ class ComposerStaticInit1319a04edad46ada0155a4ffbbf7a9c5
     public static $classMap = array (
         'Composer\\InstalledVersions' => __DIR__ . '/..' . '/composer/InstalledVersions.php',
         'LPagery\\controller\\CreatePostController' => __DIR__ . '/../..' . '/src/controller/CreatePostController.php',
+        'LPagery\\controller\\DuplicatedSlugController' => __DIR__ . '/../..' . '/src/controller/DuplicatedSlugController.php',
+        'LPagery\\controller\\PostController' => __DIR__ . '/../..' . '/src/controller/PostController.php',
+        'LPagery\\controller\\ProcessController' => __DIR__ . '/../..' . '/src/controller/ProcessController.php',
+        'LPagery\\controller\\SlugController' => __DIR__ . '/../..' . '/src/controller/SlugController.php',
+        'LPagery\\controller\\TaxonomyController' => __DIR__ . '/../..' . '/src/controller/TaxonomyController.php',
+        'LPagery\\controller\\UtilityController' => __DIR__ . '/../..' . '/src/controller/UtilityController.php',
         'LPagery\\data\\LPageryDao' => __DIR__ . '/../..' . '/src/data/LPageryDao.php',
         'LPagery\\data\\LPageryDatabaseMigrator' => __DIR__ . '/../..' . '/src/data/LPageryDatabaseMigrator.php',
         'LPagery\\data\\SearchPostService' => __DIR__ . '/../..' . '/src/data/SearchPostService.php',
@@ -52,11 +58,15 @@ class ComposerStaticInit1319a04edad46ada0155a4ffbbf7a9c5
         'LPagery\\factories\\SubstitutionHandlerFactory' => __DIR__ . '/../..' . '/src/factories/SubstitutionHandlerFactory.php',
         'LPagery\\io\\Api' => __DIR__ . '/../..' . '/src/io/Api.php',
         'LPagery\\io\\Mapper' => __DIR__ . '/../..' . '/src/io/Mapper.php',
+        'LPagery\\io\\suite\\SuiteClient' => __DIR__ . '/../..' . '/src/io/suite/SuiteClient.php',
         'LPagery\\model\\BaseParams' => __DIR__ . '/../..' . '/src/model/BaseParams.php',
+        'LPagery\\model\\GoogleSheetData' => __DIR__ . '/../..' . '/src/model/GoogleSheetData.php',
         'LPagery\\model\\PageCreationDashboardSettings' => __DIR__ . '/../..' . '/src/model/PageCreationDashboardSettings.php',
         'LPagery\\model\\Params' => __DIR__ . '/../..' . '/src/model/Params.php',
         'LPagery\\model\\ProcessSheetSyncParams' => __DIR__ . '/../..' . '/src/model/ProcessSheetSyncParams.php',
         'LPagery\\model\\TrackingPermissions' => __DIR__ . '/../..' . '/src/model/TrackingPermissions.php',
+        'LPagery\\model\\UpdateSettings' => __DIR__ . '/../..' . '/src/model/UpdateSettings.php',
+        'LPagery\\model\\UpsertProcessParams' => __DIR__ . '/../..' . '/src/model/UpsertProcessParams.php',
         'LPagery\\service\\Beautify_Html' => __DIR__ . '/../..' . '/src/service/Beautify_Html.php',
         'LPagery\\service\\DynamicPageAttributeHandler' => __DIR__ . '/../..' . '/src/service/DynamicPageAttributeHandler.php',
         'LPagery\\service\\FindPostService' => __DIR__ . '/../..' . '/src/service/FindPostService.php',
@@ -115,6 +125,7 @@ class ComposerStaticInit1319a04edad46ada0155a4ffbbf7a9c5
         'LPagery\\service\\taxonomies\\TaxonomyOutputHandler' => __DIR__ . '/../..' . '/src/service/taxonomies/TaxonomyOutputHandler.php',
         'LPagery\\service\\taxonomies\\TaxonomySaveHandler' => __DIR__ . '/../..' . '/src/service/taxonomies/TaxonomySaveHandler.php',
         'LPagery\\service\\template\\ReassignTemplateService' => __DIR__ . '/../..' . '/src/service/template/ReassignTemplateService.php',
+        'LPagery\\suite\\SuiteRestApi' => __DIR__ . '/../..' . '/src/suite/SuiteRestApi.php',
         'LPagery\\utils\\MemoryUtils' => __DIR__ . '/../..' . '/src/utils/MemoryUtils.php',
         'LPagery\\utils\\Utils' => __DIR__ . '/../..' . '/src/utils/Utils.php',
         'LPagery\\wpml\\WpmlHelper' => __DIR__ . '/../..' . '/src/wpml/WpmlHelper.php',
@@ -131,9 +142,9 @@ class ComposerStaticInit1319a04edad46ada0155a4ffbbf7a9c5
     public static function getInitializer(ClassLoader $loader)
     {
         return \Closure::bind(function () use ($loader) {
-            $loader->prefixLengthsPsr4 = ComposerStaticInit1319a04edad46ada0155a4ffbbf7a9c5::$prefixLengthsPsr4;
-            $loader->prefixDirsPsr4 = ComposerStaticInit1319a04edad46ada0155a4ffbbf7a9c5::$prefixDirsPsr4;
-            $loader->classMap = ComposerStaticInit1319a04edad46ada0155a4ffbbf7a9c5::$classMap;
+            $loader->prefixLengthsPsr4 = ComposerStaticInit9ce1146811f463879e4fbda7faf40773::$prefixLengthsPsr4;
+            $loader->prefixDirsPsr4 = ComposerStaticInit9ce1146811f463879e4fbda7faf40773::$prefixDirsPsr4;
+            $loader->classMap = ComposerStaticInit9ce1146811f463879e4fbda7faf40773::$classMap;
 
         }, null, ClassLoader::class);
     }

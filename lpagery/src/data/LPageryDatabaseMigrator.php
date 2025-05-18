@@ -34,12 +34,14 @@ class LPageryDatabaseMigrator
         $table_name_process = $wpdb->prefix . 'lpagery_process';
         $table_name_process_post = $wpdb->prefix . 'lpagery_process_post';
         $table_name_sync_queue = $wpdb->prefix . 'lpagery_sync_queue';
+        $table_name_app_tokens = $wpdb->prefix . 'lpagery_app_tokens';
 
 
         $process_table_exists = $this->lpagery_table_exists_migrate($table_name_process);
 
         $process_post_table_exists = $this->lpagery_table_exists_migrate($table_name_process_post);
         $sync_queue_table_exists = $this->lpagery_table_exists_migrate($table_name_sync_queue);
+        $app_tokens_table_exists = $this->lpagery_table_exists_migrate($table_name_app_tokens);
         $charset_collate = '';
         if (!empty($wpdb->charset)) {
             $charset_collate = "DEFAULT CHARACTER SET $wpdb->charset";
@@ -276,8 +278,25 @@ class LPageryDatabaseMigrator
             $wpdb->query("ALTER TABLE $table_name_process  add column include_parent_as_identifier boolean not null default false ");
             $wpdb->query("ALTER TABLE $table_name_process  add column existing_page_update_action varchar(100) not null default 'create' ");
             update_option("lpagery_database_version", 12);
-
         }
 
+        if ($db_version < 13 && $this->lpagery_table_exists_migrate($table_name_process_post)) {
+            $sql_app_tokens = "CREATE TABLE {$table_name_app_tokens} (
+                id bigint auto_increment primary key,
+                user_id bigint not null,
+                created_at timestamp not null default current_timestamp,
+                last_used_at timestamp null,
+                app_user_mail_address varchar(255) not null,
+                token varchar(255) not null,
+                KEY user_id_index (user_id),
+                UNIQUE KEY token_unique (token)
+            ) $charset_collate";
+
+            $wpdb->query("ALTER TABLE $table_name_process ADD COLUMN managing_system varchar(255) not null default 'plugin'");
+            $wpdb->query($sql_app_tokens);
+
+            $wpdb->query("ALTER TABLE $table_name_process_post add column client_generated_slug text");
+            update_option("lpagery_database_version", 13);
+        }
     }
 }

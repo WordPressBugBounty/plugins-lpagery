@@ -4,7 +4,7 @@
 Plugin Name: LPagery
 Plugin URI: https://lpagery.io/
 Description: Create hundreds or even thousands of landingpages for local businesses, services etc.
-Version: 2.2.1
+Version: 2.3.0
 Author: LPagery
 License: GPLv2 or later
 */
@@ -135,6 +135,66 @@ if ( function_exists( 'lpagery_fs' ) ) {
             }
             return $parent_file;
         } );
+        if ( isset( $_GET['page'] ) && $_GET['page'] === 'lpagery' && isset( $_GET['authorize'] ) && $_GET['authorize'] === 'true' ) {
+            if ( !is_user_logged_in() ) {
+                // Get the current URL
+                $current_url = (( isset( $_SERVER['HTTPS'] ) && $_SERVER['HTTPS'] === 'on' ? "https" : "http" )) . "://{$_SERVER['HTTP_HOST']}{$_SERVER['REQUEST_URI']}";
+                // Create the login URL with proper redirect
+                $login_url = wp_login_url( $current_url );
+                // Redirect to login
+                wp_redirect( $login_url );
+                exit;
+            }
+            // Generate a unique code for this authorization
+            $code = wp_generate_password( 32, false );
+            $user_id = get_current_user_id();
+            // Store the code with user ID and additional data in transients
+            $nonce = wp_create_nonce( 'suite_oauth_' . $code );
+            set_transient( 'suite_oauth_code_' . $code, [
+                'user_id'               => $user_id,
+                'timestamp'             => time(),
+                'app_user_mail_address' => sanitize_email( $_GET["app_user_mail_address"] ),
+                'nonce'                 => $nonce,
+            ], 300 );
+            $suite_origin = 'https://app.lpagery.io';
+            ?>
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="utf-8">
+                <title>LPagery Authorization</title>
+            </head>
+            <body>
+                <script>
+                    (function() {
+                        const code = '<?php 
+            echo esc_js( $code );
+            ?>';
+                        const nonce = '<?php 
+            echo esc_js( $nonce );
+            ?>';
+                        const user_id = '<?php 
+            echo esc_js( strval( $user_id ) );
+            ?>';
+                        if (window.opener) {
+                            window.opener.postMessage({
+                                type: 'wordpress_auth',
+                                nonce:nonce,
+                                user_id:user_id,
+                                code:code
+                            }, '<?php 
+            echo esc_js( $suite_origin );
+            ?>');
+
+                        }
+                    })();
+                </script>
+                <p>Authorization completed. You can close this window.</p>
+            </body>
+            </html>
+            <?php 
+            exit;
+        }
         add_action( 'admin_footer', function () {
             ?>
             <script>
@@ -233,6 +293,7 @@ if ( function_exists( 'lpagery_fs' ) ) {
         }
     }
 
+    new \LPagery\suite\SuiteRestApi();
     add_action( 'admin_enqueue_scripts', function ( $page ) : void {
         if ( $page !== 'toplevel_page_lpagery' ) {
             return;
@@ -244,20 +305,27 @@ if ( function_exists( 'lpagery_fs' ) ) {
             'css-only'     => false,
             'in-footer'    => true,
         ] );
+        global $wpdb;
+        $table_name_tokens = $wpdb->prefix . 'lpagery_app_tokens';
+        $table_name_process = $wpdb->prefix . 'lpagery_process';
+        $app_connected = $wpdb->get_var( "SELECT EXISTS (SELECT * FROM {$table_name_tokens})" );
+        $process_from_app_exists = $wpdb->get_var( "SELECT EXISTS (SELECT * FROM {$table_name_process} WHERE managing_system = 'app')" );
         $installationDateHandler = InstallationDateHandler::get_instance();
         $lpagery_scripts_object = array(
-            'is_free_plan'         => (bool) lpagery_fs()->is_free_plan(),
-            'is_extended_plan'     => (bool) lpagery_fs()->is_plan_or_trial( "extended" ),
-            'is_standard_plan'     => (bool) lpagery_fs()->is_plan_or_trial( "standard" ),
-            'ajax_url'             => admin_url( 'admin-ajax.php' ),
-            'nonce'                => wp_create_nonce( "lpagery_ajax" ),
-            'plugin_dir'           => plugin_dir_url( dirname( __FILE__ ) ),
-            'upload_dir'           => wp_upload_dir(),
-            'tracking_permissions' => TrackingPermissionService::get_instance( $installationDateHandler )->getPermissions(),
-            'allowed_placeholders' => $installationDateHandler->get_placeholder_counts(),
-            'version'              => LPAGERY_VERSION,
-            'username'             => wp_get_current_user()->display_name,
-            'wpml_installed'       => (bool) defined( 'ICL_SITEPRESS_VERSION' ),
+            'is_free_plan'            => (bool) lpagery_fs()->is_free_plan(),
+            'is_extended_plan'        => (bool) lpagery_fs()->is_plan_or_trial( "extended" ),
+            'is_standard_plan'        => (bool) lpagery_fs()->is_plan_or_trial( "standard" ),
+            'ajax_url'                => admin_url( 'admin-ajax.php' ),
+            'nonce'                   => wp_create_nonce( "lpagery_ajax" ),
+            'plugin_dir'              => plugin_dir_url( dirname( __FILE__ ) ),
+            'upload_dir'              => wp_upload_dir(),
+            'tracking_permissions'    => TrackingPermissionService::get_instance( $installationDateHandler )->getPermissions(),
+            'allowed_placeholders'    => $installationDateHandler->get_placeholder_counts(),
+            'version'                 => LPAGERY_VERSION,
+            'username'                => wp_get_current_user()->display_name,
+            'app_connected'           => (bool) $app_connected,
+            'process_from_app_exists' => (bool) $process_from_app_exists,
+            'wpml_installed'          => (bool) defined( 'ICL_SITEPRESS_VERSION' ),
         );
         // Encode the data as JSON and output it inline
         wp_add_inline_script( 'lpagery_scripts', 'const lpagery_scripts_object = ' . wp_json_encode( $lpagery_scripts_object ) . ';', 'before' );

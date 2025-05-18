@@ -30,13 +30,16 @@ class ImageSubstitutionHandler
         $values = $params->image_values ?? array();
         $dom = new DomDocument();
         $utf8_added = false;
-        if (!str_starts_with($content, "<?xml encoding")) {
-            $content = '<?xml encoding="utf-8" ?>' . $content;
+
+        $content_to_replace = $content;
+        if (!str_starts_with($content_to_replace, "<?xml encoding")) {
+            $content_to_replace = '<?xml encoding="utf-8" ?>' . $content_to_replace;
             $utf8_added = true;
         }
         libxml_use_internal_errors(true);
-        $dom->loadHTML($content, LIBXML_HTML_NODEFDTD | LIBXML_HTML_NOIMPLIED);
+        $dom->loadHTML($content_to_replace, LIBXML_HTML_NODEFDTD | LIBXML_HTML_NOIMPLIED);
         $images = $dom->getElementsByTagName("img");
+        $image_replaced = false;
         foreach ($images as $image) {
             $src_set = false;
             $prev_source = $image->getAttribute("src");
@@ -77,10 +80,14 @@ class ImageSubstitutionHandler
                     if ($image->getAttribute("sizes")) {
                         $image->setAttribute("sizes", wp_get_attachment_image_sizes($target_attachment_id, "large"));
                     }
+                    $image_replaced = true;
                 }
             }
         }
 
+        if(!$image_replaced) {
+            return $content;
+        }
         $saved = $dom->saveHTML();
         if ($utf8_added) {
             $saved = str_replace('<?xml encoding="utf-8" ?>', '', $saved);
