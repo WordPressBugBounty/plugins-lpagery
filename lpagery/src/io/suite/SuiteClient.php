@@ -1,5 +1,6 @@
 <?php
 namespace LPagery\io\suite;
+
 class SuiteClient
 {
 
@@ -18,8 +19,16 @@ class SuiteClient
 
     }
 
+    public function trigger_look_sync($page_set_id, bool $overwrite_manual_changes)
+    {
+        $params = [];
+        $params['overwriteManualChanges'] = $overwrite_manual_changes;
+        return $this->perform_request('page_sets/' . $page_set_id . '/sync/trigger', $params);
 
-    private function perform_request(string $path)
+    }
+
+
+    private function perform_request(string $path, array $query_params = [])
     {
         $install_id = lpagery_fs()->get_site()->id;
         $site_private_key = lpagery_fs()->get_site()->secret_key;
@@ -28,7 +37,12 @@ class SuiteClient
         $pk_hash = hash('sha512', $site_private_key . '|' . $nonce);
         $authentication_string = base64_encode($pk_hash . '|' . $nonce);
 
-        $url = 'https://app.lpagery.io/api/wordpress_plugin/v1/' . $path . '?websiteId=' . $install_id;
+        // Build query parameters
+        $default_params = ['websiteId' => $install_id];
+        $all_params = array_merge($default_params, $query_params);
+        $query_string = http_build_query($all_params);
+
+        $url = 'https://app.lpagery.io/api/wordpress_plugin/v1/' . $path . '?' . $query_string;
         $response = wp_remote_request($url, [
             'method' => 'POST',
             'timeout' => 15,

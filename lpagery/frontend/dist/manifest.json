@@ -48,12 +48,12 @@
     "src": "src/assets/wordpress.png"
   },
   "src/index.tsx": {
-    "file": "assets/index-Dn1fTmR1.js",
+    "file": "assets/index-EfhlujiD.js",
     "name": "index",
     "src": "src/index.tsx",
     "isEntry": true,
     "css": [
-      "assets/index-CJinIa2V.css"
+      "assets/index-BQ0xlfyr.css"
     ],
     "assets": [
       "assets/pro-Du7Eyhe6.svg",

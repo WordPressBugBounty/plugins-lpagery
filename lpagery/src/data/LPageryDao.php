@@ -53,8 +53,8 @@ class LPageryDao
         global $wpdb;
         $table_name_process_post = $wpdb->prefix . 'lpagery_process_post';
 
-        if (!$template_id) {
-            throw new Exception("Template ID is required");
+        if (!$template_id && !$process_id) {
+            throw new Exception("Template ID or Process ID is required");
         }
 
         $query = "SELECT p.ID, 
@@ -203,11 +203,13 @@ class LPageryDao
                 "lpagery_settings" => $lpagery_settings,
                 "parent_search_term" => $parent_search_term,
                 "template_id" => $template_id,
-                "client_generated_slug" => $client_generated_slug,
                 "modified" => current_time('mysql'));
             if ($shouldContentBeUpdated) {
                 $update_array["page_manually_updated_at"] = null;
                 $update_array["page_manually_updated_by"] = null;
+            }
+            if($client_generated_slug) {
+                $update_array["client_generated_slug"] = $client_generated_slug;
             }
             $update_result = $wpdb->update($table_name_process_post, $update_array, array("post_id" => $post_id,
                 "lpagery_process_id" => $process_id));

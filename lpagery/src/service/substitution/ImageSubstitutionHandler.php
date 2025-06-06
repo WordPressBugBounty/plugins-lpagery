@@ -31,7 +31,8 @@ class ImageSubstitutionHandler
         $dom = new DomDocument();
         $utf8_added = false;
 
-        $content_to_replace = $content;
+        // Wrap content in a dummy div
+        $content_to_replace = '<div id="lpagery-wrapper">' . $content . '</div>';
         if (!str_starts_with($content_to_replace, "<?xml encoding")) {
             $content_to_replace = '<?xml encoding="utf-8" ?>' . $content_to_replace;
             $utf8_added = true;
@@ -88,9 +89,28 @@ class ImageSubstitutionHandler
         if(!$image_replaced) {
             return $content;
         }
-        $saved = $dom->saveHTML();
+
+        $wrapper = $dom->getElementById('lpagery-wrapper');
+        $saved = '';
+        if ($wrapper) {
+            foreach ($wrapper->childNodes as $child) {
+                $saved .= $dom->saveHTML($child);
+            }
+        }
+
         if ($utf8_added) {
             $saved = str_replace('<?xml encoding="utf-8" ?>', '', $saved);
+        }
+        // Remove wrapping <p> if not present in input
+        $trimmed_input = trim($content);
+        $trimmed_output = trim($saved);
+        if (
+            preg_match('/^<p>.*<\/p>$/s', $trimmed_output) &&
+            !preg_match('/^<p>.*<\/p>$/s', $trimmed_input)
+        ) {
+            // Remove the outer <p>...</p>
+            $trimmed_output = preg_replace('/^<p>(.*)<\/p>$/s', '$1', $trimmed_output);
+            $saved = $trimmed_output;
         }
         return ($saved);
     }

@@ -32,6 +32,12 @@ class FindPostService
     {
         $lpagery_post_term = $this->substitutionHandler->lpagery_substitute($params, $lpagery_post_term);
 
+        if(filter_var($lpagery_post_term, FILTER_VALIDATE_URL)) {
+           $post_id = url_to_postid($lpagery_post_term);
+           if($post_id) {
+               return $this->findPostByIdWithCache($post_id);
+           }
+        }
         if (is_numeric($lpagery_post_term)) {
             $found_post = $this->findPostByIdWithCache($lpagery_post_term);
             if ($found_post) {
@@ -52,7 +58,12 @@ class FindPostService
     public function lpagery_find_post(BaseParams $params, $lpagery_post_term, $post_type)
     {
         $lpagery_post_term = $this->substitutionHandler->lpagery_substitute($params, $lpagery_post_term);
-
+        if(filter_var($lpagery_post_term, FILTER_VALIDATE_URL)) {
+            $post_id = url_to_postid($lpagery_post_term);
+            if($post_id) {
+                return $this->findPostByIdWithCache($post_id);
+            }
+        }
         if (is_numeric($lpagery_post_term)) {
             $found_post = $this->findPostByIdWithCache($lpagery_post_term);
             if ($found_post) {

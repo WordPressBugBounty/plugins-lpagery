@@ -9,6 +9,7 @@ use LPagery\controller\SlugController;
 use LPagery\controller\TaxonomyController;
 use LPagery\data\LPageryDao;
 use LPagery\factories\CreatePostControllerFactory;
+use LPagery\io\Mapper;
 use LPagery\service\delete\DeletePageService;
 use LPagery\service\settings\SettingsController;
 use LPagery\utils\Utils;
@@ -96,6 +97,16 @@ class SuiteRestApi
         register_rest_route('lpagery/app/v1', '/delete_pages', ['methods' => 'POST',
             'callback' => [$this,
                 'delete_pages'],
+            'permission_callback' => '__return_true',]);
+
+        register_rest_route('lpagery/app/v1', '/get_pages_for_update', ['methods' => 'POST',
+            'callback' => [$this,
+                'get_pages_for_update'],
+            'permission_callback' => '__return_true',]);
+
+        register_rest_route('lpagery/app/v1', '/get_pages_for_delete', ['methods' => 'POST',
+            'callback' => [$this,
+                'get_pages_for_delete'],
             'permission_callback' => '__return_true',]);
     }
 
@@ -256,7 +267,9 @@ class SuiteRestApi
         $process = ProcessController::get_instance()->updateManagingSystem($id, "app");
 
         $data = maybe_unserialize($process->data);
-        return rest_ensure_response(["success" => true, "name"=>$process->purpose ??'', "slug_pattern" =>$data["slug"] ]);
+        return rest_ensure_response(["success" => true,
+            "name" => $process->purpose ?? '',
+            "slug_pattern" => $data["slug"]]);
     }
 
     public function search_processes(\WP_REST_Request $request)
@@ -280,7 +293,6 @@ class SuiteRestApi
             return new \WP_Error('invalid_token', 'Invalid token', ['status' => 401]);
         }
         $json_params = $request->get_json_params();
-        error_log(json_encode($json_params));
         try {
             $slug = isset($json_params['slug']) ? Utils::lpagery_sanitize_title_with_dashes($json_params['slug']) : null;
             $process_id = isset($json_params['process_id']) ? intval($json_params['process_id']) : -1;
@@ -288,23 +300,12 @@ class SuiteRestApi
             $template_id = intval($json_params['post_id']);
             $parent_id = intval($json_params['parent_id'] ?? 0);
             $includeParentAsIdentifier = rest_sanitize_boolean($json_params["includeParentAsIdentifier"] ?? false);
-            $json_decode =$json_params['keys'];
+            $json_decode = $json_params['keys'];
             $keys = isset($json_params['keys']) ? array_map('sanitize_text_field', $json_decode) : [];
 
-            error_log(json_encode($keys));
             $duplicatedSlugController = DuplicatedSlugController::get_instance();
-            $result = $duplicatedSlugController->getDuplicatedSlugs(
-                $data,
-                $template_id,
-                $includeParentAsIdentifier,
-                $parent_id,
-                $slug,
-                $process_id,
-                $keys,
-                false
-            );
-
-            error_log(json_encode($result));
+            $result = $duplicatedSlugController->getDuplicatedSlugs($data, $template_id, $includeParentAsIdentifier,
+                $parent_id, $slug, $process_id, $keys, false);
 
             return rest_ensure_response($result);
         } catch (\Throwable $throwable) {
@@ -327,7 +328,7 @@ class SuiteRestApi
         try {
             $createPostController = CreatePostControllerFactory::create();
             $index = intval($json_params["index"]);
-            if($index == 0) {
+            if ($index == 0) {
                 $process_id = (int)$json_params['process_id'];
                 LPageryDao::get_instance()->lpagery_update_process_sync_status($process_id, "RUNNING");
             }
@@ -368,12 +369,60 @@ class SuiteRestApi
             }
             $post_ids[] = $post_slug_entry->post_id;
         }
-        if(!empty($post_ids)){
+        if (!empty($post_ids)) {
             error_log('Deleting pages: ' . json_encode($post_ids));
             DeletePageService::getInstance($LPageryDao)->deletePages($post_ids);
         }
 
         return rest_ensure_response(["success" => true]);
+    }
+
+    public function get_pages_for_delete(\WP_REST_Request $request)
+    {
+        $user_id = $this->verify_token($request);
+        if (!$user_id) {
+            return new \WP_Error('invalid_token', 'Invalid token', ['status' => 401]);
+        }
+        $json_params = $request->get_json_params();
+        $slugs = $json_params['slugs'];
+        $process_id = intval($json_params['process_id']);
+        $sanitized_slugs = array_map('sanitize_text_field', $slugs);
+
+        $LPageryDao = LPageryDao::get_instance();
+        $result = $LPageryDao->lpagery_get_process_posts_slugs($process_id);
+        $posts = [];
+        foreach ($result as $post_slug_entry) {
+            if (!$post_slug_entry->client_generated_slug || in_array($post_slug_entry->client_generated_slug,
+                    $sanitized_slugs)) {
+                continue;
+            }
+            $post = get_post($post_slug_entry->post_id);
+            $posts[] = array("post_title" => $post->post_title, "url" => get_permalink($post->ID), "id" => $post->ID,
+                "slug" => $post->post_name, "post_type" => $post->post_type);
+        }
+
+
+        return rest_ensure_response($posts);
+    }
+
+
+
+    function get_pages_for_update(\WP_REST_Request $request)
+    {
+        $user_id = $this->verify_token($request);
+        if (!$user_id) {
+            return new \WP_Error('invalid_token', 'Invalid token', ['status' => 401]);
+        }
+        $json_params = $request->get_json_params();
+
+        $process_id = (intval($json_params["process_id"] ?? 0));
+        $LPageryDao = LPageryDao::get_instance();
+
+        $posts = $LPageryDao->lpagery_get_existing_posts_for_update_modal(null, $process_id);
+        $mapper = Mapper::get_instance();
+        $mapped = array_map([$mapper,
+            'lpagery_map_post_for_update_modal'], $posts);
+        return rest_ensure_response($mapped);
     }
 
     private function verify_token(\WP_REST_Request $request)

@@ -14,6 +14,7 @@ return array(
     'LPagery\\controller\\SlugController' => $baseDir . '/src/controller/SlugController.php',
     'LPagery\\controller\\TaxonomyController' => $baseDir . '/src/controller/TaxonomyController.php',
     'LPagery\\controller\\UtilityController' => $baseDir . '/src/controller/UtilityController.php',
+    'LPagery\\data\\DbDeltaExecutor' => $baseDir . '/src/data/DbDeltaExecutor.php',
     'LPagery\\data\\LPageryDao' => $baseDir . '/src/data/LPageryDao.php',
     'LPagery\\data\\LPageryDatabaseMigrator' => $baseDir . '/src/data/LPageryDatabaseMigrator.php',
     'LPagery\\data\\SearchPostService' => $baseDir . '/src/data/SearchPostService.php',

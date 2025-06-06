@@ -42,6 +42,7 @@ class ComposerStaticInit9ce1146811f463879e4fbda7faf40773
         'LPagery\\controller\\SlugController' => __DIR__ . '/../..' . '/src/controller/SlugController.php',
         'LPagery\\controller\\TaxonomyController' => __DIR__ . '/../..' . '/src/controller/TaxonomyController.php',
         'LPagery\\controller\\UtilityController' => __DIR__ . '/../..' . '/src/controller/UtilityController.php',
+        'LPagery\\data\\DbDeltaExecutor' => __DIR__ . '/../..' . '/src/data/DbDeltaExecutor.php',
         'LPagery\\data\\LPageryDao' => __DIR__ . '/../..' . '/src/data/LPageryDao.php',
         'LPagery\\data\\LPageryDatabaseMigrator' => __DIR__ . '/../..' . '/src/data/LPageryDatabaseMigrator.php',
         'LPagery\\data\\SearchPostService' => __DIR__ . '/../..' . '/src/data/SearchPostService.php',
