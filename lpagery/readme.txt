@@ -4,7 +4,7 @@ Tags: bulk page, seo, local seo, mass page, programmatic seo
 Requires at least: 6.2
 Tested up to: 6.8.1
 Requires PHP: 7.4
-Stable tag: 2.3.1
+Stable tag: 2.3.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -273,7 +273,10 @@ We are committed to transparency and your control over your data. For more infor
 
 == Changelog ==
 
-= 2.3.0 - 2025-05-18 =
+= 2.3.2 - 2025-06-25=
+* Fix: Add support for 0-dates (0000-00-00 00:00:00)
+
+= 2.3.1 - 2025-05-18 =
 * Feat: Repair Database Schema functionality
 * Feat: Allow lpagery_parent with post url
 

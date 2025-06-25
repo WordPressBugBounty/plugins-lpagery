@@ -2,23 +2,23 @@
     "packages": [
         {
             "name": "kucrut/vite-for-wp",
-            "version": "v0.11.5",
-            "version_normalized": "0.11.5.0",
+            "version": "v0.11.6",
+            "version_normalized": "0.11.6.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/kucrut/vite-for-wp.git",
-                "reference": "40ae2a7890ad23cafa0f7f028f6628f8cab5fbae"
+                "reference": "69b3b14b94afddc14769d06658bb017f24f97244"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/kucrut/vite-for-wp/zipball/40ae2a7890ad23cafa0f7f028f6628f8cab5fbae",
-                "reference": "40ae2a7890ad23cafa0f7f028f6628f8cab5fbae",
+                "url": "https://api.github.com/repos/kucrut/vite-for-wp/zipball/69b3b14b94afddc14769d06658bb017f24f97244",
+                "reference": "69b3b14b94afddc14769d06658bb017f24f97244",
                 "shasum": ""
             },
             "require-dev": {
                 "wp-coding-standards/wpcs": "^3.0"
             },
-            "time": "2025-04-23T11:49:08+00:00",
+            "time": "2025-05-21T05:42:46+00:00",
             "type": "library",
             "installation-source": "dist",
             "autoload": {
@@ -38,23 +38,23 @@
             "description": "Vite integration for WordPress plugins and themes development.",
             "support": {
                 "issues": "https://github.com/kucrut/vite-for-wp/issues",
-                "source": "https://github.com/kucrut/vite-for-wp/tree/v0.11.5"
+                "source": "https://github.com/kucrut/vite-for-wp/tree/v0.11.6"
             },
             "install-path": "../kucrut/vite-for-wp"
         },
         {
             "name": "shuchkin/simplexlsxgen",
-            "version": "1.4.14",
-            "version_normalized": "1.4.14.0",
+            "version": "1.4.15",
+            "version_normalized": "1.4.15.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/shuchkin/simplexlsxgen.git",
-                "reference": "b697b98533e9d573b49ff2e0a27258b59dcfc7b3"
+                "reference": "962209ec39a3a078130b73437a59f9b476df7020"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/shuchkin/simplexlsxgen/zipball/b697b98533e9d573b49ff2e0a27258b59dcfc7b3",
-                "reference": "b697b98533e9d573b49ff2e0a27258b59dcfc7b3",
+                "url": "https://api.github.com/repos/shuchkin/simplexlsxgen/zipball/962209ec39a3a078130b73437a59f9b476df7020",
+                "reference": "962209ec39a3a078130b73437a59f9b476df7020",
                 "shasum": ""
             },
             "require": {
@@ -62,7 +62,7 @@
                 "ext-zlib": "*",
                 "php": ">=5.4"
             },
-            "time": "2025-03-06T18:40:23+00:00",
+            "time": "2025-05-28T09:50:35+00:00",
             "type": "library",
             "installation-source": "dist",
             "autoload": {
@@ -94,7 +94,7 @@
             ],
             "support": {
                 "issues": "https://github.com/shuchkin/simplexlsxgen/issues",
-                "source": "https://github.com/shuchkin/simplexlsxgen/tree/1.4.14"
+                "source": "https://github.com/shuchkin/simplexlsxgen/tree/1.4.15"
             },
             "install-path": "../shuchkin/simplexlsxgen"
         },

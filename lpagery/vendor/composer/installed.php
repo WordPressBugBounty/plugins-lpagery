@@ -11,9 +11,9 @@
     ),
     'versions' => array(
         'kucrut/vite-for-wp' => array(
-            'pretty_version' => 'v0.11.5',
-            'version' => '0.11.5.0',
-            'reference' => '40ae2a7890ad23cafa0f7f028f6628f8cab5fbae',
+            'pretty_version' => 'v0.11.6',
+            'version' => '0.11.6.0',
+            'reference' => '69b3b14b94afddc14769d06658bb017f24f97244',
             'type' => 'library',
             'install_path' => __DIR__ . '/../kucrut/vite-for-wp',
             'aliases' => array(),
@@ -29,9 +29,9 @@
             'dev_requirement' => false,
         ),
         'shuchkin/simplexlsxgen' => array(
-            'pretty_version' => '1.4.14',
-            'version' => '1.4.14.0',
-            'reference' => 'b697b98533e9d573b49ff2e0a27258b59dcfc7b3',
+            'pretty_version' => '1.4.15',
+            'version' => '1.4.15.0',
+            'reference' => '962209ec39a3a078130b73437a59f9b476df7020',
             'type' => 'library',
             'install_path' => __DIR__ . '/../shuchkin/simplexlsxgen',
             'aliases' => array(),
