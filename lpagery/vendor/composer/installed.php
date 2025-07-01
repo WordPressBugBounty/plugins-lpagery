@@ -11,9 +11,9 @@
     ),
     'versions' => array(
         'kucrut/vite-for-wp' => array(
-            'pretty_version' => 'v0.11.6',
-            'version' => '0.11.6.0',
-            'reference' => '69b3b14b94afddc14769d06658bb017f24f97244',
+            'pretty_version' => 'v0.12.0',
+            'version' => '0.12.0.0',
+            'reference' => '45ec51bbaedbc4e7335db3b3d4a4923962634fea',
             'type' => 'library',
             'install_path' => __DIR__ . '/../kucrut/vite-for-wp',
             'aliases' => array(),

@@ -4,7 +4,7 @@
 Plugin Name: LPagery
 Plugin URI: https://lpagery.io/
 Description: Create hundreds or even thousands of landingpages for local businesses, services etc.
-Version: 2.3.2
+Version: 2.3.3
 Author: LPagery
 License: GPLv2 or later
 */
@@ -313,8 +313,8 @@ if ( function_exists( 'lpagery_fs' ) ) {
         $installationDateHandler = InstallationDateHandler::get_instance();
         $lpagery_scripts_object = array(
             'is_free_plan'            => (bool) lpagery_fs()->is_free_plan(),
-            'is_extended_plan'        => (bool) lpagery_fs()->is_plan_or_trial( "extended" ),
-            'is_standard_plan'        => (bool) lpagery_fs()->is_plan_or_trial( "standard" ),
+            'is_extended_plan'        => (bool) lpagery_fs()->is_plan_or_trial__premium_only( "extended" ),
+            'is_standard_plan'        => (bool) lpagery_fs()->is_plan_or_trial__premium_only( "standard" ),
             'ajax_url'                => admin_url( 'admin-ajax.php' ),
             'nonce'                   => wp_create_nonce( "lpagery_ajax" ),
             'plugin_dir'              => plugin_dir_url( dirname( __FILE__ ) ),
