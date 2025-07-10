@@ -4,7 +4,7 @@ Tags: bulk page, seo, local seo, mass page, programmatic seo
 Requires at least: 6.2
 Tested up to: 6.8.1
 Requires PHP: 7.4
-Stable tag: 2.3.3
+Stable tag: 2.3.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -272,6 +272,10 @@ You can revoke your consent at any time, and the integrations will be disabled i
 We are committed to transparency and your control over your data. For more information, please refer to our Privacy Policy.
 
 == Changelog ==
+
+= 2.3.5 - 2025-07-09 =
+* Fix: Improve performance when confirming pages
+* Feat: Show banner if there is a license/premium mismatch
 
 = 2.3.3 - 2025-07-01 =
 * Fix: Image processing for Flatsome
