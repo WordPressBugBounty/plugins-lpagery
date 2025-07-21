@@ -1,8 +1,8 @@
 <?php return array(
     'root' => array(
         'name' => 'niklas/lpagery',
-        'pretty_version' => '2.0.0',
-        'version' => '2.0.0.0',
+        'pretty_version' => '2.3.6',
+        'version' => '2.3.6.0',
         'reference' => null,
         'type' => 'project',
         'install_path' => __DIR__ . '/../../',
@@ -20,8 +20,8 @@
             'dev_requirement' => false,
         ),
         'niklas/lpagery' => array(
-            'pretty_version' => '2.0.0',
-            'version' => '2.0.0.0',
+            'pretty_version' => '2.3.6',
+            'version' => '2.3.6.0',
             'reference' => null,
             'type' => 'project',
             'install_path' => __DIR__ . '/../../',

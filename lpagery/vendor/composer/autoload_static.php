@@ -127,6 +127,7 @@ class ComposerStaticInitae1922793044d194a0eb29606f94521b
         'LPagery\\service\\taxonomies\\TaxonomySaveHandler' => __DIR__ . '/../..' . '/src/service/taxonomies/TaxonomySaveHandler.php',
         'LPagery\\service\\template\\ReassignTemplateService' => __DIR__ . '/../..' . '/src/service/template/ReassignTemplateService.php',
         'LPagery\\suite\\SuiteRestApi' => __DIR__ . '/../..' . '/src/suite/SuiteRestApi.php',
+        'LPagery\\suite\\TokenValidator' => __DIR__ . '/../..' . '/src/suite/TokenValidator.php',
         'LPagery\\utils\\MemoryUtils' => __DIR__ . '/../..' . '/src/utils/MemoryUtils.php',
         'LPagery\\utils\\Utils' => __DIR__ . '/../..' . '/src/utils/Utils.php',
         'LPagery\\wpml\\WpmlHelper' => __DIR__ . '/../..' . '/src/wpml/WpmlHelper.php',

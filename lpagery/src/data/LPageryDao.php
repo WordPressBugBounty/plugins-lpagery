@@ -664,7 +664,7 @@ class LPageryDao
         global $wpdb;
         $table_name_process = $wpdb->prefix . 'lpagery_process';
         $results = $wpdb->get_results($wpdb->prepare("select id, data, post_id, created, google_sheet_data
-            from $table_name_process where google_sheet_sync_enabled and id = %s", $process_id));
+            from $table_name_process where google_sheet_sync_enabled and id = %s and managing_system !='app'", $process_id));
         if (empty($results)) {
             return null;
         }

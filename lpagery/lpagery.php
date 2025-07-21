@@ -4,7 +4,7 @@
 Plugin Name: LPagery
 Plugin URI: https://lpagery.io/
 Description: Create hundreds or even thousands of landingpages for local businesses, services etc.
-Version: 2.3.5
+Version: 2.3.6
 Author: LPagery
 License: GPLv2 or later
 */
@@ -202,12 +202,12 @@ if ( function_exists( 'lpagery_fs' ) ) {
                 // Find and update the active menu state
                 jQuery('#adminmenu .wp-submenu li').removeClass('current');
                 jQuery('#adminmenu .wp-submenu a').removeClass('current');
-                
+
                 // Find the matching menu item and highlight both the link and its parent li
                 var $menuLink = jQuery('#adminmenu .wp-submenu a[href*="lpagery&view=' + e.detail.header + '"]');
                 $menuLink.addClass('current');
                 $menuLink.parent('li').addClass('current');
-                
+
                 // Also update the first menu item if we're on the main view
                 if (!e.detail.header || e.detail.header === '') {
                     jQuery('#adminmenu .wp-submenu li:first-child').addClass('current');
@@ -242,7 +242,7 @@ if ( function_exists( 'lpagery_fs' ) ) {
                 jQuery(document).ready(function($) {
                     // Directly modify the menu item when the page loads
                     $('a[href*="admin.php?page=lpagery_contact"]').attr('href', 'https://lpagery.io/contact/').attr('target', '_blank');
-                    
+
                     // Prevent the default navigation and redirect if someone clicks before JS runs
                     $(document).on('click', 'a[href*="admin.php?page=lpagery_contact"]', function(e) {
                         e.preventDefault();
@@ -654,7 +654,7 @@ if ( function_exists( 'lpagery_fs' ) ) {
         <script>
         jQuery(document).ready(function($) {
             // Target main menu item and specific submenu items
-            $('a[href="admin.php?page=lpagery"], ' + 
+            $('a[href="admin.php?page=lpagery"], ' +
             'a[href*="lpagery&view=create"], ' +
             'a[href*="lpagery&view=update"], ' +
             'a[href*="lpagery&view=manage"], ' +

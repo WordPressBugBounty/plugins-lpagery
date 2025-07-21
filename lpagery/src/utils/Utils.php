@@ -238,6 +238,9 @@ class Utils
 
     public static function is_base_64_encoded($string)
     {
+        if(!is_string($string)) {
+            return false;
+        }
         return base64_encode(base64_decode($string, true)) === $string;
     }
 }
