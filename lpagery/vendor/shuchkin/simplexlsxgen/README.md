@@ -6,7 +6,7 @@ Export data to Excel XLSX file. PHP XLSX generator. No external tools and librar
 - XLS reader [here](https://github.com/shuchkin/simplexls)
 - CSV reader/writer [here](https://github.com/shuchkin/simplecsv)
 
-**Sergey Shuchkin** <sergey.shuchkin@gmail.com> 2020-2024<br/>
+**Sergey Shuchkin** <sergey.shuchkin@gmail.com> 2020-2025<br/>
 
 *Hey, bro, please ★ the package for my motivation :) and [donate](https://opencollective.com/simplexlsx) for more motivation!* 
 
@@ -89,7 +89,9 @@ $data = [
     ['Bottom + Right', '<style height="50"><bottom><right>Bottom + Right</right></bottom></style>'],
     ['<center>MERGE CELLS MERGE CELLS MERGE CELLS MERGE CELLS MERGE CELLS</center>', null],
     ['<top>Word wrap</top>', "<wraptext>Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book</wraptext>"],
-    ['Linebreaks', "Line 1\nLine 2\nLine 3"]
+    ['Linebreaks', "Line 1\nLine 2\nLine 3"],
+    ['Comments', '<!-- Comment without author -->No Author'],
+    ['Comments + author + linebreaks', "<!-- Alex Pushkin: Born 6 June 1799 Moscow\r\nDied 10 February 1837 (aged 37) Saint Petersburg-->Pushkin"],
 ];
 SimpleXLSXGen::fromArray($data)
     ->setDefaultFont('Courier New')

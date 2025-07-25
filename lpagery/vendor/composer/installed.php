@@ -29,9 +29,9 @@
             'dev_requirement' => false,
         ),
         'shuchkin/simplexlsxgen' => array(
-            'pretty_version' => '1.4.15',
-            'version' => '1.4.15.0',
-            'reference' => '962209ec39a3a078130b73437a59f9b476df7020',
+            'pretty_version' => '1.5.10',
+            'version' => '1.5.10.0',
+            'reference' => 'bc8314f142439f00d918164581fc06d6925fab9c',
             'type' => 'library',
             'install_path' => __DIR__ . '/../shuchkin/simplexlsxgen',
             'aliases' => array(),

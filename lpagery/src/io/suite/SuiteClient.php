@@ -23,6 +23,7 @@ class SuiteClient
     {
         $params = [];
         $params['overwriteManualChanges'] = $overwrite_manual_changes;
+        $params['userId'] = get_current_user_id();
         return $this->perform_request('page_sets/' . $page_set_id . '/sync/trigger', $params);
 
     }
