@@ -4,7 +4,7 @@
 Plugin Name: LPagery
 Plugin URI: https://lpagery.io/
 Description: Create hundreds or even thousands of landingpages for local businesses, services etc.
-Version: 2.3.8
+Version: 2.3.9
 Author: LPagery
 License: GPLv2 or later
 */
@@ -61,7 +61,7 @@ if ( function_exists( 'lpagery_fs' ) ) {
         // Signal that SDK was initiated.
         do_action( 'lpagery_fs_loaded' );
     }
-    require "vendor/autoload.php";
+    require __DIR__ . "/vendor/autoload.php";
     $plugin_data = get_file_data( __FILE__, array(
         'Version' => 'Version',
     ) );

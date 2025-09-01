@@ -315,7 +315,7 @@ function lpagery_get_google_sheet_scheduled_data()
     $utilityController = UtilityController::get_instance();
     $response = $utilityController->getGoogleSheetScheduledData();
 
-    echo json_encode($response);
+    echo json_encode((object)$response);
     wp_die();
 }
 

@@ -39,7 +39,7 @@ class SubstitutionDataPreparator
 
         $json_decode = json_decode($data, true);
         if (!is_array($json_decode)) {
-            throw new Exception("INVALID DATA " . $data);
+            throw new Exception("INVALID DATA " . json_last_error_msg() . " " .   $data);
         }
 
         return $this->recursive_sanitize_array($json_decode);
