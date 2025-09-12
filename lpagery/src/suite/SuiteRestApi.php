@@ -112,7 +112,7 @@ class SuiteRestApi
         register_rest_route('lpagery/app/v1', '/get_process_data', ['methods' => 'POST',
             'callback' => [$this,
                 'get_process_data'],
-            'permission_callback' => '__return_true',]);
+            'permission_callback' => [$this, 'check_token_permission'],]);
 
     }
 

@@ -101,10 +101,11 @@ class PostController
 
         $post_type_object = get_post_type_object($WP_Post->post_type);
 
+//        print_r($post_type_object);
         if ($post_type_object->name) {
             // Get the original English labels
-            $singular = $WP_Post->post_type === 'post' ? 'Post' : ($WP_Post->post_type === 'page' ? 'Page' : ucfirst(str_replace(['_', '-'], ' ', $post_type_object->name)));
-            $plural = $WP_Post->post_type === 'post' ? 'Posts' : ($WP_Post->post_type === 'page' ? 'Pages' : ucfirst(str_replace(['_', '-'], ' ', $post_type_object->name)) . 's');
+            $singular = $post_type_object->labels->singular_name ?? ($WP_Post->post_type === 'post' ? 'Post' : ($WP_Post->post_type === 'page' ? 'Page' : ucfirst(str_replace(['_', '-'], ' ', $post_type_object->name))));
+            $plural = $post_type_object->labels->name ?? ($WP_Post->post_type === 'post' ? 'Posts' : ($WP_Post->post_type === 'page' ? 'Pages' : ucfirst(str_replace(['_', '-'], ' ', $post_type_object->name)) . 's'));
 
             $post_type_array = [
                 "name" => $post_type_object->name,
