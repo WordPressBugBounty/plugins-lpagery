@@ -12,6 +12,7 @@ class PageCreationDashboardSettings
     public string $status_from_process;
     public ?string $status_from_dashboard = null;
     public ?string $publish_datetime = null;
+    public ?string $hashed_payload = null;
 
     public function __construct()
     {

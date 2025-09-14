@@ -165,7 +165,7 @@ class LPageryDao
         return $process_id;
     }
 
-    public function lpagery_add_post_to_process(Params $params, $post_id, $template_id, $replaced_slug, $shouldContentBeUpdated, $parent_id, $parent_search_term, $client_generated_slug)
+    public function lpagery_add_post_to_process(Params $params, $post_id, $template_id, $replaced_slug, $shouldContentBeUpdated, $parent_id, $parent_search_term, $client_generated_slug, $hashed_payload)
     {
         global $wpdb;
 
@@ -211,6 +211,9 @@ class LPageryDao
             if($client_generated_slug) {
                 $update_array["client_generated_slug"] = $client_generated_slug;
             }
+            if($hashed_payload) {
+                $update_array["hashed_payload"] = $hashed_payload;
+            }
             $update_result = $wpdb->update($table_name_process_post, $update_array, array("post_id" => $post_id,
                 "lpagery_process_id" => $process_id));
 
@@ -228,6 +231,7 @@ class LPageryDao
                 "client_generated_slug" => $client_generated_slug,
                 "lpagery_settings" => $lpagery_settings,
                 "template_id" => $template_id,
+                "hashed_payload" => $hashed_payload,
                 "modified" => current_time('mysql')));
             if (!$wpdb->insert_id || $wpdb->last_error) {
                 throw new Exception("Failed to add post $post_id to process $process_id " . $wpdb->last_error);
@@ -703,18 +707,33 @@ class LPageryDao
         }
     }
 
-    public function lpagery_get_process_config_changed($process_id, $post_id)
+    public function lpagery_get_process_config_changed($process_id, $post_id, $hashed_payload)
     {
         global $wpdb;
         $table_name_process = $wpdb->prefix . 'lpagery_process';
         $table_name_process_post = $wpdb->prefix . 'lpagery_process_post';
         $prepare = $wpdb->prepare("SELECT data FROM $table_name_process WHERE id = %s", $process_id);
         $process_data = $wpdb->get_var($prepare);
-        $prepare = $wpdb->prepare("SELECT config FROM $table_name_process_post WHERE post_id = %s and lpagery_process_id = %s",
+        $prepare = $wpdb->prepare("SELECT config, hashed_payload FROM $table_name_process_post WHERE post_id = %s and lpagery_process_id = %s",
             $post_id, $process_id);
-        $process_post_data = $wpdb->get_var($prepare);
+        $process_post_row = $wpdb->get_row($prepare, ARRAY_A);
 
-        return ($process_data) !== ($process_post_data);
+        if (!$process_post_row) {
+            return true;
+        }
+
+        $config_changed = ($process_data) !== ($process_post_row['config']);
+
+        if ($hashed_payload && isset($process_post_row['hashed_payload'])) {
+            $payload_changed = ($hashed_payload) !== ($process_post_row['hashed_payload']);
+            return $config_changed || $payload_changed;
+        }
+
+        if ($hashed_payload && !isset($process_post_row['hashed_payload'])) {
+            return true;
+        }
+
+        return $config_changed;
 
     }
 

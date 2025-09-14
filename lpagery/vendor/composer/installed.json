@@ -44,17 +44,17 @@
         },
         {
             "name": "shuchkin/simplexlsxgen",
-            "version": "1.5.10",
-            "version_normalized": "1.5.10.0",
+            "version": "1.5.11",
+            "version_normalized": "1.5.11.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/shuchkin/simplexlsxgen.git",
-                "reference": "bc8314f142439f00d918164581fc06d6925fab9c"
+                "reference": "0b0ea4a3f18ad6388ba5c015b58783edfcabf27c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/shuchkin/simplexlsxgen/zipball/bc8314f142439f00d918164581fc06d6925fab9c",
-                "reference": "bc8314f142439f00d918164581fc06d6925fab9c",
+                "url": "https://api.github.com/repos/shuchkin/simplexlsxgen/zipball/0b0ea4a3f18ad6388ba5c015b58783edfcabf27c",
+                "reference": "0b0ea4a3f18ad6388ba5c015b58783edfcabf27c",
                 "shasum": ""
             },
             "require": {
@@ -62,7 +62,7 @@
                 "ext-zlib": "*",
                 "php": ">=5.4"
             },
-            "time": "2025-07-07T19:28:42+00:00",
+            "time": "2025-08-09T08:42:13+00:00",
             "type": "library",
             "installation-source": "dist",
             "autoload": {
@@ -94,7 +94,7 @@
             ],
             "support": {
                 "issues": "https://github.com/shuchkin/simplexlsxgen/issues",
-                "source": "https://github.com/shuchkin/simplexlsxgen/tree/1.5.10"
+                "source": "https://github.com/shuchkin/simplexlsxgen/tree/1.5.11"
             },
             "install-path": "../shuchkin/simplexlsxgen"
         },

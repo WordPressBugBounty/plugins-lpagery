@@ -4,7 +4,7 @@
 
 namespace Composer\Autoload;
 
-class ComposerStaticInitfa1edbd4a4b6f70db045d42c4375fafd
+class ComposerStaticInitc78dc1ecb3b93b00b48875c3806aa0e4
 {
     public static $files = array (
         'b7e1c4cbafbabee94a69519a450ea263' => __DIR__ . '/..' . '/kucrut/vite-for-wp/vite-for-wp.php',
@@ -144,9 +144,9 @@ class ComposerStaticInitfa1edbd4a4b6f70db045d42c4375fafd
     public static function getInitializer(ClassLoader $loader)
     {
         return \Closure::bind(function () use ($loader) {
-            $loader->prefixLengthsPsr4 = ComposerStaticInitfa1edbd4a4b6f70db045d42c4375fafd::$prefixLengthsPsr4;
-            $loader->prefixDirsPsr4 = ComposerStaticInitfa1edbd4a4b6f70db045d42c4375fafd::$prefixDirsPsr4;
-            $loader->classMap = ComposerStaticInitfa1edbd4a4b6f70db045d42c4375fafd::$classMap;
+            $loader->prefixLengthsPsr4 = ComposerStaticInitc78dc1ecb3b93b00b48875c3806aa0e4::$prefixLengthsPsr4;
+            $loader->prefixDirsPsr4 = ComposerStaticInitc78dc1ecb3b93b00b48875c3806aa0e4::$prefixDirsPsr4;
+            $loader->classMap = ComposerStaticInitc78dc1ecb3b93b00b48875c3806aa0e4::$classMap;
 
         }, null, ClassLoader::class);
     }

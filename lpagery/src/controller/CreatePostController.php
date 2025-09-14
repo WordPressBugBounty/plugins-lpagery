@@ -98,6 +98,7 @@ class CreatePostController
         $params["force_update_content"] = ($queue_item["force_update"] ?? false) || $this->settingsController->isForceUpdateEnabled();
         $params["overwrite_manual_changes"] = ($queue_item["overwrite_manual_changes"] ?? false) || $this->settingsController->isOverwriteManualChangesEnabled();
         $params["publish_timestamp"] = $queue_item["publish_timestamp"] ?? null;
+        $params["hashed_payload"] = $queue_item["hashed_payload"] ?? null;
         $params["existing_page_update_action"] = $queue_item["existing_page_update_action"] ?? 'create';
         if(isset($queue_item["status_from_dashboard"])) {
             $params["status"] = $queue_item["status_from_dashboard"];

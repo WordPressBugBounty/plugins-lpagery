@@ -298,5 +298,11 @@ class LPageryDatabaseMigrator
             $wpdb->query("ALTER TABLE $table_name_process_post add column client_generated_slug text");
             update_option("lpagery_database_version", 13);
         }
+        if ($db_version < 14 && $this->lpagery_table_exists_migrate($table_name_process_post)) {
+            $wpdb->query("ALTER TABLE $table_name_process_post add column hashed_payload varchar(255)");
+            $wpdb->query("ALTER TABLE $table_name_sync_queue add column hashed_payload varchar(255) ");
+            $wpdb->query("create index process_post_hashed_payload_process_id on $table_name_process_post (hashed_payload, lpagery_process_id)");
+            update_option("lpagery_database_version", 14);
+        }
     }
 }

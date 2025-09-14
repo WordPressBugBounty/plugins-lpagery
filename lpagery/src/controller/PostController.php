@@ -58,7 +58,6 @@ class PostController
      */
     public function getPosts(string $search, array $custom_post_types, string $mode, string $select, ?int $template_id = null): array
     {
-        error_log(json_encode($custom_post_types));
         $posts = $this->searchPostService->lpagery_search_posts($search, $custom_post_types, $mode, $select, $template_id);
         return array_map([$this->mapper, 'lpagery_map_post'], $posts);
     }
@@ -101,12 +100,19 @@ class PostController
 
         $post_type_object = get_post_type_object($WP_Post->post_type);
 
-//        print_r($post_type_object);
         if ($post_type_object->name) {
-            // Get the original English labels
             $singular = $post_type_object->labels->singular_name ?? ($WP_Post->post_type === 'post' ? 'Post' : ($WP_Post->post_type === 'page' ? 'Page' : ucfirst(str_replace(['_', '-'], ' ', $post_type_object->name))));
+
             $plural = $post_type_object->labels->name ?? ($WP_Post->post_type === 'post' ? 'Posts' : ($WP_Post->post_type === 'page' ? 'Pages' : ucfirst(str_replace(['_', '-'], ' ', $post_type_object->name)) . 's'));
 
+            if($WP_Post->post_type === 'post' ) {
+                $singular = "Post";
+                $plural = "Posts";
+            }
+            if($WP_Post->post_type === 'page' ) {
+                $singular = "Page";
+                $plural = "Pages";
+            }
             $post_type_array = [
                 "name" => $post_type_object->name,
                 "singular" => $singular,

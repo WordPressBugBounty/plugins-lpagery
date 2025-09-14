@@ -70,10 +70,12 @@ class DbDeltaExecutor
                 page_manually_updated_by INT NULL,
                 parent_search_term TEXT NULL,
                 client_generated_slug TEXT NULL,
+                hashed_payload           varchar(255)      null,
                 KEY idx_wp_lpagery_process_post (post_id, lpagery_process_id),
                 KEY process_post_lpagery_process_id (lpagery_process_id),
                 KEY process_post_post_id (post_id),
                 KEY process_post_template (template_id),
+                KEY process_post_hashed_payload_process_id (hashed_payload, lpagery_process_id),
                 PRIMARY KEY (id)
             ) $charset_collate;",
 
@@ -92,6 +94,7 @@ class DbDeltaExecutor
                 overwrite_manual_changes TINYINT(1) DEFAULT 0 NOT NULL,
                 existing_page_update_action VARCHAR(100) DEFAULT 'create' NOT NULL,
                 parent_id INT DEFAULT 0 NOT NULL,
+                hashed_payload           varchar(255)      null,
                 KEY sync_queue_process_id (process_id),
                 PRIMARY KEY (id)
             ) $charset_collate;"

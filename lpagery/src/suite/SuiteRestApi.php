@@ -152,7 +152,6 @@ class SuiteRestApi
     public function upsert_process(\WP_REST_Request $request)
     {
         $json_params = $request->get_json_params();
-        error_log(json_encode($json_params));
         $upsertParams = \LPagery\model\UpsertProcessParams::fromArray($json_params, "app");
         $result = ProcessController::get_instance()->upsertProcess($upsertParams);
 
@@ -324,7 +323,6 @@ class SuiteRestApi
             $post_ids[] = $post_slug_entry->post_id;
         }
         if (!empty($post_ids)) {
-            error_log('Deleting pages: ' . json_encode($post_ids));
             DeletePageService::getInstance($LPageryDao)->deletePages($post_ids);
         }
 

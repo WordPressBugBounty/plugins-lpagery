@@ -5,6 +5,7 @@ namespace LPagery\factories;
 use LPagery\io\Api;
 use LPagery\data\LPageryDao;
 use LPagery\service\delete\DeletePageService;
+use LPagery\service\settings\SettingsController;
 use LPagery\service\sheet_sync\GoogleSheetQueueWorkerFactory;
 use LPagery\service\sheet_sync\GoogleSheetSyncProcessHandler;
 use LPagery\service\sheet_sync\GoogleSheetSyncPostDeleteHandler;
@@ -25,7 +26,8 @@ class GoogleSheetSyncProcessHandlerFactory
             ),
             DuplicateSlugHelperFactory::create(),
             DynamicPageAttributeHandlerFactory::create(),
-            InputParamProviderFactory::create()
+            InputParamProviderFactory::create(),
+            SettingsController::get_instance(),
         );
     }
 } 

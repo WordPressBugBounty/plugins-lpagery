@@ -126,6 +126,7 @@ class UpdateSettings implements \JsonSerializable
             $this->overwrite_manual_changes,
             $status,
             $this->existing_page_update_action,
+            true,
             $this->publish_timestamp
         );
     }

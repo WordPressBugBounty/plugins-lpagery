@@ -116,6 +116,7 @@ class CreatePostDelegate {
         $slug = Utils::lpagery_sanitize_title_with_dashes( $template_post->post_title );
         $parent_path = 0;
         $datetime = null;
+        $hashed_payload = $REQUEST_PAYLOAD["hashed_payload"] ?? null;
         $pageCreationSettings = new PageCreationDashboardSettings();
         $pageCreationSettings->parent = $parent_path;
         $pageCreationSettings->taxonomy_terms = $taxonomy_terms;
@@ -124,6 +125,7 @@ class CreatePostDelegate {
         $pageCreationSettings->publish_datetime = $datetime;
         $pageCreationSettings->status_from_dashboard = $status_from_dashboard;
         $pageCreationSettings->client_generated_slug = $client_generated_slug;
+        $pageCreationSettings->hashed_payload = $hashed_payload;
         $include_parent_as_identifier = filter_var( $process_by_id->include_parent_as_identifier, FILTER_VALIDATE_BOOLEAN );
         $params = $this->inputParamProvider->lpagery_provide_input_params(
             $json_decode,

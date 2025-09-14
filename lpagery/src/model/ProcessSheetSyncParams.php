@@ -7,20 +7,22 @@ class ProcessSheetSyncParams implements  \JsonSerializable
     private bool $overwrite_manual_changes;
     private string $new_status;
     private string $existing_page_update_action;
+    private bool $sync_all;
     private ?string $publish_timestamp;
 
-    public static function processOnly(int $process_id): ProcessSheetSyncParams
+    public static function processOnly(int $process_id, bool $sync_all): ProcessSheetSyncParams
     {
-        return new ProcessSheetSyncParams($process_id, false, false, '-1', '',null);
+        return new ProcessSheetSyncParams($process_id, false, false, '-1', '',$sync_all,null);
     }
 
-    public function __construct($process_id, $force_update, $overwrite_manual_changes,  $new_status,$existing_page_update_action, $publish_timestamp)
+    public function __construct($process_id, $force_update, $overwrite_manual_changes,  $new_status,$existing_page_update_action,$sync_all, $publish_timestamp)
     {
         $this->process_id = $process_id;
         $this->force_update = $force_update;
         $this->overwrite_manual_changes = $overwrite_manual_changes;
         $this->new_status = $new_status;
         $this->publish_timestamp = $publish_timestamp;
+        $this->sync_all = $sync_all;
         $this->existing_page_update_action = $existing_page_update_action;
     }
 
@@ -52,6 +54,10 @@ class ProcessSheetSyncParams implements  \JsonSerializable
     {
         return $this->publish_timestamp;
     }
+    public function getSyncAll()
+    {
+        return $this->sync_all;
+    }
 
     public function __serialize(): array
     {
@@ -68,6 +74,7 @@ class ProcessSheetSyncParams implements  \JsonSerializable
         $this->overwrite_manual_changes = $data['overwrite_manual_changes'] ?? false;
         $this->new_status = $data['new_status'] ?? '-1';
         $this->publish_timestamp = $data['publish_timestamp'];
+        $this->sync_all = $data['sync_all'] ?? false;
         $this->existing_page_update_action = $data['existing_page_update_action'] ?? 'create';
     }
 
@@ -79,6 +86,7 @@ class ProcessSheetSyncParams implements  \JsonSerializable
             'overwrite_manual_changes' => $this->overwrite_manual_changes,
             'new_status' => $this->new_status,
             'publish_timestamp' => $this->publish_timestamp,
+            'sync_all' => $this->sync_all,
             'existing_page_update_action' => $this->existing_page_update_action
         ];
     }

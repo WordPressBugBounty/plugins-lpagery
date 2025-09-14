@@ -13,6 +13,7 @@ use LPagery\data\DbDeltaExecutor;
 use LPagery\data\LPageryDao;
 use LPagery\factories\CreatePostControllerFactory;
 use LPagery\io\suite\SuiteClient;
+use LPagery\model\ProcessSheetSyncParams;
 use LPagery\service\settings\SettingsController;
 use LPagery\utils\Utils;
 
@@ -469,18 +470,24 @@ function lpagery_trigger_look_sync_ajax()
         if (!$page_set_id) {
             throw new \Exception('Page set ID is required');
         }
-        LPageryDao::get_instance()->lpagery_update_process_sync_status($page_set_id, "PLANNED");
+        $lpageryDao = LPageryDao::get_instance();
+        $process = $lpageryDao->lpagery_get_process_by_id($page_set_id);
+        if($process->managing_system ==='app') {
 
-        $suiteClient = SuiteClient::get_instance();
-        try {
-            $result = $suiteClient->trigger_look_sync($page_set_id, $overwrite_manual_changes);
-        } catch (\Throwable $exception) {
-            throw new \Exception('Failed to trigger look sync: ' . $exception->getMessage());
+            $lpageryDao->lpagery_update_process_sync_status($page_set_id, "PLANNED");
+            $suiteClient = SuiteClient::get_instance();
+            try {
+                $result = $suiteClient->trigger_look_sync($page_set_id, $overwrite_manual_changes);
+                print_r(json_encode(array("success" => true,
+                    "data" => $result,
+                    "message" => 'Look sync triggered successfully.')));
+            } catch (\Throwable $exception) {
+                throw new \Exception('Failed to trigger look sync: ' . $exception->getMessage());
+            }
+        } else {
+            wp_schedule_single_event(time(), 'lpagery_start_sync_for_process', array(ProcessSheetSyncParams::processOnly($page_set_id, true)));
         }
 
-        print_r(json_encode(array("success" => true,
-            "data" => $result,
-            "message" => 'Look sync triggered successfully.')));
     } catch (\Throwable $exception) {
         print_r(json_encode(array("success" => false,
             "exception" => $exception->getMessage(),

@@ -136,7 +136,7 @@ class ProcessController
             $upsertParams->isIncludeParentAsIdentifier(),
             $upsertParams->getManagingsystem(),
         );
-        
+
         if ($upsertParams->isGoogleSheetEnabled() && $upsertParams->isSyncEnabled()) {
             $status = $data["status"] ?? '-1';
             
