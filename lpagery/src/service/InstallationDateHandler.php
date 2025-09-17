@@ -40,4 +40,17 @@ class InstallationDateHandler {
                 and create_time >= '2024-12-14 00:00:00') as created_after_threshold");
         return $result->created_after_threshold;
     }
+
+    public function get_max_pages_per_run() {
+        global $wpdb;
+        $table_name_process = $wpdb->prefix . 'lpagery_process';
+        $result = $wpdb->get_row("SELECT exists(select *
+              FROM INFORMATION_SCHEMA.TABLES
+              WHERE table_name = '$table_name_process'
+                and create_time >= '2025-09-19 00:00:00') as created");
+        if ($result->created && lpagery_fs()->is_free_plan()) {
+            return 100;
+        }
+        return null;
+    }
 } 

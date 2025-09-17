@@ -4,7 +4,7 @@
 Plugin Name: LPagery
 Plugin URI: https://lpagery.io/
 Description: Create hundreds or even thousands of landingpages for local businesses, services etc.
-Version: 2.4.0
+Version: 2.4.1
 Author: LPagery
 License: GPLv2 or later
 */
@@ -323,6 +323,7 @@ if ( function_exists( 'lpagery_fs' ) ) {
             'upload_dir'                   => wp_upload_dir(),
             'tracking_permissions'         => TrackingPermissionService::get_instance( $installationDateHandler )->getPermissions(),
             'allowed_placeholders'         => $installationDateHandler->get_placeholder_counts(),
+            'max_pages_per_run'            => $installationDateHandler->get_max_pages_per_run(),
             'version'                      => LPAGERY_VERSION,
             'username'                     => wp_get_current_user()->display_name,
             'app_connected'                => (bool) $app_connected,

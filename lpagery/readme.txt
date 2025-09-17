@@ -4,7 +4,7 @@ Tags: bulk page, seo, local seo, mass page, programmatic seo
 Requires at least: 6.2
 Tested up to: 6.8.2
 Requires PHP: 7.4
-Stable tag: 2.4.0
+Stable tag: 2.4.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -107,8 +107,8 @@ Effortlessly generate multiple pages and posts at once. With LPagery, you can sc
 * **CSV/XLSX Import:**
 Simplify your workflow by importing data directly from a CSV or XLSX file. This feature allows for easy data management and page generation, saving you time and hassle.
 
-* **Unlimited Pages:**
-There's no cap on your creativity or needs. Generate as many pages as you require to fully represent your business online, all within the free plan.
+* **Generate Pages in Bulk:**
+Create multiple pages efficiently with the free plan (up to 100 pages per run). For unlimited page creation in a single process, upgrade to Pro.
 
 * **Placeholders:**
 Utilize up to 3 placeholders to create dynamic, personalized content that speaks directly to your audience. This level of customization ensures each page or post is relevant and engaging.
@@ -122,7 +122,7 @@ Whether you prefer a specific page builder or theme, LPagery's flexible design e
 ==FREE FEATURES ==
 * Bulk create pages & posts
 * CSV/XLSX import
-* Generate unlimited pages with the free plan
+* Generate unlimited pages with the free plan (100 pages per run)
 * Use up to 3 placeholders with the free plan
 * Easy & intuitive to use
 * High customization due to CSV and pagebuilder/theme compatibility
@@ -158,6 +158,9 @@ We designed LPagery to work with nearly all themes and pagebuilders so even if y
 
 == PRO FEATURES ==
 [LPagery Pro](https://lpagery.io/pricing?utm_source=wp_repo&utm_medium=link&utm_campaign=repo) offers the tools necessary for the full automatization of the creation of your landing pages.
+
+* **Create Unlimited Pages at Once:**
+Generate thousands of pages in a single run without any limitations, unlike the free version which is limited to 100 pages per creation process.
 
 * **Google Sheet Sync:**
 Synchronize your landing page data directly from Google Sheets, enabling real-time content updates. Create, delete and update pages directly from your Google Sheet without having to even log in to WordPress.
@@ -272,6 +275,9 @@ You can revoke your consent at any time, and the integrations will be disabled i
 We are committed to transparency and your control over your data. For more information, please refer to our Privacy Policy.
 
 == Changelog ==
+
+= 2.4.1 - 2025-09-17 =
+* Fix: Small UI improvements
 
 = 2.4.0 - 2025-09-14 =
 * Feat: Optimize Sheet Sync: Only synchronize pages that have actually changed to reduce server load
