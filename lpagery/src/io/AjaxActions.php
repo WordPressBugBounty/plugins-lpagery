@@ -29,8 +29,7 @@ function lpagery_sanitize_slug()
     $slugController = SlugController::get_instance();
     $result = $slugController->sanitizeSlug($slug, $parent_id, $template_id);
 
-    echo json_encode($result);
-    wp_die();
+    wp_send_json($result);
 }
 
 add_action('wp_ajax_lpagery_custom_sanitize_title', 'LPagery\lpagery_custom_sanitize_title');
@@ -43,8 +42,7 @@ function lpagery_custom_sanitize_title()
     $slugController = SlugController::get_instance();
     $sanitized_title = $slugController->customSanitizeTitle($slug);
 
-    echo esc_html($sanitized_title);
-    wp_die();
+    wp_send_json($sanitized_title);
 }
 
 add_action('wp_ajax_lpagery_create_posts', 'LPagery\lpagery_create_posts');
@@ -52,27 +50,59 @@ add_action('wp_ajax_lpagery_create_posts', 'LPagery\lpagery_create_posts');
 function lpagery_create_posts()
 {
     $nonce_validity = check_ajax_referer('lpagery_ajax');
+
+    // Start output buffering at the very beginning
     ob_start();
+
+    // Get the current output buffer level to ensure we clean everything
+    $initial_ob_level = ob_get_level();
 
     try {
         $createPostController = CreatePostControllerFactory::create();
         $result = $createPostController->lpagery_create_posts_ajax($_POST);
-        $ob_get_contents = ob_get_clean();
-    } catch (\Throwable $exception) {
-        {
-            $ob_get_contents = ob_get_clean();
-            $result = array("success" => false,
-                "exception" => $exception->__toString() . $ob_get_contents);
+        // Capture any output that was generated
+        $buffer_content = '';
+        while (ob_get_level() > $initial_ob_level) {
+            $buffer_content = ob_get_contents() . $buffer_content;
+            ob_end_clean();
         }
+
+        if (!empty($buffer_content)) {
+            $result["buffer"] = $buffer_content;
+        }
+    } catch (\Throwable $exception) {
+        // Capture ALL output including any HTML/CSS that leaked
+        $buffer_content = '';
+        while (ob_get_level() >= $initial_ob_level) {
+            $current_buffer = ob_get_contents();
+            if ($current_buffer !== false) {
+                $buffer_content = $current_buffer . $buffer_content;
+            }
+            ob_end_clean();
+            if (ob_get_level() < $initial_ob_level) {
+                break;
+            }
+        }
+
+        $result = array(
+            "success" => false,
+            "exception" => $exception->__toString(),
+            "buffer" => $buffer_content,
+            "trace" => $exception->getTraceAsString()
+        );
     }
-    if ($ob_get_contents) {
-        $result["buffer"] = $ob_get_contents;
-    }
+
     if ($nonce_validity == 2) {
         $result["nonce"] = wp_create_nonce("lpagery_ajax");
     }
-    print_r(json_encode($result));
-    wp_die();
+
+    // Clean any remaining output buffers to prevent HTML leakage
+    while (ob_get_level() > 0) {
+        ob_end_clean();
+    }
+
+    // Ensure clean JSON output
+    wp_send_json($result);
 }
 
 
@@ -81,8 +111,7 @@ function lpagery_get_settings()
 {
     check_ajax_referer('lpagery_ajax');
     $settings = SettingsController::get_instance()->getSettings();
-    print_r(json_encode($settings));
-    wp_die();
+    wp_send_json($settings);
 }
 
 add_action('wp_ajax_lpagery_get_batch_size', 'LPagery\lpagery_get_batch_size');
@@ -90,8 +119,7 @@ function lpagery_get_batch_size()
 {
     check_ajax_referer('lpagery_ajax');
     $batch_size = SettingsController::get_instance()->getBatchSize();
-    print_r(json_encode(array("batch_size" => $batch_size)));
-    wp_die();
+    wp_send_json(array("batch_size" => $batch_size));
 }
 
 add_action('wp_ajax_lpagery_get_pages', 'LPagery\lpagery_get_pages');
@@ -111,8 +139,7 @@ function lpagery_get_pages()
     $postController = PostController::get_instance();
     $mapped_posts = $postController->getPosts($search, $custom_post_types, $mode, $select, $template_id);
 
-    echo json_encode($mapped_posts);
-    wp_die();
+    wp_send_json($mapped_posts);
 }
 
 
@@ -124,8 +151,7 @@ function lpagery_get_taxonomy_terms()
     $taxonomyController = TaxonomyController::get_instance();
     $result = $taxonomyController->getTaxonomyTerms();
 
-    echo json_encode($result);
-    wp_die();
+    wp_send_json($result);
 }
 
 add_action('wp_ajax_lpagery_get_taxonomies', 'LPagery\lpagery_get_taxonomies');
@@ -137,8 +163,7 @@ function lpagery_get_taxonomies()
     $taxonomyController = TaxonomyController::get_instance();
     $result = $taxonomyController->getTaxonomies($post_type);
 
-    echo(json_encode(array_values($result)));
-    wp_die();
+    wp_send_json(array_values($result));
 }
 
 
@@ -154,8 +179,7 @@ function lpagery_search_processes()
     $processController = ProcessController::get_instance();
     $processes = $processController->searchProcesses($post_id, $user_id, $search_term, $empty_filter);
 
-    print_r(json_encode($processes, JSON_NUMERIC_CHECK));
-    wp_die();
+    wp_send_json($processes);
 }
 
 add_action('wp_ajax_lpagery_get_ram_usage', 'LPagery\lpagery_get_ram_usage');
@@ -166,8 +190,7 @@ function lpagery_get_ram_usage()
     $utilityController = UtilityController::get_instance();
     $ram_usage = $utilityController->getRAMUsage();
 
-    print_r(json_encode($ram_usage));
-    wp_die();
+    wp_send_json($ram_usage);
 }
 
 
@@ -180,8 +203,7 @@ function lpagery_get_post_title_as_slug()
     $slugController = SlugController::get_instance();
     $result = $slugController->getPostTitleAsSlug($post_id);
 
-    print_r(json_encode($result));
-    wp_die();
+    wp_send_json($result);
 }
 
 
@@ -193,8 +215,7 @@ function lpagery_get_users()
     $utilityController = UtilityController::get_instance();
     $users = $utilityController->getUsersWithProcesses();
 
-    print_r(json_encode($users, JSON_NUMERIC_CHECK));
-    wp_die();
+    wp_send_json($users);
 }
 
 add_action('wp_ajax_lpagery_get_template_posts', 'LPagery\lpagery_get_template_posts');
@@ -205,8 +226,7 @@ function lpagery_get_template_posts()
     $postController = PostController::get_instance();
     $template_posts = $postController->getTemplatePosts();
 
-    print_r(json_encode($template_posts, JSON_NUMERIC_CHECK));
-    wp_die();
+    wp_send_json($template_posts);
 }
 
 add_action('wp_ajax_lpagery_upsert_process', 'LPagery\lpagery_upsert_process');
@@ -218,12 +238,11 @@ function lpagery_upsert_process()
         $upsertParams = \LPagery\model\UpsertProcessParams::fromArray($_POST, "plugin");
         $result = $processController->upsertProcess($upsertParams);
 
-        print_r(json_encode($result));
+        wp_send_json($result);
     } catch (\Throwable $exception) {
-        print_r(json_encode(array("success" => false,
-            "exception" => $exception->__toString())));
+        wp_send_json(array("success" => false,
+            "exception" => $exception->__toString()));
     }
-    wp_die();
 }
 
 add_action('wp_ajax_lpagery_get_duplicated_slugs', 'LPagery\lpagery_get_duplicated_slugs');
@@ -244,12 +263,11 @@ function lpagery_get_duplicated_slugs()
         $result = $duplicatedSlugController->getDuplicatedSlugs($data, $template_id, $includeParentAsIdentifier,
             $parent_id, $slug, $process_id, $keys, true);
 
-        echo json_encode($result);
+        wp_send_json($result);
     } catch (\Throwable $throwable) {
-        echo json_encode(array("success" => false,
+        wp_send_json(array("success" => false,
             "exception" => $throwable->__toString()));
     }
-    wp_die();
 }
 
 add_action('wp_ajax_lpagery_download_post_json', 'LPagery\lpagery_download_post_json');
@@ -273,8 +291,7 @@ function lpagery_get_users_for_settings()
     $utilityController = UtilityController::get_instance();
     $users = $utilityController->getUsersForSettings();
 
-    print_r(json_encode($users));
-    wp_die();
+    wp_send_json($users);
 }
 
 
@@ -288,8 +305,7 @@ function lpagery_get_process_details()
     $processController = ProcessController::get_instance();
     $result = $processController->getProcessDetails($id);
 
-    print_r(json_encode($result));
-    wp_die();
+    wp_send_json($result);
 }
 
 
@@ -303,8 +319,7 @@ function lpagery_get_post()
     $postController = PostController::get_instance();
     $post = $postController->getPost($post_id);
 
-    echo json_encode($post);
-    wp_die();
+    wp_send_json($post);
 }
 
 add_action('wp_ajax_lpagery_get_google_sheet_scheduled_data', 'LPagery\lpagery_get_google_sheet_scheduled_data');
@@ -316,8 +331,7 @@ function lpagery_get_google_sheet_scheduled_data()
     $utilityController = UtilityController::get_instance();
     $response = $utilityController->getGoogleSheetScheduledData();
 
-    echo json_encode((object)$response);
-    wp_die();
+    wp_send_json((object)$response);
 }
 
 add_action('wp_ajax_lpagery_create_onboarding_template_page', 'LPagery\lpagery_create_onboarding_template_page');
@@ -328,8 +342,7 @@ function lpagery_create_onboarding_template_page()
     $utilityController = UtilityController::get_instance();
     $result = $utilityController->createOnboardingTemplatePage();
 
-    echo json_encode($result);
-    wp_die();
+    wp_send_json($result);
 }
 
 add_action('wp_ajax_lpagery_assign_page_set_to_me', 'LPagery\lpagery_assign_page_set_to_me');
@@ -345,12 +358,11 @@ function lpagery_assign_page_set_to_me()
         $processController = ProcessController::get_instance();
         $result = $processController->assignPageSetToMe($process_id);
 
-        echo json_encode($result);
+        wp_send_json($result);
     } catch (\Throwable $exception) {
-        echo json_encode(array("success" => false,
+        wp_send_json(array("success" => false,
             "exception" => $exception->getMessage()));
     }
-    wp_die();
 }
 
 add_action('wp_ajax_lpagery_reset_data', 'LPagery\lpagery_reset_data');
@@ -384,9 +396,8 @@ function lpagery_update_process_managing_system_ajax()
     }
 
     $LPageryDao->lpagery_update_process_managing_system($id, "plugin");
-    echo json_encode(["success" => true,
+    wp_send_json(["success" => true,
         "process_id" => $id]);
-    wp_die();
 }
 
 add_action('wp_ajax_lpagery_get_fresh_nonce', 'LPagery\lpagery_get_fresh_nonce');
@@ -396,8 +407,7 @@ function lpagery_get_fresh_nonce()
     check_ajax_referer('lpagery_ajax');
     $nonce = wp_create_nonce('lpagery_ajax');
 
-    echo json_encode(['nonce' => $nonce]);
-    wp_die();
+    wp_send_json(['nonce' => $nonce]);
 }
 
 
@@ -414,13 +424,12 @@ function lpagery_fetch_app_tokens_ajax()
         $tokens = $lpageryDao->getAllAppTokens();
 
 
-        print_r(json_encode($tokens));
+        wp_send_json($tokens);
     } catch (\Throwable $exception) {
-        print_r(json_encode(array("success" => false,
+        wp_send_json(array("success" => false,
             "exception" => $exception->getMessage(),
-            "data" => [])));
+            "data" => []));
     }
-    wp_die();
 }
 
 add_action('wp_ajax_lpagery_revoke_app_token', 'LPagery\lpagery_revoke_app_token_ajax');
@@ -446,15 +455,14 @@ function lpagery_revoke_app_token_ajax()
             throw new Exception('Failed to revoke the token.');
         }
 
-        print_r(json_encode(array("success" => true,
+        wp_send_json(array("success" => true,
             "data" => ['id' => $token_id],
-            "message" => 'Token revoked successfully.')));
+            "message" => 'Token revoked successfully.'));
     } catch (\Throwable $exception) {
-        print_r(json_encode(array("success" => false,
+        wp_send_json(array("success" => false,
             "exception" => $exception->getMessage(),
-            "data" => [])));
+            "data" => []));
     }
-    wp_die();
 }
 
 add_action('wp_ajax_lpagery_trigger_look_sync', 'LPagery\lpagery_trigger_look_sync_ajax');
@@ -478,22 +486,23 @@ function lpagery_trigger_look_sync_ajax()
             $suiteClient = SuiteClient::get_instance();
             try {
                 $result = $suiteClient->trigger_look_sync($page_set_id, $overwrite_manual_changes);
-                print_r(json_encode(array("success" => true,
+                wp_send_json(array("success" => true,
                     "data" => $result,
-                    "message" => 'Look sync triggered successfully.')));
+                    "message" => 'Look sync triggered successfully.'));
             } catch (\Throwable $exception) {
                 throw new \Exception('Failed to trigger look sync: ' . $exception->getMessage());
             }
         } else {
             wp_schedule_single_event(time(), 'lpagery_start_sync_for_process', array(ProcessSheetSyncParams::processOnly($page_set_id, true)));
+            wp_send_json(array("success" => true,
+                "message" => 'Sync scheduled successfully.'));
         }
 
     } catch (\Throwable $exception) {
-        print_r(json_encode(array("success" => false,
+        wp_send_json(array("success" => false,
             "exception" => $exception->getMessage(),
-            "data" => [])));
+            "data" => []));
     }
-    wp_die();
 }
 
 add_action('wp_ajax_repair_database_schema', 'LPagery\lpagery_repair_database_schema_ajax');
@@ -504,12 +513,11 @@ function lpagery_repair_database_schema_ajax()
     $dbDeltaExecutor = new DbDeltaExecutor();
     $error = $dbDeltaExecutor->run();
     if($error) {
-        print_r(json_encode(array("success" => false,
-            "exception" => $error)));
+        wp_send_json(array("success" => false,
+            "exception" => $error));
     } else {
-        print_r(json_encode(array("success" => true,
-            "message" => 'Database schema repaired successfully.')));
+        wp_send_json(array("success" => true,
+            "message" => 'Database schema repaired successfully.'));
     }
-    wp_die();
 }
 

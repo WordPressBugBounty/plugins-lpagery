@@ -123,6 +123,7 @@ class CreatePostController
     function lpagery_create_posts_ajax($post_data)
     {
 
+
         $creation_id = $post_data["creation_id"];
         $is_last_page = filter_var($post_data["is_last_page"], FILTER_VALIDATE_BOOLEAN);
         $index = intval($post_data["index"]);
