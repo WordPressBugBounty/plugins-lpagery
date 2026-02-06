@@ -4,6 +4,7 @@ class Settings
 {
     public bool $spintax;
     public bool $image_processing;
+    public bool $image_partial_match;
     public array $custom_post_types;
     public int $author_id;
     public string $hierarchical_taxonomy_handling;

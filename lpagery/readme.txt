@@ -2,9 +2,9 @@
 Contributors: niklaslindemann, jonaslindemann
 Tags: bulk page, seo, local seo, mass page, programmatic seo
 Requires at least: 6.2
-Tested up to: 6.8.2
+Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 2.4.2
+Stable tag: 2.4.12
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -275,6 +275,40 @@ You can revoke your consent at any time, and the integrations will be disabled i
 We are committed to transparency and your control over your data. For more information, please refer to our Privacy Policy.
 
 == Changelog ==
+
+= 2.4.12 - 2026-01-27 =
+* Fix: Remove unnecessary query override
+
+= 2.4.11 - 2026-01-18 =
+* Feat: Divi 5 Support
+
+= 2.4.10 - 2026-01-01 =
+* Feat: Image lookup table to increase performance when image processing with large database
+* Fix: Check user permissions before performing actions
+
+= 2.4.9 - 2025-12-31 =
+* Fix: Display error message
+
+= 2.4.8 - 2025-12-30 =
+* Feat: Add Debug Mode
+
+= 2.4.7 - 2025-12-29 =
+* Chore: Upgrade Dependencies
+
+= 2.4.6 - 2025-12-12 =
+* Fix: Support older mysql databases
+* Fix: allow numbers as usernames in validation
+
+
+= 2.4.5 - 2025-11-26 =
+* Fix: Colibri CSS-Generation
+
+= 2.4.4 - 2025-11-13 =
+* Fix: Reduce maximum concurrent image preview requests to 5 to minimize server load
+
+
+= 2.4.3 - 2025-11-05 =
+* Chore: Update npm libraries
 
 = 2.4.2 - 2025-09-22 =
 * Fix: Error handling when server issue happens

@@ -4,7 +4,7 @@
 Plugin Name: LPagery
 Plugin URI: https://lpagery.io/
 Description: Create hundreds or even thousands of landingpages for local businesses, services etc.
-Version: 2.4.2
+Version: 2.4.12
 Author: LPagery
 License: GPLv2 or later
 */
@@ -14,6 +14,7 @@ use LPagery\data\LPageryDao;
 use LPagery\factories\GoogleSheetSyncProcessHandlerFactory;
 use LPagery\io\Mapper;
 use LPagery\model\ProcessSheetSyncParams;
+use LPagery\service\image_lookup\AttachmentBasenameService;
 use LPagery\service\InstallationDateHandler;
 use LPagery\service\settings\SettingsController;
 use LPagery\service\sheet_sync\GoogleSheetQueueWorkerFactory;
@@ -589,6 +590,127 @@ if ( function_exists( 'lpagery_fs' ) ) {
         10,
         2
     );
+    // Keep basename lookup table in sync for fast attachment searches
+    // Note: add_attachment fires BEFORE _wp_attached_file metadata is set, so we use hooks that fire after
+    // Hook into attachment metadata generation (fires after _wp_attached_file is set for new uploads)
+    add_filter(
+        'wp_generate_attachment_metadata',
+        'lpagery_on_attachment_metadata_generated',
+        10,
+        2
+    );
+    function lpagery_on_attachment_metadata_generated(  $metadata, $attachment_id  ) {
+        $file = get_post_meta( $attachment_id, '_wp_attached_file', true );
+        if ( $file ) {
+            AttachmentBasenameService::get_instance()->insert( $attachment_id, $file );
+        }
+        return $metadata;
+    }
+
+    // Hook into attachment metadata updates
+    add_filter(
+        'wp_update_attachment_metadata',
+        'lpagery_on_attachment_metadata_updated',
+        10,
+        2
+    );
+    function lpagery_on_attachment_metadata_updated(  $metadata, $attachment_id  ) {
+        $file = get_post_meta( $attachment_id, '_wp_attached_file', true );
+        if ( $file ) {
+            AttachmentBasenameService::get_instance()->insert( $attachment_id, $file );
+        }
+        return $metadata;
+    }
+
+    // Hook into post meta addition (catches _wp_attached_file being set)
+    add_action(
+        'added_post_meta',
+        'lpagery_on_attachment_file_meta_added',
+        10,
+        4
+    );
+    function lpagery_on_attachment_file_meta_added(
+        $meta_id,
+        $post_id,
+        $meta_key,
+        $meta_value
+    ) {
+        if ( $meta_key === '_wp_attached_file' && $meta_value ) {
+            AttachmentBasenameService::get_instance()->insert( $post_id, $meta_value );
+        }
+    }
+
+    // Hook into post meta updates (catches _wp_attached_file being updated)
+    add_action(
+        'updated_post_meta',
+        'lpagery_on_attachment_file_meta_updated',
+        10,
+        4
+    );
+    function lpagery_on_attachment_file_meta_updated(
+        $meta_id,
+        $post_id,
+        $meta_key,
+        $meta_value
+    ) {
+        if ( $meta_key === '_wp_attached_file' && $meta_value ) {
+            AttachmentBasenameService::get_instance()->insert( $post_id, $meta_value );
+        }
+    }
+
+    // Hook into attachment edits
+    add_action( 'edit_attachment', 'lpagery_on_edit_attachment' );
+    function lpagery_on_edit_attachment(  $attachment_id  ) {
+        $file = get_post_meta( $attachment_id, '_wp_attached_file', true );
+        if ( $file ) {
+            AttachmentBasenameService::get_instance()->insert( $attachment_id, $file );
+        }
+    }
+
+    // Hook into attachment updates (fires when attachment post is updated)
+    add_action(
+        'attachment_updated',
+        'lpagery_on_attachment_updated',
+        10,
+        3
+    );
+    function lpagery_on_attachment_updated(  $post_id, $post_after, $post_before  ) {
+        $file = get_post_meta( $post_id, '_wp_attached_file', true );
+        if ( $file ) {
+            AttachmentBasenameService::get_instance()->insert( $post_id, $file );
+        }
+    }
+
+    // Hook into REST API attachment creation/updates
+    add_action(
+        'rest_after_insert_attachment',
+        'lpagery_on_rest_attachment_insert',
+        10,
+        3
+    );
+    function lpagery_on_rest_attachment_insert(  $attachment, $request, $creating  ) {
+        $file = get_post_meta( $attachment->ID, '_wp_attached_file', true );
+        if ( $file ) {
+            AttachmentBasenameService::get_instance()->insert( $attachment->ID, $file );
+        }
+    }
+
+    // Clean up basename lookup table when attachment is deleted
+    add_action( 'delete_attachment', 'lpagery_delete_attachment_basename' );
+    function lpagery_delete_attachment_basename(  $attachment_id  ) {
+        AttachmentBasenameService::get_instance()->delete( $attachment_id );
+    }
+
+    // Daily cron job to backfill the attachment basename lookup table
+    add_action( 'lpagery_backfill_attachment_basename', 'lpagery_backfill_attachment_basename' );
+    function lpagery_backfill_attachment_basename() {
+        AttachmentBasenameService::get_instance()->backfill();
+    }
+
+    // Schedule the daily backfill cron if not already scheduled
+    if ( !wp_next_scheduled( 'lpagery_backfill_attachment_basename' ) ) {
+        wp_schedule_event( time(), 'daily', 'lpagery_backfill_attachment_basename' );
+    }
     function lpagery_save_replace_filename_field(  $post, $attachment  ) {
         if ( isset( $attachment['lpagery_replace_filename'] ) ) {
             // Update or add the custom field value
@@ -628,6 +750,9 @@ if ( function_exists( 'lpagery_fs' ) ) {
             return;
         }
         if ( defined( 'DOING_LPAGERY_CREATION' ) && DOING_LPAGERY_CREATION ) {
+            return;
+        }
+        if ( !$_POST ) {
             return;
         }
         if ( isset( $_POST["action"] ) && str_starts_with( $_POST["action"], "wpil_" ) ) {

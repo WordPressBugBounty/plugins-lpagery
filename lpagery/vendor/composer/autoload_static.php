@@ -12,22 +12,22 @@ class ComposerStaticInitc78dc1ecb3b93b00b48875c3806aa0e4
     );
 
     public static $prefixLengthsPsr4 = array (
-        'S' => 
+        'S' =>
         array (
             'STS\\Backoff\\' => 12,
         ),
-        'L' => 
+        'L' =>
         array (
             'LPagery\\' => 8,
         ),
     );
 
     public static $prefixDirsPsr4 = array (
-        'STS\\Backoff\\' => 
+        'STS\\Backoff\\' =>
         array (
             0 => __DIR__ . '/..' . '/stechstudio/backoff/src',
         ),
-        'LPagery\\' => 
+        'LPagery\\' =>
         array (
             0 => __DIR__ . '/../..' . '/src',
         ),
@@ -58,6 +58,7 @@ class ComposerStaticInitc78dc1ecb3b93b00b48875c3806aa0e4
         'LPagery\\factories\\PageUpdateDataHandlerFactory' => __DIR__ . '/../..' . '/src/factories/PageUpdateDataHandlerFactory.php',
         'LPagery\\factories\\SubstitutionHandlerFactory' => __DIR__ . '/../..' . '/src/factories/SubstitutionHandlerFactory.php',
         'LPagery\\io\\Api' => __DIR__ . '/../..' . '/src/io/Api.php',
+        'LPagery\\io\\CreatePageDebugger' => __DIR__ . '/../..' . '/src/io/CreatePageDebugger.php',
         'LPagery\\io\\Mapper' => __DIR__ . '/../..' . '/src/io/Mapper.php',
         'LPagery\\io\\suite\\SuiteClient' => __DIR__ . '/../..' . '/src/io/suite/SuiteClient.php',
         'LPagery\\model\\BaseParams' => __DIR__ . '/../..' . '/src/model/BaseParams.php',
@@ -82,6 +83,7 @@ class ComposerStaticInitc78dc1ecb3b93b00b48875c3806aa0e4
         'LPagery\\service\\duplicates\\DuplicateSlugProvider' => __DIR__ . '/../..' . '/src/service/duplicates/DuplicateSlugProvider.php',
         'LPagery\\service\\duplicates\\DuplicateSlugResult' => __DIR__ . '/../..' . '/src/service/duplicates/DuplicateSlugResult.php',
         'LPagery\\service\\duplicates\\ExistingSlugResult' => __DIR__ . '/../..' . '/src/service/duplicates/ExistingSlugResult.php',
+        'LPagery\\service\\image_lookup\\AttachmentBasenameService' => __DIR__ . '/../..' . '/src/service/image_lookup/AttachmentBasenameService.php',
         'LPagery\\service\\media\\AttachmentHelper' => __DIR__ . '/../..' . '/src/service/media/AttachmentHelper.php',
         'LPagery\\service\\media\\AttachmentMetadataUpdater' => __DIR__ . '/../..' . '/src/service/media/AttachmentMetadataUpdater.php',
         'LPagery\\service\\media\\AttachmentReplacementProvider' => __DIR__ . '/../..' . '/src/service/media/AttachmentReplacementProvider.php',
@@ -98,6 +100,7 @@ class ComposerStaticInitc78dc1ecb3b93b00b48875c3806aa0e4
         'LPagery\\service\\save_page\\PostFieldProvider' => __DIR__ . '/../..' . '/src/service/save_page/PostFieldProvider.php',
         'LPagery\\service\\save_page\\SavePageResult' => __DIR__ . '/../..' . '/src/service/save_page/SavePageResult.php',
         'LPagery\\service\\save_page\\additional\\AdditionalDataSaver' => __DIR__ . '/../..' . '/src/service/save_page/additional/AdditionalDataSaver.php',
+        'LPagery\\service\\save_page\\additional\\Divi5Handler' => __DIR__ . '/../..' . '/src/service/save_page/additional/Divi5Handler.php',
         'LPagery\\service\\save_page\\additional\\FifuHandler' => __DIR__ . '/../..' . '/src/service/save_page/additional/FifuHandler.php',
         'LPagery\\service\\save_page\\additional\\MetaDataHandler' => __DIR__ . '/../..' . '/src/service/save_page/additional/MetaDataHandler.php',
         'LPagery\\service\\save_page\\additional\\MpgSupportController__premium_only' => __DIR__ . '/../..' . '/src/service/save_page/additional/MpgSupportController__premium_only.php',

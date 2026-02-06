@@ -4,8 +4,8 @@ namespace LPagery\data;
 
 use LPagery\factories\InputParamProviderFactory;
 use LPagery\factories\SubstitutionHandlerFactory;
+use LPagery\service\image_lookup\AttachmentBasenameService;
 use LPagery\utils\Utils;
-use Throwable;
 
 class LPageryDatabaseMigrator
 {
@@ -287,7 +287,7 @@ class LPageryDatabaseMigrator
                 created_at timestamp not null default current_timestamp,
                 last_used_at timestamp null,
                 app_user_mail_address varchar(255) not null,
-                token varchar(255) not null,
+                token varchar(191) not null,
                 KEY user_id_index (user_id),
                 UNIQUE KEY token_unique (token)
             ) $charset_collate";
@@ -303,6 +303,26 @@ class LPageryDatabaseMigrator
             $wpdb->query("ALTER TABLE $table_name_sync_queue add column hashed_payload varchar(255) ");
             $wpdb->query("create index process_post_hashed_payload_process_id on $table_name_process_post (hashed_payload, lpagery_process_id)");
             update_option("lpagery_database_version", 14);
+        }
+
+        if ($db_version < 15 && $this->lpagery_table_exists_migrate($table_name_process_post)) {
+            $table_name_attachment_basename = $wpdb->prefix . 'lpagery_attachment_basename';
+
+            $sql_attachment_basename = "CREATE TABLE {$table_name_attachment_basename} (
+                attachment_id BIGINT UNSIGNED NOT NULL,
+                basename VARCHAR(191) NOT NULL,
+                basename_no_ext VARCHAR(191) NOT NULL,
+                KEY idx_basename (basename),
+                KEY idx_basename_no_ext (basename_no_ext),
+                PRIMARY KEY (attachment_id)
+            ) $charset_collate";
+
+            $wpdb->query($sql_attachment_basename);
+
+            // Backfill from existing attachments
+            AttachmentBasenameService::get_instance()->backfill();
+
+            update_option("lpagery_database_version", 15);
         }
     }
 }

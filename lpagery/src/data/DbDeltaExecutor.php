@@ -17,7 +17,7 @@ class DbDeltaExecutor
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
                 last_used_at TIMESTAMP NULL,
                 app_user_mail_address VARCHAR(255) NOT NULL,
-                token VARCHAR(255) NOT NULL,
+                token VARCHAR(191) NOT NULL,
                 UNIQUE KEY token_unique (token),
                 KEY user_id_index (user_id),
                 PRIMARY KEY (id)
@@ -97,6 +97,15 @@ class DbDeltaExecutor
                 hashed_payload           varchar(255)      null,
                 KEY sync_queue_process_id (process_id),
                 PRIMARY KEY (id)
+            ) $charset_collate;",
+
+            "CREATE TABLE {$prefix}lpagery_attachment_basename (
+                attachment_id BIGINT UNSIGNED NOT NULL,
+                basename VARCHAR(191) NOT NULL,
+                basename_no_ext VARCHAR(191) NOT NULL,
+                KEY idx_basename (basename),
+                KEY idx_basename_no_ext (basename_no_ext),
+                PRIMARY KEY (attachment_id)
             ) $charset_collate;"
         ];
 

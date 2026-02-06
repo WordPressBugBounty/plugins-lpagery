@@ -12,10 +12,24 @@ use LPagery\controller\UtilityController;
 use LPagery\data\DbDeltaExecutor;
 use LPagery\data\LPageryDao;
 use LPagery\factories\CreatePostControllerFactory;
+use LPagery\io\CreatePageDebugger;
 use LPagery\io\suite\SuiteClient;
 use LPagery\model\ProcessSheetSyncParams;
+use LPagery\service\image_lookup\AttachmentBasenameService;
 use LPagery\service\settings\SettingsController;
 use LPagery\utils\Utils;
+
+function lpagery_require_admin() {
+    if (!current_user_can('manage_options')) {
+        wp_send_json(array("success" => false, "exception" => 'You do not have permission to perform this action.'));
+    }
+}
+
+function lpagery_require_editor() {
+    if (!current_user_can('edit_pages')) {
+        wp_send_json(array("success" => false, "exception" => 'You do not have permission to perform this action.'));
+    }
+}
 
 add_action('wp_ajax_lpagery_sanitize_slug', 'LPagery\lpagery_sanitize_slug');
 
@@ -49,7 +63,27 @@ add_action('wp_ajax_lpagery_create_posts', 'LPagery\lpagery_create_posts');
 
 function lpagery_create_posts()
 {
+    global $wpdb;
+    
     $nonce_validity = check_ajax_referer('lpagery_ajax');
+    lpagery_require_editor();
+    
+    // Check if debug mode is enabled
+    $debug_mode = isset($_POST['debug_mode']) && rest_sanitize_boolean($_POST['debug_mode']);
+    $initial_query_count = 0;
+    
+    // Only enable query saving when debug mode is active
+    if ($debug_mode && !defined('SAVEQUERIES')) {
+        define('SAVEQUERIES', true);
+    }
+    
+    $debugger = null;
+    if ($debug_mode) {
+        $initial_query_count = is_array($wpdb->queries) ? count($wpdb->queries) : 0;
+        // Start hook profiling
+        $debugger = CreatePageDebugger::get_instance();
+        $debugger->start_hook_profiler();
+    }
 
     // Start output buffering at the very beginning
     ob_start();
@@ -92,6 +126,16 @@ function lpagery_create_posts()
         );
     }
 
+    // Collect debug info if debug mode is enabled
+    if ($debug_mode && $debugger) {
+        // Stop hook profiling before collecting results
+        $debugger->stop_hook_profiler();
+        
+        $debug_info = $debugger->collect_database_queries($initial_query_count);
+        $debug_info["slow_hooks"] = $debugger->collect_slow_hooks();
+        $result["debug_queries"] = $debug_info;
+    }
+
     if ($nonce_validity == 2) {
         $result["nonce"] = wp_create_nonce("lpagery_ajax");
     }
@@ -104,7 +148,6 @@ function lpagery_create_posts()
     // Ensure clean JSON output
     wp_send_json($result);
 }
-
 
 add_action('wp_ajax_lpagery_get_settings', 'LPagery\lpagery_get_settings');
 function lpagery_get_settings()
@@ -233,6 +276,7 @@ add_action('wp_ajax_lpagery_upsert_process', 'LPagery\lpagery_upsert_process');
 function lpagery_upsert_process()
 {
     check_ajax_referer('lpagery_ajax');
+    lpagery_require_editor();
     try {
         $processController = ProcessController::get_instance();
         $upsertParams = \LPagery\model\UpsertProcessParams::fromArray($_POST, "plugin");
@@ -338,6 +382,7 @@ add_action('wp_ajax_lpagery_create_onboarding_template_page', 'LPagery\lpagery_c
 function lpagery_create_onboarding_template_page()
 {
     check_ajax_referer('lpagery_ajax');
+    lpagery_require_editor();
 
     $utilityController = UtilityController::get_instance();
     $result = $utilityController->createOnboardingTemplatePage();
@@ -349,6 +394,7 @@ add_action('wp_ajax_lpagery_assign_page_set_to_me', 'LPagery\lpagery_assign_page
 function lpagery_assign_page_set_to_me()
 {
     check_ajax_referer('lpagery_ajax');
+    lpagery_require_editor();
     try {
         $process_id = isset($_POST['process_id']) ? (int)$_POST['process_id'] : null;
         if (!$process_id) {
@@ -369,6 +415,7 @@ add_action('wp_ajax_lpagery_reset_data', 'LPagery\lpagery_reset_data');
 function lpagery_reset_data()
 {
     check_ajax_referer('lpagery_ajax');
+    lpagery_require_admin();
 
     // Get delete_pages parameter
     $delete_pages = isset($_POST['delete_pages']) ? rest_sanitize_boolean($_POST['delete_pages']) : false;
@@ -383,6 +430,7 @@ add_action('wp_ajax_lpagery_update_process_managing_system', 'LPagery\lpagery_up
 function lpagery_update_process_managing_system_ajax()
 {
     check_ajax_referer('lpagery_ajax');
+    lpagery_require_editor();
     $id = isset($_POST['id']) ? (int)$_POST['id'] : 0;
     $LPageryDao = LPageryDao::get_instance();
 
@@ -469,6 +517,7 @@ add_action('wp_ajax_lpagery_trigger_look_sync', 'LPagery\lpagery_trigger_look_sy
 function lpagery_trigger_look_sync_ajax()
 {
     check_ajax_referer('lpagery_ajax');
+    lpagery_require_editor();
 
     try {
         $page_set_id = isset($_POST['page_set_id']) ? intval($_POST['page_set_id']) : 0;
@@ -509,6 +558,7 @@ add_action('wp_ajax_repair_database_schema', 'LPagery\lpagery_repair_database_sc
 function lpagery_repair_database_schema_ajax()
 {
     check_ajax_referer('lpagery_ajax');
+    lpagery_require_admin();
 
     $dbDeltaExecutor = new DbDeltaExecutor();
     $error = $dbDeltaExecutor->run();
@@ -516,8 +566,10 @@ function lpagery_repair_database_schema_ajax()
         wp_send_json(array("success" => false,
             "exception" => $error));
     } else {
+        $rows_inserted = AttachmentBasenameService::get_instance()->backfill();
+        
         wp_send_json(array("success" => true,
-            "message" => 'Database schema repaired successfully.'));
+            "message" => "Database schema repaired successfully. Attachment basename index updated ({$rows_inserted} entries)."));
     }
 }
 

@@ -79,6 +79,7 @@ class SettingsController
         $userSettings = [
             'spintax' => $settings->spintax,
             'image_processing' => $settings->image_processing,
+            'image_partial_match' => $settings->image_partial_match,
             'custom_post_types' => $settings->custom_post_types,
             'hierarchical_taxonomy_handling' => $settings->hierarchical_taxonomy_handling,
             'author_id' => $settings->author_id,
@@ -141,6 +142,7 @@ class SettingsController
         $userOptions = [
             'spintax' => false,
             'image_processing' => lpagery_fs()->is_plan_or_trial("extended"),
+            'image_partial_match' => true,
             'custom_post_types' => [],
             'author_id' => get_current_user_id(),
         ];
@@ -152,6 +154,7 @@ class SettingsController
         $settings = new Settings();
         $settings->spintax = false;
         $settings->image_processing = false;
+        $settings->image_partial_match = true;
         $settings->custom_post_types = [];
         $settings->author_id = get_current_user_id();
         $settings->google_sheet_sync_interval = "hourly";
@@ -187,6 +190,7 @@ class SettingsController
         $settings = new Settings();
         $settings->spintax = filter_var($userOptions['spintax'] ?? false, FILTER_VALIDATE_BOOLEAN);
         $settings->image_processing = filter_var($userOptions['image_processing'] ?? lpagery_fs()->is_plan_or_trial("extended"), FILTER_VALIDATE_BOOLEAN);
+        $settings->image_partial_match = filter_var($userOptions['image_partial_match'] ?? true, FILTER_VALIDATE_BOOLEAN);
         $settings->custom_post_types = $custom_post_types;
         $settings->hierarchical_taxonomy_handling = $userOptions['hierarchical_taxonomy_handling'] ?? 'last';
         $settings->author_id = $userOptions['author_id'] ?? get_current_user_id();
@@ -245,6 +249,17 @@ class SettingsController
         $userSettings = $this->getUserSettings($userId);
 
         return filter_var($userSettings['image_processing'], FILTER_VALIDATE_BOOLEAN);
+    }
+
+    /**
+     * Checks if image partial match (LIKE fallback) is enabled
+     */
+    public function isImagePartialMatchEnabled($processId = null): bool
+    {
+        $userId = $this->getUserId($processId);
+        $userSettings = $this->getUserSettings($userId);
+
+        return filter_var($userSettings['image_partial_match'] ?? true, FILTER_VALIDATE_BOOLEAN);
     }
 
     /**
@@ -337,6 +352,7 @@ class SettingsController
             $userOptions = [
                 'spintax' => false,
                 'image_processing' => lpagery_fs()->is_plan_or_trial("extended"),
+                'image_partial_match' => true,
                 'custom_post_types' => [],
                 'hierarchical_taxonomy_handling' => 'last',
                 'author_id' => get_current_user_id(),

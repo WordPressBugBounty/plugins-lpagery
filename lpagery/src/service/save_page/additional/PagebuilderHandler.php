@@ -18,10 +18,12 @@ class PagebuilderHandler
     private static $instance;
 
     private $substitutionHandler;
+    private Divi5Handler $divi5Handler;
 
     private function __construct(SubstitutionHandler $substitutionHandler)
     {
         $this->substitutionHandler = $substitutionHandler;
+        $this->divi5Handler = Divi5Handler::get_instance($substitutionHandler);
     }
 
 
@@ -36,6 +38,14 @@ class PagebuilderHandler
 
     public function lpagery_handle_pagebuilder($sourcePostId, $targetPostId, Params $params)
     {
+        // Check for Divi 5 content first (before any other processing)
+        // Divi 5 uses Gutenberg blocks in post_content, not post_meta
+        // We check the SOURCE post since the target content may already have backslashes stripped
+        $source_post = get_post($sourcePostId);
+        if ($source_post && $this->divi5Handler->is_divi5_content($source_post->post_content)) {
+            $this->divi5Handler->handle($sourcePostId, $targetPostId, $params);
+        }
+
         if (in_array("{lpagery_content}", $params->keys)) {
             self::handle_gutenberg($targetPostId);
         }
@@ -69,6 +79,10 @@ class PagebuilderHandler
 
         if (in_array('_bricks_page_settings', $post_meta_keys) || in_array('_bricks_page_content_2', $post_meta_keys)) {
             self::lpagery_handle_bricks($sourcePostId, $targetPostId, $params);
+        }
+
+        if (in_array('extend_builder', $post_meta_keys)) {
+            self::lpagery_handle_colibri();
         }
 
     }
@@ -312,5 +326,15 @@ class PagebuilderHandler
 
     }
 
+    private function lpagery_handle_colibri()
+    {
+        // Schedule CSS regeneration - Colibri generates CSS client-side via JavaScript
+        // This sets a flag that triggers CSS regeneration on next page load
+        // Matching the pattern from Regenerate::schedule() in regenerate.php
 
+        delete_option('colibri_page_builder_regenerate_tries_count');
+        if (class_exists('\ExtendBuilder\Regenerate')) {
+            \ExtendBuilder\Regenerate::schedule();
+        }
+    }
 }
