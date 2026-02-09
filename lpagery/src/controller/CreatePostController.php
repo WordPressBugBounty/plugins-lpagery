@@ -7,10 +7,10 @@ use LPagery\service\media\AttachmentSearchService;
 use LPagery\service\media\CacheableAttachmentSearchService;
 use LPagery\service\save_page\CreatePostDelegate;
 use LPagery\service\settings\SettingsController;
+use LPagery\utils\ElementorCacheUtils;
 use LPagery\utils\MemoryUtils;
 use WP_Error;
 use WP_REST_Request;
-
 if (!defined('TEST_RUNNING')) {
     include_once(plugin_dir_path(__FILE__) . '/../utils/IncludeWordpressFiles.php');
 }
@@ -166,7 +166,7 @@ class CreatePostController
             $result_array["updated_reason"] = $response->reason;
         }
 
-        $this->set_finished_if_last_page($post_data, $is_last_page);
+        $this->handle_last_page($post_data, $is_last_page);
 
         if ($is_last_page) {
             delete_transient($transient_key);
@@ -198,11 +198,12 @@ class CreatePostController
      * @param bool $is_last_page
      * @return void
      */
-    private function set_finished_if_last_page($post_data, bool $is_last_page): void
+    private function handle_last_page($post_data, bool $is_last_page): void
     {
         try {
             if ($is_last_page) {
                 $this->LPageryDao->lpagery_update_process_sync_status((int)$post_data['process_id'], "FINISHED");
+                ElementorCacheUtils::clearCache();
             }
         } catch (\Throwable $e) {
             error_log($e->__toString());

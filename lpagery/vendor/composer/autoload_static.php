@@ -131,6 +131,7 @@ class ComposerStaticInitc78dc1ecb3b93b00b48875c3806aa0e4
         'LPagery\\service\\template\\ReassignTemplateService' => __DIR__ . '/../..' . '/src/service/template/ReassignTemplateService.php',
         'LPagery\\suite\\SuiteRestApi' => __DIR__ . '/../..' . '/src/suite/SuiteRestApi.php',
         'LPagery\\suite\\TokenValidator' => __DIR__ . '/../..' . '/src/suite/TokenValidator.php',
+        'LPagery\\utils\\ElementorCacheUtils' => __DIR__ . '/../..' . '/src/utils/ElementorCacheUtils.php',
         'LPagery\\utils\\MemoryUtils' => __DIR__ . '/../..' . '/src/utils/MemoryUtils.php',
         'LPagery\\utils\\Utils' => __DIR__ . '/../..' . '/src/utils/Utils.php',
         'LPagery\\wpml\\WpmlHelper' => __DIR__ . '/../..' . '/src/wpml/WpmlHelper.php',

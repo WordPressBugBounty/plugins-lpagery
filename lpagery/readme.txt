@@ -2,9 +2,9 @@
 Contributors: niklaslindemann, jonaslindemann
 Tags: bulk page, seo, local seo, mass page, programmatic seo
 Requires at least: 6.2
-Tested up to: 6.9
+Tested up to: 6.9.1
 Requires PHP: 7.4
-Stable tag: 2.4.12
+Stable tag: 2.5.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -275,6 +275,13 @@ You can revoke your consent at any time, and the integrations will be disabled i
 We are committed to transparency and your control over your data. For more information, please refer to our Privacy Policy.
 
 == Changelog ==
+
+= 2.5.0 - 2026-02-06 =
+* Feat: Auto purge Elementor cache after creation
+* Fix: Allow to ignore pages with slugs which already exist in other LPagery Page Set
+
+= 2.4.13 - 2026-02-03 =
+* Fix: Ensure correct boolean values when deserializing
 
 = 2.4.12 - 2026-01-27 =
 * Fix: Remove unnecessary query override

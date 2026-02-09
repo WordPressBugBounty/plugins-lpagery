@@ -103,6 +103,7 @@ return array(
     'LPagery\\service\\template\\ReassignTemplateService' => $baseDir . '/src/service/template/ReassignTemplateService.php',
     'LPagery\\suite\\SuiteRestApi' => $baseDir . '/src/suite/SuiteRestApi.php',
     'LPagery\\suite\\TokenValidator' => $baseDir . '/src/suite/TokenValidator.php',
+    'LPagery\\utils\\ElementorCacheUtils' => $baseDir . '/src/utils/ElementorCacheUtils.php',
     'LPagery\\utils\\MemoryUtils' => $baseDir . '/src/utils/MemoryUtils.php',
     'LPagery\\utils\\Utils' => $baseDir . '/src/utils/Utils.php',
     'LPagery\\wpml\\WpmlHelper' => $baseDir . '/src/wpml/WpmlHelper.php',

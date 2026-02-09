@@ -128,7 +128,7 @@ class UpsertProcessParams implements \JsonSerializable
      */
     public function isSyncEnabled(): bool
     {
-        return $this->google_sheet_data && $this->google_sheet_data->isSyncEnabled();
+        return $this->google_sheet_data && $this->google_sheet_data->isSyncEnabled() ? true : false;
     }
 
     /**
@@ -138,7 +138,7 @@ class UpsertProcessParams implements \JsonSerializable
      */
     public function isIncludeParentAsIdentifier(): bool
     {
-        return $this->include_parent_as_identifier;
+        return $this->include_parent_as_identifier ? true : false;
     }
 
     /**
@@ -158,7 +158,7 @@ class UpsertProcessParams implements \JsonSerializable
      */
     public function isGoogleSheetEnabled(): bool
     {
-        return $this->google_sheet_data !== null && $this->google_sheet_data->isEnabled();
+        return $this->google_sheet_data !== null && $this->google_sheet_data->isEnabled() ? true : false;
     }
 
     /**

@@ -88,7 +88,7 @@ class LPageryDao
         return $results;
     }
 
-    public function lpagery_upsert_process($post_id, $process_id, $purpose, $data, $google_sheet_data, $google_sheet_sync_enabled, bool $include_parent_as_identifier, string $managing_system)
+    public function lpagery_upsert_process($post_id, $process_id, $purpose, $data, $google_sheet_data, bool $google_sheet_sync_enabled, bool $include_parent_as_identifier, string $managing_system)
     {
         global $wpdb;
         $current_user_id = get_current_user_id();
@@ -607,22 +607,21 @@ class LPageryDao
         }
     }
 
-    public function lpagery_get_existing_post_not_managed_by_lpagery(string $slug, string $post_type, ?int $parent)
+    public function lpagery_get_existing_post(string $slug, string $post_type, ?int $parent)
     {
         global $wpdb;
         $table_name_process_post = $wpdb->prefix . 'lpagery_process_post';
 
-        $prepare = $wpdb->prepare("SELECT p.ID, p.post_name, p.post_type, p.post_parent
+        $prepare = $wpdb->prepare("SELECT p.ID, p.post_name, p.post_type, p.post_parent,  EXISTS (
+                SELECT 1 
+                FROM $table_name_process_post lpp 
+                WHERE lpp.post_id = p.ID
+            ) as managed_by_lpagery
             FROM $wpdb->posts p
             WHERE p.post_type = %s
             AND p.post_status NOT IN ('inherit', 'attachment')
             AND p.post_name = %s
-            AND p.post_parent = %d
-            AND NOT EXISTS (
-                SELECT 1 
-                FROM $table_name_process_post lpp 
-                WHERE lpp.post_id = p.ID
-            )", $post_type, $slug, $parent ?? 0);
+            AND p.post_parent = %d", $post_type, $slug, $parent ?? 0);
 
         $results = $wpdb->get_results($prepare);
         if (empty($results)) {
