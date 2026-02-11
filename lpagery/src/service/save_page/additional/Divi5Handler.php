@@ -59,7 +59,16 @@ class Divi5Handler
         $post_content = $source_post->post_content;
 
         // Parse blocks to get structured access
+        // Set $_is_parsing_global_layout to prevent Divi's custom block parser from expanding
+        // divi/global-layout blocks. This preserves the global module structure in generated pages.
+        global $_is_parsing_global_layout;
+        $prev_parsing_state = $_is_parsing_global_layout ?? false;
+        $_is_parsing_global_layout = true;
+
         $blocks = parse_blocks($post_content);
+
+        // Restore previous parsing state
+        $_is_parsing_global_layout = $prev_parsing_state;
 
         // Process all blocks: substitution + image processing
         $processed_blocks = $this->process_blocks_recursive($blocks, $params);
@@ -93,7 +102,16 @@ class Divi5Handler
         }
 
         // Parse blocks to get structured access to attributes
+        // Set $_is_parsing_global_layout to prevent Divi's custom block parser from expanding
+        // divi/global-layout blocks. This preserves the global module structure.
+        global $_is_parsing_global_layout;
+        $prev_parsing_state = $_is_parsing_global_layout ?? false;
+        $_is_parsing_global_layout = true;
+
         $blocks = parse_blocks($content);
+
+        // Restore previous parsing state
+        $_is_parsing_global_layout = $prev_parsing_state;
 
         // Process all blocks recursively (image processing only, no substitution)
         $processed_blocks = $this->process_blocks_for_images($blocks, $source_attachment_ids, $target_attachment_ids);

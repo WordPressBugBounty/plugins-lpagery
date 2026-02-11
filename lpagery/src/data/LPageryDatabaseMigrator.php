@@ -31,6 +31,12 @@ class LPageryDatabaseMigrator
     {
         global $wpdb;
 
+        // Short-circuit if already at latest version (15)
+        $db_version = intval(get_option("lpagery_database_version", 0));
+        if ($db_version >= 15) {
+            return;
+        }
+
         $table_name_process = $wpdb->prefix . 'lpagery_process';
         $table_name_process_post = $wpdb->prefix . 'lpagery_process_post';
         $table_name_sync_queue = $wpdb->prefix . 'lpagery_sync_queue';

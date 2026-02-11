@@ -15,4 +15,5 @@ class Settings
     public string $google_sheet_sync_interval;
     public ?string $next_google_sheet_sync;
     public ?bool $wp_cron_disabled;
+    public bool $hide_generated_pages;
 }

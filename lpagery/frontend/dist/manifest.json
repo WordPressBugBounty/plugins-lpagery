@@ -1,50 +1,50 @@
 {
-  "_data-DS7NvNPa.js": {
-    "file": "assets/data-DS7NvNPa.js",
+  "_data-BAHYZNPk.js": {
+    "file": "assets/data-BAHYZNPk.js",
     "name": "data",
     "imports": [
-      "_react-vendor-Bn9Mm5tV.js"
+      "_react-vendor-CoyultxW.js"
     ]
   },
-  "_forms-La78IegP.js": {
-    "file": "assets/forms-La78IegP.js",
+  "_forms-DmDzxg5y.js": {
+    "file": "assets/forms-DmDzxg5y.js",
     "name": "forms",
     "imports": [
-      "_react-query-CFSGgqC9.js"
+      "_react-query-BCLHmoiZ.js"
     ]
   },
-  "_radix-ui-C9EsOc86.js": {
-    "file": "assets/radix-ui-C9EsOc86.js",
+  "_radix-ui-BUHafPRT.js": {
+    "file": "assets/radix-ui-BUHafPRT.js",
     "name": "radix-ui",
     "imports": [
-      "_react-query-CFSGgqC9.js",
-      "_react-vendor-Bn9Mm5tV.js"
+      "_react-query-BCLHmoiZ.js",
+      "_react-vendor-CoyultxW.js"
     ]
   },
-  "_react-query-CFSGgqC9.js": {
-    "file": "assets/react-query-CFSGgqC9.js",
+  "_react-query-BCLHmoiZ.js": {
+    "file": "assets/react-query-BCLHmoiZ.js",
     "name": "react-query",
     "imports": [
-      "_react-vendor-Bn9Mm5tV.js"
+      "_react-vendor-CoyultxW.js"
     ]
   },
-  "_react-vendor-Bn9Mm5tV.js": {
-    "file": "assets/react-vendor-Bn9Mm5tV.js",
+  "_react-vendor-CoyultxW.js": {
+    "file": "assets/react-vendor-CoyultxW.js",
     "name": "react-vendor"
   },
-  "_tracking-BAfgxlb6.js": {
-    "file": "assets/tracking-BAfgxlb6.js",
+  "_tracking-dHJd-xGm.js": {
+    "file": "assets/tracking-dHJd-xGm.js",
     "name": "tracking",
     "imports": [
-      "_react-query-CFSGgqC9.js"
+      "_react-query-BCLHmoiZ.js"
     ]
   },
-  "_ui-utils-356pxev7.js": {
-    "file": "assets/ui-utils-356pxev7.js",
+  "_ui-utils-CTgkDRAN.js": {
+    "file": "assets/ui-utils-CTgkDRAN.js",
     "name": "ui-utils",
     "imports": [
-      "_react-query-CFSGgqC9.js",
-      "_radix-ui-C9EsOc86.js"
+      "_react-query-BCLHmoiZ.js",
+      "_radix-ui-BUHafPRT.js"
     ]
   },
   "src/assets/LP_Logo_horizontal_2022_RZ.png": {
@@ -96,21 +96,21 @@
     "src": "src/assets/wordpress.png"
   },
   "src/index.tsx": {
-    "file": "assets/index-DvwijJyg.js",
+    "file": "assets/index-Bj9QrBQq.js",
     "name": "index",
     "src": "src/index.tsx",
     "isEntry": true,
     "imports": [
-      "_react-query-CFSGgqC9.js",
-      "_react-vendor-Bn9Mm5tV.js",
-      "_radix-ui-C9EsOc86.js",
-      "_tracking-BAfgxlb6.js",
-      "_forms-La78IegP.js",
-      "_ui-utils-356pxev7.js",
-      "_data-DS7NvNPa.js"
+      "_react-query-BCLHmoiZ.js",
+      "_react-vendor-CoyultxW.js",
+      "_radix-ui-BUHafPRT.js",
+      "_tracking-dHJd-xGm.js",
+      "_forms-DmDzxg5y.js",
+      "_ui-utils-CTgkDRAN.js",
+      "_data-BAHYZNPk.js"
     ],
     "css": [
-      "assets/index-DlWscm8V.css"
+      "assets/index-C9UCcwwS.css"
     ],
     "assets": [
       "assets/pro-Du7Eyhe6.svg",

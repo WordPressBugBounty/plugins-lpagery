@@ -573,3 +573,79 @@ function lpagery_repair_database_schema_ajax()
     }
 }
 
+add_action('wp_ajax_delete_lpagery_revisions', 'LPagery\lpagery_delete_revisions_ajax');
+function lpagery_delete_revisions_ajax()
+{
+    check_ajax_referer('lpagery_ajax');
+    lpagery_require_admin();
+
+    global $wpdb;
+    
+    try {
+        $table_name_process_post = $wpdb->prefix . 'lpagery_process_post';
+        
+        // Get all LPagery-generated post IDs
+        $lpagery_post_ids = $wpdb->get_col(
+            "SELECT DISTINCT post_id FROM $table_name_process_post"
+        );
+        
+        if (empty($lpagery_post_ids)) {
+            wp_send_json(array(
+                "success" => true,
+                "message" => "No LPagery-generated pages found. 0 revisions deleted."
+            ));
+        }
+        
+        // First, get the IDs of revisions we're about to delete
+        // (so we can clean up their postmeta specifically, not all orphaned postmeta)
+        $placeholders = implode(',', array_fill(0, count($lpagery_post_ids), '%d'));
+        $revision_ids = $wpdb->get_col($wpdb->prepare(
+            "SELECT ID FROM $wpdb->posts 
+             WHERE post_type = 'revision' 
+             AND post_parent IN ($placeholders)",
+            ...$lpagery_post_ids
+        ));
+        
+        // Delete the revisions
+        $revisions_deleted = $wpdb->query($wpdb->prepare(
+            "DELETE FROM $wpdb->posts 
+             WHERE post_type = 'revision' 
+             AND post_parent IN ($placeholders)",
+            ...$lpagery_post_ids
+        ));
+        
+        if ($revisions_deleted === false) {
+            wp_send_json(array(
+                "success" => false,
+                "exception" => "Failed to delete revisions from database."
+            ));
+        }
+        
+        // Clean up postmeta only for the specific revisions we just deleted
+        // This is much safer and faster than a broad orphaned postmeta cleanup
+        if (!empty($revision_ids)) {
+            $meta_placeholders = implode(',', array_fill(0, count($revision_ids), '%d'));
+            $wpdb->query($wpdb->prepare(
+                "DELETE FROM $wpdb->postmeta WHERE post_id IN ($meta_placeholders)",
+                ...$revision_ids
+            ));
+        }
+        
+        $message = $revisions_deleted > 0 
+            ? "Successfully deleted {$revisions_deleted} revision(s) from LPagery-generated pages."
+            : "No revisions found for LPagery-generated pages.";
+            
+        wp_send_json(array(
+            "success" => true,
+            "message" => $message,
+            "deleted_count" => $revisions_deleted
+        ));
+        
+    } catch (Exception $e) {
+        wp_send_json(array(
+            "success" => false,
+            "exception" => $e->getMessage()
+        ));
+    }
+}
+

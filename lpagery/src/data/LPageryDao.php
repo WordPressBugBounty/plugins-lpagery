@@ -32,20 +32,29 @@ class LPageryDao
     {
         global $wpdb;
 
-        $table_name_process_post = $wpdb->prefix . 'lpagery_process_post';
-        if (self::lpagery_table_exists()) {
-            $prepare = $wpdb->prepare("select (count(p.ID) > 0) as post_exists
-					from $wpdb->posts p
-					         inner join $table_name_process_post lpp on p.ID = lpp.post_id
-					        inner join $wpdb->posts  source_post on lpp.template_id = source_post.id
-					where lpp.template_id = %s
-					  and p.post_status != 'trash' and source_post.post_modified > lpp.modified
-					order by p.id", $id);
-            $result = (array)$wpdb->get_results($prepare)[0];
-
-            return boolval($result['post_exists']);
+        // Use static cache to avoid repeated queries for the same post
+        static $cache = array();
+        
+        if (isset($cache[$id])) {
+            return $cache[$id];
         }
-        return false;
+
+        $table_name_process_post = $wpdb->prefix . 'lpagery_process_post';
+        
+        // Tables are guaranteed to exist after admin_init, no need to check
+        $prepare = $wpdb->prepare("select (count(p.ID) > 0) as post_exists
+				from $wpdb->posts p
+				         inner join $table_name_process_post lpp on p.ID = lpp.post_id
+				        inner join $wpdb->posts  source_post on lpp.template_id = source_post.id
+				where lpp.template_id = %s
+				  and p.post_status != 'trash' and source_post.post_modified > lpp.modified
+				order by p.id", $id);
+        $result = (array)$wpdb->get_results($prepare)[0];
+
+        $has_changes = boolval($result['post_exists']);
+        $cache[$id] = $has_changes;
+        
+        return $has_changes;
     }
 
     public function lpagery_get_existing_posts_for_update_modal($template_id, $process_id)
@@ -841,6 +850,13 @@ class LPageryDao
     {
         global $wpdb;
 
+        // Cache result statically per request
+        static $table_exists = null;
+        
+        if ($table_exists !== null) {
+            return $table_exists;
+        }
+
         $table_name_process_post = $wpdb->prefix . 'lpagery_process_post';
         $prepare = $wpdb->prepare("SELECT EXISTS (
                 SELECT
@@ -851,7 +867,9 @@ class LPageryDao
                         TABLE_NAME = %s
             ) as lpagery_table_exists;", $table_name_process_post);
         $result = (array)$wpdb->get_results($prepare)[0];
-        return $result['lpagery_table_exists'];
+        $table_exists = $result['lpagery_table_exists'];
+        
+        return $table_exists;
     }
 
     public function lpagery_count_processes()

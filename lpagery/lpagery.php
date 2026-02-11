@@ -4,7 +4,7 @@
 Plugin Name: LPagery
 Plugin URI: https://lpagery.io/
 Description: Create hundreds or even thousands of landingpages for local businesses, services etc.
-Version: 2.5.0
+Version: 2.5.1
 Author: LPagery
 License: GPLv2 or later
 */
@@ -392,6 +392,74 @@ if ( function_exists( 'lpagery_fs' ) ) {
         <?php 
     }
 
+    // Hide generated pages filter
+    add_filter(
+        'posts_where',
+        'lpagery_hide_generated_pages_filter',
+        10,
+        2
+    );
+    function lpagery_hide_generated_pages_filter(  $where, $query  ) {
+        global $wpdb;
+        // Only apply if the setting is enabled
+        if ( !SettingsController::get_instance()->isHideGeneratedPagesEnabled() ) {
+            return $where;
+        }
+        // Only apply filter on admin post listing pages
+        if ( !is_admin() || !$query->is_main_query() ) {
+            return $where;
+        }
+        // Don't filter when user is intentionally viewing LPagery pages
+        if ( isset( $_GET['lpagery_process'] ) || isset( $_GET['lpagery_template'] ) ) {
+            return $where;
+        }
+        // Only apply on edit screens
+        $screen = get_current_screen();
+        if ( !$screen || !in_array( $screen->base, ['edit'] ) ) {
+            return $where;
+        }
+        $table_name_process_post = $wpdb->prefix . 'lpagery_process_post';
+        // Exclude posts that are LPagery-generated
+        $where .= " AND NOT EXISTS (\n            SELECT 1 \n            FROM {$table_name_process_post} lpp \n            WHERE lpp.post_id = {$wpdb->posts}.ID\n        )";
+        return $where;
+    }
+
+    // Adjust post counts to exclude generated pages
+    add_filter(
+        'wp_count_posts',
+        'lpagery_adjust_post_counts',
+        10,
+        3
+    );
+    function lpagery_adjust_post_counts(  $counts, $type, $perm  ) {
+        global $wpdb;
+        // Only apply if the setting is enabled
+        if ( !SettingsController::get_instance()->isHideGeneratedPagesEnabled() ) {
+            return $counts;
+        }
+        // Only adjust in admin
+        if ( !is_admin() ) {
+            return $counts;
+        }
+        // Don't adjust when viewing LPagery pages
+        if ( isset( $_GET['lpagery_process'] ) || isset( $_GET['lpagery_template'] ) ) {
+            return $counts;
+        }
+        $table_name_process_post = $wpdb->prefix . 'lpagery_process_post';
+        // Count LPagery-generated posts by status (COUNT DISTINCT to avoid
+        // double-counting posts that appear in multiple processes)
+        $lpagery_counts = $wpdb->get_results( $wpdb->prepare( "\n            SELECT p.post_status, COUNT(DISTINCT p.ID) as count\n            FROM {$wpdb->posts} p\n            INNER JOIN {$table_name_process_post} lpp ON p.ID = lpp.post_id\n            WHERE p.post_type = %s\n            GROUP BY p.post_status\n        ", $type ), ARRAY_A );
+        // Subtract LPagery counts from the total counts
+        foreach ( $lpagery_counts as $row ) {
+            $status = $row['post_status'];
+            $count = (int) $row['count'];
+            if ( isset( $counts->{$status} ) ) {
+                $counts->{$status} = max( 0, $counts->{$status} - $count );
+            }
+        }
+        return $counts;
+    }
+
     add_action( 'admin_footer', 'lpagery_add_filter_text_process' );
     add_action( 'admin_footer', 'lpagery_add_filter_text_template_post' );
     function lpagery_add_filter_text_process() {
@@ -451,12 +519,78 @@ if ( function_exists( 'lpagery_fs' ) ) {
 
     function lpagery_filter_add_export_row_action(  $actions, WP_Post $post  ) {
         $post_id = $post->ID;
-        $process_id_result = LPageryDao::get_instance()->lpagery_get_process_id_by_template( $post_id );
-        if ( $process_id_result ) {
+        // Use cached data if available, otherwise fall back to database query
+        $process_id = null;
+        if ( isset( $GLOBALS['lpagery_template_cache'][$post_id] ) ) {
+            // Cache hit: process_id set = template, null = not a template (batch already checked)
+            $process_id = $GLOBALS['lpagery_template_cache'][$post_id]['process_id'];
+        } else {
+            // Fallback for single post views or when batch cache was not populated
+            $process_id_result = LPageryDao::get_instance()->lpagery_get_process_id_by_template( $post_id );
+            if ( $process_id_result ) {
+                $process_id = $process_id_result["process_id"];
+            }
+        }
+        if ( $process_id ) {
             $nonce = wp_create_nonce( "lpagery_ajax" );
-            $actions['lpagery_export_page'] = sprintf( '<a href="%1$s" target="_blank">%2$s</a>', get_admin_url( null, 'admin-ajax.php' ) . '?action=lpagery_download_post_json&process_id=' . $process_id_result["process_id"] . '&_ajax_nonce=' . $nonce, __( 'LPagery: Export Template Page', 'lpagery' ) );
+            $actions['lpagery_export_page'] = sprintf( '<a href="%1$s" target="_blank">%2$s</a>', get_admin_url( null, 'admin-ajax.php' ) . '?action=lpagery_download_post_json&process_id=' . $process_id . '&_ajax_nonce=' . $nonce, __( 'LPagery: Export Template Page', 'lpagery' ) );
         }
         return $actions;
+    }
+
+    // Batch-load template data for row actions
+    add_filter(
+        'the_posts',
+        'lpagery_batch_load_template_data',
+        10,
+        2
+    );
+    function lpagery_batch_load_template_data(  $posts, $query  ) {
+        global $wpdb;
+        static $template_cache = array();
+        // Only in admin and main query
+        if ( !is_admin() || !$query->is_main_query() ) {
+            return $posts;
+        }
+        // Only on edit screens
+        $screen = get_current_screen();
+        if ( !$screen || !in_array( $screen->base, ['edit'] ) ) {
+            return $posts;
+        }
+        if ( empty( $posts ) ) {
+            return $posts;
+        }
+        // Collect all post IDs
+        $post_ids = array_map( function ( $post ) {
+            return $post->ID;
+        }, $posts );
+        if ( empty( $post_ids ) ) {
+            return $posts;
+        }
+        // Batch query to get template data
+        $table_name_process_post = $wpdb->prefix . 'lpagery_process_post';
+        $placeholders = implode( ',', array_fill( 0, count( $post_ids ), '%d' ) );
+        $query_string = $wpdb->prepare( "SELECT template_id, lpagery_process_id FROM {$table_name_process_post} WHERE template_id IN ({$placeholders}) GROUP BY template_id", ...$post_ids );
+        $results = $wpdb->get_results( $query_string );
+        // Cache results: templates get process_id, non-templates get null
+        $template_ids_from_results = array();
+        foreach ( $results as $row ) {
+            $template_cache[$row->template_id] = array(
+                'process_id' => $row->lpagery_process_id,
+            );
+            $template_ids_from_results[$row->template_id] = true;
+        }
+        // Mark post IDs that were checked but are NOT templates (avoids fallback queries)
+        foreach ( $post_ids as $post_id ) {
+            if ( !isset( $template_ids_from_results[$post_id] ) ) {
+                $template_cache[$post_id] = array(
+                    'process_id' => null,
+                );
+            }
+        }
+        // Store in a global for access in row action filter
+        $GLOBALS['lpagery_template_cache'] = $template_cache;
+        return $posts;
     }
 
     add_filter(
@@ -763,8 +897,13 @@ if ( function_exists( 'lpagery_fs' ) ) {
         }
         global $wpdb;
         $table_name_process_post = $wpdb->prefix . 'lpagery_process_post';
-        $wpdb->query( $wpdb->prepare( "UPDATE {$table_name_process_post} SET page_manually_updated_at = %s WHERE post_id = %d", current_time( 'mysql' ), $post_id ) );
-        $wpdb->query( $wpdb->prepare( "UPDATE {$table_name_process_post} SET page_manually_updated_by = %s WHERE post_id = %d", $current_user_id, $post_id ) );
+        // Combine both updates into a single query
+        $wpdb->query( $wpdb->prepare(
+            "UPDATE {$table_name_process_post} SET page_manually_updated_at = %s, page_manually_updated_by = %d WHERE post_id = %d",
+            current_time( 'mysql' ),
+            $current_user_id,
+            $post_id
+        ) );
     }
 
     lpagery_fs()->add_filter( 'pricing_url', function () {

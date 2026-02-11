@@ -14,6 +14,7 @@ class SettingsController
     const OPTION_SYNC_BATCH_SIZE = "lpagery_sync_batch_size";
     const OPTION_SYNC_OVERWRITE_MANUAL_CHANGES = "lpagery_sync_overwrite_manual_changes";
     const OPTION_GOOGLE_SHEET_SYNC_INTERVAL = "lpagery_google_sheet_sync_interval";
+    const OPTION_HIDE_GENERATED_PAGES = "lpagery_hide_generated_pages";
 
     /**
      * Singleton pattern implementation
@@ -95,6 +96,8 @@ class SettingsController
         update_option(self::OPTION_SYNC_BATCH_SIZE, $settings->sync_batch_size);
         update_option(self::OPTION_SYNC_OVERWRITE_MANUAL_CHANGES,
             filter_var($settings->google_sheet_sync_overwrite_manual_changes, FILTER_VALIDATE_BOOLEAN) ? '1' : '0');
+        update_option(self::OPTION_HIDE_GENERATED_PAGES,
+            filter_var($settings->hide_generated_pages, FILTER_VALIDATE_BOOLEAN) ? '1' : '0');
 
         // Handle Google Sheet sync interval and scheduling
         $currentInterval = get_option(self::OPTION_GOOGLE_SHEET_SYNC_INTERVAL);
@@ -165,6 +168,7 @@ class SettingsController
         $settings->google_sheet_sync_enabled = false;
         $settings->hierarchical_taxonomy_handling = 'last';
         $settings->wp_cron_disabled = defined('DISABLE_WP_CRON') && DISABLE_WP_CRON;
+        $settings->hide_generated_pages = filter_var(get_option(self::OPTION_HIDE_GENERATED_PAGES, '0'), FILTER_VALIDATE_BOOLEAN);
 
         return $settings;
     }
@@ -201,6 +205,7 @@ class SettingsController
         $settings->google_sheet_sync_force_update = filter_var($this->isForceUpdateEnabled(), FILTER_VALIDATE_BOOLEAN);
         $settings->google_sheet_sync_overwrite_manual_changes = filter_var($this->isOverwriteManualChangesEnabled(), FILTER_VALIDATE_BOOLEAN);
         $settings->wp_cron_disabled = defined('DISABLE_WP_CRON') && DISABLE_WP_CRON;
+        $settings->hide_generated_pages = filter_var(get_option(self::OPTION_HIDE_GENERATED_PAGES, '0'), FILTER_VALIDATE_BOOLEAN);
         return $settings;
     }
 
@@ -373,5 +378,13 @@ class SettingsController
             return get_date_from_gmt($gmtDate, 'Y-m-d\TH:i');
         }
         return null;
+    }
+
+    /**
+     * Checks if hide generated pages is enabled
+     */
+    public function isHideGeneratedPagesEnabled(): bool
+    {
+        return filter_var(get_option(self::OPTION_HIDE_GENERATED_PAGES, '0'), FILTER_VALIDATE_BOOLEAN);
     }
 }
