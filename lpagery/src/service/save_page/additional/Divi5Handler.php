@@ -2,6 +2,8 @@
 
 namespace LPagery\service\save_page\additional;
 
+use ET\Builder\FrontEnd\BlockParser\BlockParser;
+use ET\Builder\Migration\MigrationContext;
 use LPagery\model\Params;
 use LPagery\service\substitution\SubstitutionHandler;
 
@@ -58,31 +60,53 @@ class Divi5Handler
 
         $post_content = $source_post->post_content;
 
-        // Parse blocks to get structured access
-        // Set $_is_parsing_global_layout to prevent Divi's custom block parser from expanding
-        // divi/global-layout blocks. This preserves the global module structure in generated pages.
-        global $_is_parsing_global_layout;
-        $prev_parsing_state = $_is_parsing_global_layout ?? false;
-        $_is_parsing_global_layout = true;
+        // Check if Divi 5 classes are available
+        $has_divi_parser = class_exists('ET\Builder\FrontEnd\BlockParser\BlockParser');
+        $has_migration_context = class_exists('ET\Builder\Migration\MigrationContext');
+        $use_divi_parser = $has_divi_parser && $has_migration_context;
 
-        $blocks = parse_blocks($post_content);
+        if ($use_divi_parser) {
+            // Parse blocks to get structured access
+            // Use MigrationContext to prevent Divi's BlockParser from expanding
+            // divi/global-layout blocks. This preserves the global module structure in generated pages.
+            MigrationContext::start();
+            try {
+                // Use Divi's BlockParser for proper Divi 5 block handling
+                $parser = new BlockParser();
+                $blocks = $parser->parse($post_content);
 
-        // Restore previous parsing state
-        $_is_parsing_global_layout = $prev_parsing_state;
+                // Process all blocks: substitution + image processing
+                $processed_blocks = $this->process_blocks_recursive($blocks, $params);
 
-        // Process all blocks: substitution + image processing
-        $processed_blocks = $this->process_blocks_recursive($blocks, $params);
+                // Serialize and save within MigrationContext to prevent Divi's security
+                // filters from expanding global layouts during wp_update_post().
+                $final_content = serialize_blocks($processed_blocks);
 
-        // Serialize back to content
-        $final_content = serialize_blocks($processed_blocks);
+                // Save the processed content
+                // wp_slash() is required to preserve backslashes in Unicode escapes (e.g. \u003c)
+                // because wp_update_post() calls wp_unslash() internally
+                wp_update_post(array(
+                    'ID' => $targetPostId,
+                    'post_content' => wp_slash($final_content)
+                ));
+            } finally {
+                MigrationContext::end();
+            }
+        } else {
+            // Fallback to WordPress's native parse_blocks() if Divi 5 classes are not available
+            $blocks = parse_blocks($post_content);
+            $processed_blocks = $this->process_blocks_recursive($blocks, $params);
 
-        // Save the processed content
-        // wp_slash() is required to preserve backslashes in Unicode escapes (e.g. \u003c)
-        // because wp_update_post() calls wp_unslash() internally
-        wp_update_post(array(
-            'ID' => $targetPostId,
-            'post_content' => wp_slash($final_content)
-        ));
+            $final_content = serialize_blocks($processed_blocks);
+
+            // Save the processed content
+            // wp_slash() is required to preserve backslashes in Unicode escapes (e.g. \u003c)
+            // because wp_update_post() calls wp_unslash() internally
+            wp_update_post(array(
+                'ID' => $targetPostId,
+                'post_content' => wp_slash($final_content)
+            ));
+        }
     }
 
     /**
@@ -101,20 +125,31 @@ class Divi5Handler
             return $content;
         }
 
-        // Parse blocks to get structured access to attributes
-        // Set $_is_parsing_global_layout to prevent Divi's custom block parser from expanding
-        // divi/global-layout blocks. This preserves the global module structure.
-        global $_is_parsing_global_layout;
-        $prev_parsing_state = $_is_parsing_global_layout ?? false;
-        $_is_parsing_global_layout = true;
+        // Check if Divi 5 classes are available
+        $has_divi_parser = class_exists('ET\Builder\FrontEnd\BlockParser\BlockParser');
+        $has_migration_context = class_exists('ET\Builder\Migration\MigrationContext');
+        $use_divi_parser = $has_divi_parser && $has_migration_context;
 
-        $blocks = parse_blocks($content);
+        if ($use_divi_parser) {
+            // Parse blocks to get structured access to attributes
+            // Use MigrationContext to prevent Divi's BlockParser from expanding
+            // divi/global-layout blocks. This preserves the global module structure.
+            MigrationContext::start();
+            try {
+                // Use Divi's BlockParser for proper Divi 5 block handling
+                $parser = new BlockParser();
+                $blocks = $parser->parse($content);
 
-        // Restore previous parsing state
-        $_is_parsing_global_layout = $prev_parsing_state;
-
-        // Process all blocks recursively (image processing only, no substitution)
-        $processed_blocks = $this->process_blocks_for_images($blocks, $source_attachment_ids, $target_attachment_ids);
+                // Process all blocks recursively (image processing only, no substitution)
+                $processed_blocks = $this->process_blocks_for_images($blocks, $source_attachment_ids, $target_attachment_ids);
+            } finally {
+                MigrationContext::end();
+            }
+        } else {
+            // Fallback to WordPress's native parse_blocks() if Divi 5 classes are not available
+            $blocks = parse_blocks($content);
+            $processed_blocks = $this->process_blocks_for_images($blocks, $source_attachment_ids, $target_attachment_ids);
+        }
 
         // Serialize back to content
         return serialize_blocks($processed_blocks);

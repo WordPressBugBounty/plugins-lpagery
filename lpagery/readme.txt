@@ -4,7 +4,7 @@ Tags: bulk page, seo, local seo, mass page, programmatic seo
 Requires at least: 6.2
 Tested up to: 6.9.1
 Requires PHP: 7.4
-Stable tag: 2.5.1
+Stable tag: 2.5.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -276,9 +276,11 @@ We are committed to transparency and your control over your data. For more infor
 
 == Changelog ==
 
+= 2.5.2 - 2026-02-13 =
+* Fix: Keep global elements for Divi 5
+
 = 2.5.1 - 2026-02-11 =
 * Feat: Several WP-Admin Performance enhancements
-* Fix: Keep global elements for Divi 5
 
 = 2.5.0 - 2026-02-06 =
 * Feat: Auto purge Elementor cache after creation
