@@ -4,7 +4,7 @@
 Plugin Name: LPagery
 Plugin URI: https://lpagery.io/
 Description: Create hundreds or even thousands of landingpages for local businesses, services etc.
-Version: 2.5.2
+Version: 2.5.4
 Author: LPagery
 License: GPLv2 or later
 */
@@ -36,22 +36,23 @@ if ( function_exists( 'lpagery_fs' ) ) {
                 // Include Freemius SDK.
                 require_once dirname( __FILE__ ) . '/freemius/start.php';
                 $lpagery_fs = fs_dynamic_init( array(
-                    'id'              => '9985',
-                    'slug'            => 'lpagery',
-                    'premium_slug'    => 'lpagery-pro',
-                    'type'            => 'plugin',
-                    'public_key'      => 'pk_708ce9268236202bb1fd0aceb0be2',
-                    'is_premium'      => false,
-                    'premium_suffix'  => 'Pro',
-                    'has_addons'      => false,
-                    'has_paid_plans'  => true,
-                    'has_affiliation' => 'customers',
-                    'menu'            => array(
+                    'id'               => '9985',
+                    'slug'             => 'lpagery',
+                    'premium_slug'     => 'lpagery-pro',
+                    'type'             => 'plugin',
+                    'public_key'       => 'pk_708ce9268236202bb1fd0aceb0be2',
+                    'is_premium'       => false,
+                    'premium_suffix'   => 'Pro',
+                    'has_addons'       => false,
+                    'has_paid_plans'   => true,
+                    'has_affiliation'  => 'customers',
+                    'menu'             => array(
                         'slug'    => 'lpagery',
                         'contact' => false,
                         'support' => false,
                     ),
-                    'is_live'         => true,
+                    'is_live'          => true,
+                    'is_org_compliant' => true,
                 ) );
             }
             return $lpagery_fs;

@@ -4,7 +4,7 @@ Tags: bulk page, seo, local seo, mass page, programmatic seo
 Requires at least: 6.2
 Tested up to: 6.9.1
 Requires PHP: 7.4
-Stable tag: 2.5.2
+Stable tag: 2.5.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -275,6 +275,12 @@ You can revoke your consent at any time, and the integrations will be disabled i
 We are committed to transparency and your control over your data. For more information, please refer to our Privacy Policy.
 
 == Changelog ==
+
+= 2.5.4 - 2026-03-15 =
+* Fix: Follow redirects when downloading images
+
+= 2.5.3 - 2026-03-15 =
+* Feat: Allow reassign template for page sets with not deleted templates
 
 = 2.5.2 - 2026-02-13 =
 * Fix: Keep global elements for Divi 5

@@ -385,6 +385,9 @@ class SettingsController
      */
     public function isHideGeneratedPagesEnabled(): bool
     {
+        if ($this->isLimitedPlan()) {
+            return false;
+        }
         return filter_var(get_option(self::OPTION_HIDE_GENERATED_PAGES, '0'), FILTER_VALIDATE_BOOLEAN);
     }
 }
