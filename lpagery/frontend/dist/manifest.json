@@ -1,50 +1,42 @@
 {
-  "_data-CjzBkuh8.js": {
-    "file": "assets/data-CjzBkuh8.js",
-    "name": "data",
-    "imports": [
-      "_react-vendor-BkzMPRnj.js"
-    ]
+  "_data-DluZiipt.js": {
+    "file": "assets/data-DluZiipt.js",
+    "name": "data"
   },
-  "_forms-DNG6i11H.js": {
-    "file": "assets/forms-DNG6i11H.js",
+  "_forms-DNS2n0Te.js": {
+    "file": "assets/forms-DNS2n0Te.js",
     "name": "forms",
     "imports": [
-      "_react-query-Ct_XnDyp.js"
+      "_radix-ui-DN3f32MJ.js"
     ]
   },
-  "_radix-ui-B1E2daCU.js": {
-    "file": "assets/radix-ui-B1E2daCU.js",
-    "name": "radix-ui",
-    "imports": [
-      "_react-query-Ct_XnDyp.js",
-      "_react-vendor-BkzMPRnj.js"
-    ]
+  "_radix-ui-DN3f32MJ.js": {
+    "file": "assets/radix-ui-DN3f32MJ.js",
+    "name": "radix-ui"
   },
-  "_react-query-Ct_XnDyp.js": {
-    "file": "assets/react-query-Ct_XnDyp.js",
+  "_react-query-DWTKpdQz.js": {
+    "file": "assets/react-query-DWTKpdQz.js",
     "name": "react-query",
     "imports": [
-      "_react-vendor-BkzMPRnj.js"
+      "_radix-ui-DN3f32MJ.js"
     ]
   },
-  "_react-vendor-BkzMPRnj.js": {
-    "file": "assets/react-vendor-BkzMPRnj.js",
+  "_react-vendor-l0sNRNKZ.js": {
+    "file": "assets/react-vendor-l0sNRNKZ.js",
     "name": "react-vendor"
   },
-  "_tracking-Bv0n8Fx7.js": {
-    "file": "assets/tracking-Bv0n8Fx7.js",
+  "_tracking-x3ASqpDw.js": {
+    "file": "assets/tracking-x3ASqpDw.js",
     "name": "tracking",
     "imports": [
-      "_react-query-Ct_XnDyp.js"
+      "_radix-ui-DN3f32MJ.js"
     ]
   },
-  "_ui-utils-DfsW4E27.js": {
-    "file": "assets/ui-utils-DfsW4E27.js",
+  "_ui-utils-CwLk0QPz.js": {
+    "file": "assets/ui-utils-CwLk0QPz.js",
     "name": "ui-utils",
     "imports": [
-      "_react-query-Ct_XnDyp.js",
-      "_radix-ui-B1E2daCU.js"
+      "_radix-ui-DN3f32MJ.js"
     ]
   },
   "src/assets/LP_Logo_horizontal_2022_RZ.png": {
@@ -96,21 +88,20 @@
     "src": "src/assets/wordpress.png"
   },
   "src/index.tsx": {
-    "file": "assets/index-B4xhhXoC.js",
+    "file": "assets/index-CFP-HJ1r.js",
     "name": "index",
     "src": "src/index.tsx",
     "isEntry": true,
     "imports": [
-      "_react-query-Ct_XnDyp.js",
-      "_react-vendor-BkzMPRnj.js",
-      "_radix-ui-B1E2daCU.js",
-      "_tracking-Bv0n8Fx7.js",
-      "_forms-DNG6i11H.js",
-      "_ui-utils-DfsW4E27.js",
-      "_data-CjzBkuh8.js"
+      "_radix-ui-DN3f32MJ.js",
+      "_tracking-x3ASqpDw.js",
+      "_react-query-DWTKpdQz.js",
+      "_forms-DNS2n0Te.js",
+      "_ui-utils-CwLk0QPz.js",
+      "_data-DluZiipt.js"
     ],
     "css": [
-      "assets/index-hTffliQA.css"
+      "assets/index-BHT7T-eE.css"
     ],
     "assets": [
       "assets/pro-Du7Eyhe6.svg",

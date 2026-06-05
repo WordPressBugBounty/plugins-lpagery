@@ -2,9 +2,9 @@
 Contributors: niklaslindemann, jonaslindemann
 Tags: bulk page, seo, local seo, mass page, programmatic seo
 Requires at least: 6.2
-Tested up to: 6.9.1
+Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 2.5.4
+Stable tag: 2.5.6
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -275,6 +275,13 @@ You can revoke your consent at any time, and the integrations will be disabled i
 We are committed to transparency and your control over your data. For more information, please refer to our Privacy Policy.
 
 == Changelog ==
+
+= 2.5.6 - 2026-06-05 =
+* Chore: Update libraries
+* Chore: WordPress 7.0 Support
+
+= 2.5.5 - 2026-03-24 =
+* Fix: Integrate existing pages into LPagery when having a parent page
 
 = 2.5.4 - 2026-03-15 =
 * Fix: Follow redirects when downloading images
