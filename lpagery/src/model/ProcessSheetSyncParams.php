@@ -10,9 +10,9 @@ class ProcessSheetSyncParams implements  \JsonSerializable
     private bool $sync_all;
     private ?string $publish_timestamp;
 
-    public static function processOnly(int $process_id, bool $sync_all): ProcessSheetSyncParams
+    public static function processOnly(int $process_id, bool $sync_all, bool $overwrite_manual_changes = false): ProcessSheetSyncParams
     {
-        return new ProcessSheetSyncParams($process_id, false, false, '-1', '',$sync_all,null);
+        return new ProcessSheetSyncParams($process_id, false, $overwrite_manual_changes, '-1', '',$sync_all,null);
     }
 
     public function __construct($process_id, $force_update, $overwrite_manual_changes,  $new_status,$existing_page_update_action,$sync_all, $publish_timestamp)

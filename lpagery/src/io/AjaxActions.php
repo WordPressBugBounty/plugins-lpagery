@@ -523,7 +523,6 @@ function lpagery_trigger_look_sync_ajax()
         $page_set_id = isset($_POST['page_set_id']) ? intval($_POST['page_set_id']) : 0;
         $overwrite_manual_changes = isset($_POST['overwrite_manual_changes']) ? rest_sanitize_boolean($_POST['overwrite_manual_changes']) : null;
 
-        error_log("Triggering look sync for page set ID: " . $overwrite_manual_changes);
         if (!$page_set_id) {
             throw new \Exception('Page set ID is required');
         }
@@ -542,7 +541,7 @@ function lpagery_trigger_look_sync_ajax()
                 throw new \Exception('Failed to trigger look sync: ' . $exception->getMessage());
             }
         } else {
-            wp_schedule_single_event(time(), 'lpagery_start_sync_for_process', array(ProcessSheetSyncParams::processOnly($page_set_id, true)));
+            wp_schedule_single_event(time(), 'lpagery_start_sync_for_process', array(ProcessSheetSyncParams::processOnly($page_set_id, true, (bool)$overwrite_manual_changes)));
             wp_send_json(array("success" => true,
                 "message" => 'Sync scheduled successfully.'));
         }

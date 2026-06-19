@@ -587,11 +587,17 @@ class LPageryDao
         $table_name_process_post = $wpdb->prefix . 'lpagery_process_post';
 
         $parent_condition = $parent_id !== null ? "AND p.post_parent = %d" : "";
-        $query_params = array($process_id,
-            $slug);
+        // Argument order must match the placeholder order in the SQL below:
+        // process_id (%s), then the optional parent (%d), then the slug (%s).
+        // Appending the parent AFTER the slug previously bound the values to the
+        // wrong placeholders (slug -> post_parent, parent -> replaced_slug), so
+        // the lookup silently failed whenever a parent was passed (e.g. sheet
+        // sync passes parent = 0), causing existing pages to never be matched.
+        $query_params = array($process_id);
         if ($parent_id !== null) {
             $query_params[] = $parent_id;
         }
+        $query_params[] = $slug;
 
         $prepare = $wpdb->prepare("select p.ID, post_title, lpagery_process_id as 'process_id', post_name,post_content_filtered,post_excerpt,post_content,post_status,post_parent,post_date, lpp.data as data, lpp.replaced_slug as replaced_slug, lpp.page_manually_updated_at, lpp.page_manually_updated_by
                     from $wpdb->posts p
