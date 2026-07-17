@@ -4,7 +4,7 @@ Tags: bulk page, seo, local seo, mass page, programmatic seo
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 2.5.7
+Stable tag: 2.5.8
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -275,6 +275,9 @@ You can revoke your consent at any time, and the integrations will be disabled i
 We are committed to transparency and your control over your data. For more information, please refer to our Privacy Policy.
 
 == Changelog ==
+
+= 2.5.8 - 2026-07-17 =
+* Security: Fix stored XSS via post titles in the LPagery admin filter banner (CVE-2026-15404). Post titles and permalinks are now escaped, and the banner only renders for posts the current user is allowed to edit.
 
 = 2.5.7 - 2026-06-19 =
 * Fix: Google Sheet sync "update look" now correctly updates existing pages instead of skipping them

@@ -4,7 +4,7 @@
 Plugin Name: LPagery
 Plugin URI: https://lpagery.io/
 Description: Create hundreds or even thousands of landingpages for local businesses, services etc.
-Version: 2.5.7
+Version: 2.5.8
 Author: LPagery
 License: GPLv2 or later
 */
@@ -467,7 +467,10 @@ if ( function_exists( 'lpagery_fs' ) ) {
         if ( !isset( $_GET['lpagery_process'] ) ) {
             return;
         }
-        $lpagery_process_id = $_GET['lpagery_process'];
+        $lpagery_process_id = intval( $_GET['lpagery_process'] );
+        if ( !$lpagery_process_id ) {
+            return;
+        }
         $process = LPageryDao::get_instance()->get_instance()->lpagery_get_process_by_id( $lpagery_process_id );
         if ( empty( $process ) ) {
             return;
@@ -476,18 +479,22 @@ if ( function_exists( 'lpagery_fs' ) ) {
         $process = $mapper->lpagery_map_process( $process );
         $post_id = $process["post_id"];
         $purpose = $process["display_purpose"];
-        $post_title = get_post( $post_id )->post_title;
+        $post = get_post( $post_id );
+        if ( !$post || !current_user_can( 'edit_post', $post->ID ) ) {
+            return;
+        }
+        $post_title = $post->post_title;
         $permalink = get_permalink( $post_id );
         if ( $post_title ) {
             ?>
             <script>
                 jQuery(function ($) {
                     let test = $('<span><?php 
-            echo $purpose;
-            ?> with Template: <a href=<?php 
-            echo $permalink;
-            ?>> <?php 
-            echo $post_title;
+            echo esc_js( $purpose );
+            ?> with Template: <a href="<?php 
+            echo esc_url( $permalink );
+            ?>"> <?php 
+            echo esc_js( $post_title );
             ?><a/></span')
                     $('<div style="margin-bottom:5px;"></div>').append(test).insertAfter('#wpbody-content .wrap h2:eq(0)');
                 });
@@ -499,18 +506,24 @@ if ( function_exists( 'lpagery_fs' ) ) {
         if ( !isset( $_GET['lpagery_template'] ) ) {
             return;
         }
-        $lpagery_template_id = $_GET['lpagery_template'];
+        $lpagery_template_id = intval( $_GET['lpagery_template'] );
+        if ( !$lpagery_template_id ) {
+            return;
+        }
         $post = get_post( $lpagery_template_id );
+        if ( !$post || !current_user_can( 'edit_post', $post->ID ) ) {
+            return;
+        }
         $post_title = $post->post_title;
         $permalink = get_permalink( $post );
         if ( $post_title ) {
             ?>
             <script>
                 jQuery(function ($) {
-                    let test = $('<span>Show all created pages with Template: <a href=<?php 
-            echo $permalink;
-            ?>> <?php 
-            echo $post_title;
+                    let test = $('<span>Show all created pages with Template: <a href="<?php 
+            echo esc_url( $permalink );
+            ?>"> <?php 
+            echo esc_js( $post_title );
             ?><a/></span')
                     $('<div style="margin-bottom:5px;"></div>').append(test).insertAfter('#wpbody-content .wrap h2:eq(0)');
                 });
@@ -646,7 +659,7 @@ if ( function_exists( 'lpagery_fs' ) ) {
                     $post_id = $record->id;
                     $post_title = get_the_title( $post_id );
                     $post_permalink = get_permalink( $post_id );
-                    $list_items .= "<li class='lpagery_created_page_item'><a class='lpagery_created_page_anchor' href='{$post_permalink}'>{$post_title}</a></li>";
+                    $list_items .= "<li class='lpagery_created_page_item'><a class='lpagery_created_page_anchor' href='" . esc_url( $post_permalink ) . "'>" . esc_html( $post_title ) . "</a></li>";
                 }
                 return "<ul class='lpagery_created_page_list'>{$list_items}</ul>";
             }
