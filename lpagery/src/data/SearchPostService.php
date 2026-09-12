@@ -1,19 +1,15 @@
 <?php
 namespace LPagery\data;
 
-use LPagery\wpml\WpmlHelper;
+use LPagery\multilingual\MultilingualPlugin;
 
 class SearchPostService
 {
-    private static $instance;
+    private ?MultilingualPlugin $multilingualPlugin;
 
-
-    public static function get_instance()
+    public function __construct(?MultilingualPlugin $multilingualPlugin)
     {
-        if (null === self::$instance) {
-            self::$instance = new self();
-        }
-        return self::$instance;
+        $this->multilingualPlugin = $multilingualPlugin;
     }
 
     public function lpagery_search_posts($term, $types, $mode, $select, $template_id)
@@ -36,14 +32,15 @@ class SearchPostService
             $prepare_in = self::lpagery_prepare_in(array(get_post_type($template_id)));
         }
 
-        // Initialize language join and select for WPML support
+        // The Page Language rides along only when a Multilingual Plugin is active, and every
+        // language-specific SQL piece comes from its adapter.
         $language_select = '';
         $language_join = '';
 
-        if (WpmlHelper::is_wpml_installed()) {
-            // Add language code to the select statement
-            $language_select = ", icl.language_code";
-            $language_join = "LEFT JOIN {$wpdb->prefix}icl_translations icl ON icl.element_id = p.ID AND icl.element_type = CONCAT('post_', p.post_type)";
+        if ($this->multilingualPlugin !== null) {
+            $fragments = $this->multilingualPlugin->post_language_sql('p');
+            $language_select = ", " . $fragments->select;
+            $language_join = $fragments->join;
         }
 
 

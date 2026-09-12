@@ -6,19 +6,9 @@ use Exception;
 
 class SubstitutionDataPreparator
 {
-    private static $instance;
-
     public function __construct()
     {
         // Initialization code here
-    }
-
-    public static function get_instance()
-    {
-        if (null === self::$instance) {
-            self::$instance = new self();
-        }
-        return self::$instance;
     }
 
     /**

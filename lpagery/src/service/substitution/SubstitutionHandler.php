@@ -8,8 +8,6 @@ use LPagery\model\Params;
 use LPagery\utils\Utils;
 use Throwable;
 class SubstitutionHandler {
-    private static ?SubstitutionHandler $instance = null;
-
     private Spintax $spintax;
 
     private ImageSubstitutionHandler $imageSubstitutionHandler;
@@ -19,21 +17,31 @@ class SubstitutionHandler {
         $this->imageSubstitutionHandler = $imageSubstitutionHandler;
     }
 
-    public static function get_instance( Spintax $spintax, ImageSubstitutionHandler $imageSubstitutionHandler ) {
-        if ( null === self::$instance ) {
-            self::$instance = new self($spintax, $imageSubstitutionHandler);
-        }
-        return self::$instance;
+    public function lpagery_substitute_slug( BaseParams $params, $content ) {
+        return $this->substitute_sanitized_slug( $params, $content, [Utils::class, 'lpagery_sanitize_title_with_dashes'] );
     }
 
-    public function lpagery_substitute_slug( BaseParams $params, $content ) {
-        $content = Utils::lpagery_sanitize_title_with_dashes( $content );
+    /**
+     * The slug a row produced before slug patterns transliterated diacritics: pattern and
+     * Placeholder keys go through the legacy sanitizer. Used only to recognise a Generated Page
+     * that was published under that spelling; never to build a new slug.
+     */
+    public function lpagery_substitute_legacy_slug( BaseParams $params, $content ) {
+        return $this->substitute_sanitized_slug( $params, $content, [Utils::class, 'lpagery_sanitize_title_with_dashes_legacy'] );
+    }
+
+    /**
+     * @param callable(string): string $sanitize the placeholder-preserving sanitizer applied to
+     *                                            the pattern and to every Placeholder key
+     */
+    private function substitute_sanitized_slug( BaseParams $params, $content, callable $sanitize ) {
+        $content = $sanitize( $content );
         $params_copy = new BaseParams();
         $sanitized_data = array();
         $sanitized_keys = array();
         foreach ( $params->keys as $index => $key ) {
             $value = $params->values[$index];
-            $sanitized_key = Utils::lpagery_sanitize_title_with_dashes( $key );
+            $sanitized_key = $sanitize( $key );
             $sanitized_data[$sanitized_key] = $value;
             $sanitized_keys[] = $sanitized_key;
         }
@@ -83,6 +91,13 @@ class SubstitutionHandler {
                             }
                         }
                     }
+                }
+                // Image processing is Extended-tier, but the gate sits inside handle_image_processing
+                // so this call site survives Freemius' strip. Below Extended the helper answers the
+                // content unchanged and the image params are empty, so the replacement is a no-op.
+                $content = $this->handle_image_processing( $content, $params );
+                if ( $params instanceof Params ) {
+                    $content = self::lpagery_replace( $params->image_keys, $params->image_values, $content );
                 }
                 $content = self::escape_css_vars( $content );
             }
@@ -134,7 +149,18 @@ class SubstitutionHandler {
         return $content;
     }
 
+    /**
+     * No tier gate here: {@see Spintax::perform_spintax()} carries its own and answers the content
+     * unchanged below Extended. Keeping the call site ungated is what lets it survive Freemius'
+     * strip, which removes a `__premium_only` `if` whole.
+     */
     private function handle_spintax( Params $params, string $content ) {
+        $spintax_enabled = $params->spintax_enabled ?? false;
+        if ( $spintax_enabled !== false ) {
+            if ( strpos( $content, '|' ) !== false ) {
+                $content = $this->spintax->perform_spintax( $content, $params->spin_seed );
+            }
+        }
         return $content;
     }
 
@@ -163,6 +189,13 @@ class SubstitutionHandler {
      * @return array|false|mixed|string|string[]
      */
     private function handle_image_processing( $content, BaseParams $params ) {
+        // Written out of non-suffixed calls: the free build has to keep this guard, not lose it with
+        // the whole statement, because its call site in lpagery_substitute is ungated on purpose.
+        // `is_premium()` is part of it — `is_plan_or_trial()` alone is true on a free build whose site
+        // already carries a paid plan.
+        if ( !(lpagery_fs()->is_premium() && lpagery_fs()->is_plan_or_trial( 'extended' )) ) {
+            return $content;
+        }
         if ( $params instanceof Params ) {
             if ( str_contains( $content, "<img" ) && $params->image_processing_enabled && $this->is_HTML( $content ) ) {
                 $content = $this->imageSubstitutionHandler->replace_images_from_html( $content, $params );

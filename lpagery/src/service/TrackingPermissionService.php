@@ -7,18 +7,9 @@ use Throwable;
 
 class TrackingPermissionService
 {
-    private static ?TrackingPermissionService $instance = null;
     private InstallationDateHandler $installationDateHandler;
 
-    public static function get_instance(InstallationDateHandler $installationDateHandler): TrackingPermissionService
-    {
-        if (null === self::$instance) {
-            self::$instance = new self($installationDateHandler);
-        }
-        return self::$instance;
-    }
-
-    private function __construct( InstallationDateHandler $installationDateHandler) {
+    public function __construct( InstallationDateHandler $installationDateHandler) {
         $this->installationDateHandler = $installationDateHandler;
     }
 

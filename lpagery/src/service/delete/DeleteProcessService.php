@@ -2,41 +2,64 @@
 
 namespace LPagery\service\delete;
 
-use Exception;
-use LPagery\data\LPageryDao;
+use LPagery\data\repository\GeneratedPageRepository;
+use LPagery\data\repository\PageSetRepository;
+use LPagery\data\repository\SyncQueueRepository;
+use LPagery\data\repository\ViewRepository;
 
 class DeleteProcessService
 {
-    private static ?DeleteProcessService $instance = null;
-    private LPageryDao $lpageryDao;
+    private ViewRepository $viewRepository;
+    private GeneratedPageRepository $generatedPageRepository;
+    private SyncQueueRepository $syncQueueRepository;
+    private PageSetRepository $pageSetRepository;
     private DeletePageService $deletePageService;
 
-    public function __construct(LPageryDao $lpageryDao, DeletePageService $deletePageService)
+    public function __construct(ViewRepository $viewRepository, GeneratedPageRepository $generatedPageRepository, SyncQueueRepository $syncQueueRepository, PageSetRepository $pageSetRepository, DeletePageService $deletePageService)
     {
-        $this->lpageryDao = $lpageryDao;
+        $this->viewRepository = $viewRepository;
+        $this->generatedPageRepository = $generatedPageRepository;
+        $this->syncQueueRepository = $syncQueueRepository;
+        $this->pageSetRepository = $pageSetRepository;
         $this->deletePageService = $deletePageService;
     }
 
-    public static function getInstance(LPageryDao $lpageryDao, DeletePageService $deletePageService): DeleteProcessService
+    /**
+     * Remove a Page Set, optionally with the pages it generated, and report which pages LPagery kept
+     * because live pages still render from them (ADR 0017). $force wipes those too, which is what
+     * Reset LPagery asks for.
+     *
+     * @return array<int> the ids of the guarded Template Pages that were not deleted
+     */
+    public function deleteProcess(int $processId, bool $delete_posts, bool $force = false): array
     {
-        if (self::$instance === null) {
-            self::$instance = new DeleteProcessService($lpageryDao, $deletePageService);
-        }
-        return self::$instance;
-    }
-
-    public function deleteProcess(int $processId, bool $delete_posts)
-    {
+        $skipped = array();
         if ($delete_posts) {
-            $posts = $this->lpageryDao->lpagery_get_posts_by_process($processId);
+            $posts = $this->generatedPageRepository->get_posts_by_process($processId);
             $post_ids = array_map(function($post) {
                 return $post->id;
             }, $posts);
             if(!empty($post_ids)){
-                $this->deletePageService->deletePages($post_ids);
+                $skipped = $this->deletePageService->deletePages($post_ids, $force);
             }
         }
-        $this->lpageryDao->lpagery_delete_process($processId);
+        $this->deleteProcessCascade($processId);
+
+        return $skipped;
+    }
+
+    /**
+     * Remove a Page Set and everything owned by it, as four pure repository delegations preserving the
+     * historical removal order — Views (ADR-0003, owned by the Process) → Generated Pages + their
+     * sparse meta index rows (the single one-way GeneratedPageRepository -> PageMetaIndexRepository
+     * seam) → the sync queue → the Page Set row itself.
+     */
+    private function deleteProcessCascade(int $processId): void
+    {
+        $this->viewRepository->delete_by_process($processId);
+        $this->generatedPageRepository->delete_by_process($processId);
+        $this->syncQueueRepository->delete_by_process($processId);
+        $this->pageSetRepository->delete($processId);
     }
 
 }

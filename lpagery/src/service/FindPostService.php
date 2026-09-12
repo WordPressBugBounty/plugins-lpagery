@@ -3,29 +3,20 @@
 namespace LPagery\service;
 
 use LPagery\service\substitution\SubstitutionHandler;
-use LPagery\data\LPageryDao;
+use LPagery\data\repository\GeneratedPageRepository;
 use LPagery\model\BaseParams;
 
 class FindPostService
 {
-    private static ?FindPostService $instance = null;
-    private LPageryDao $lpageryDao;
+    private GeneratedPageRepository $generatedPageRepository;
     private SubstitutionHandler $substitutionHandler;
     private array $cache = [];
 
-    public function __construct(LPageryDao $lpageryDao, SubstitutionHandler $substitutionHandler)
+    public function __construct(GeneratedPageRepository $generatedPageRepository, SubstitutionHandler $substitutionHandler)
     {
-        $this->lpageryDao = $lpageryDao;
+        $this->generatedPageRepository = $generatedPageRepository;
         $this->substitutionHandler = $substitutionHandler;
         $this->cache = [];
-    }
-
-    public static function get_instance(LPageryDao $lpageryDao, SubstitutionHandler $substitutionHandler)
-    {
-        if (null === self::$instance) {
-            self::$instance = new self($lpageryDao, $substitutionHandler);
-        }
-        return self::$instance;
     }
 
     public function lpagery_find_post_or_default(BaseParams $params, $lpagery_post_term, $lpagery_post_id_from_dashboard, $post_type)
@@ -88,7 +79,7 @@ class FindPostService
             return $this->cache[$cache_key];
         }
 
-        $found_post = $this->lpageryDao->lpagery_find_post_by_id($post_id);
+        $found_post = $this->generatedPageRepository->find_post_by_id($post_id);
         if ($found_post) {
             $this->cache[$cache_key] = $found_post;
         }
@@ -102,7 +93,7 @@ class FindPostService
             return $this->cache[$cache_key];
         }
 
-        $result = $this->lpageryDao->lpagery_find_post_by_name_and_type_equal($term, $post_type);
+        $result = $this->generatedPageRepository->find_post_by_name_and_type_equal($term, $post_type);
         $this->cache[$cache_key] = $result;
         return $result;
     }

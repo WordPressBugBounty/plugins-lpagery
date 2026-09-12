@@ -7,18 +7,8 @@ use LPagery\model\Params;
 
 class ImageSubstitutionHandler
 {
-    private static ?ImageSubstitutionHandler $instance = null;
-
     public function __construct()
     {
-    }
-
-    public static function get_instance()
-    {
-        if (null === self::$instance) {
-            self::$instance = new self();
-        }
-        return self::$instance;
     }
 
 

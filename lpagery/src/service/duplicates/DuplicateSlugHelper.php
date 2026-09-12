@@ -10,8 +10,6 @@ use LPagery\service\duplicates\ExistingSlugResult;
 
 class DuplicateSlugHelper
 {
-    private static $instance;
-
     private InputParamProvider $inputParamProvider;
     private SubstitutionHandler $substitutionHandler;
     private DynamicPageAttributeHandler $dynamicPageAttributeHandler;
@@ -22,17 +20,6 @@ class DuplicateSlugHelper
         $this->substitutionHandler = $substitutionHandler;
         $this->dynamicPageAttributeHandler = $dynamicPageAttributeHandler;
     }
-
-
-    public static function get_instance(InputParamProvider $inputParamProvider, SubstitutionHandler $substitutionHandler, DynamicPageAttributeHandler $dynamicPageAttributeHandler)
-    {
-        if (null === self::$instance) {
-            self::$instance = new self($inputParamProvider,$substitutionHandler, $dynamicPageAttributeHandler);
-        }
-        return self::$instance;
-    }
-
-    // Other methods of your class
 
 
     public function check_all_slugs_are_the_same($slugs)

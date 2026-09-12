@@ -7,20 +7,11 @@ use LPagery\model\Params;
 
 class SeoPluginHandler
 {
-    private static $instance;
     private $substitutionHandler;
 
-    private function __construct(SubstitutionHandler $substitutionHandler)
+    public function __construct(SubstitutionHandler $substitutionHandler)
     {
         $this->substitutionHandler = $substitutionHandler;
-    }
-
-    public static function get_instance(SubstitutionHandler $substitutionHandler)
-    {
-        if (null === self::$instance) {
-            self::$instance = new self($substitutionHandler);
-        }
-        return self::$instance;
     }
 
     public function lpagery_handle_seo_plugin($sourcePostId, $targetPostId, Params $params)

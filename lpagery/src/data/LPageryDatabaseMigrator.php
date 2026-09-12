@@ -2,9 +2,8 @@
 
 namespace LPagery\data;
 
-use LPagery\factories\InputParamProviderFactory;
-use LPagery\factories\SubstitutionHandlerFactory;
 use LPagery\service\image_lookup\AttachmentBasenameService;
+use LPagery\service\InstallationDateHandler;
 use LPagery\utils\Utils;
 
 class LPageryDatabaseMigrator
@@ -26,14 +25,96 @@ class LPageryDatabaseMigrator
         return $process_table_exists;
     }
 
+    function lpagery_column_exists_migrate(string $table_name, string $column_name)
+    {
+        global $wpdb;
+        $dbname = $wpdb->dbname;
+        $prepare = $wpdb->prepare("SELECT EXISTS (
+                SELECT
+                    COLUMN_NAME
+                FROM
+                    information_schema.COLUMNS
+                WHERE
+                        TABLE_NAME = %s and COLUMN_NAME = %s and TABLE_SCHEMA = %s
+            ) as lpagery_column_exists;", $table_name, $column_name, $dbname);
+        return $wpdb->get_results($prepare)[0]->lpagery_column_exists;
+    }
+
+    /**
+     * Whether $index_name exists on $table_name in THIS site's schema. Mirrors
+     * {@see lpagery_column_exists_migrate()} — filtered by TABLE_SCHEMA, so a same-named table in
+     * another database on the same server cannot answer for this one (the v5 step's unfiltered
+     * STATISTICS probe is the counter-example this avoids).
+     */
+    private function lpagery_index_exists_migrate(string $table_name, string $index_name): bool
+    {
+        global $wpdb;
+        $index_count = $wpdb->get_var($wpdb->prepare("SELECT COUNT(1)
+                FROM information_schema.STATISTICS
+                WHERE TABLE_NAME = %s AND INDEX_NAME = %s AND TABLE_SCHEMA = %s", $table_name,
+            $index_name, $wpdb->dbname));
+        return intval($index_count) > 0;
+    }
+
+
+    /**
+     * Stamps the plugin's installation date into the `lpagery_installation_date` option unless it is
+     * already there, and reports whether the option holds a date afterwards (issue #276).
+     *
+     * For an install that predates the option the date is the `lpagery_process` table's create time,
+     * read from information_schema ONCE here instead of on every admin request; a fresh install (no
+     * table yet) is stamped with the current time. Reading the existing option first makes the call
+     * cost a single autoloaded get_option() on a normal admin load.
+     */
+    public function record_installation_date_if_missing(): bool
+    {
+        global $wpdb;
+
+        $existing_date = get_option(InstallationDateHandler::OPTION_NAME, false);
+        if (is_string($existing_date) && trim($existing_date) !== '') {
+            return true;
+        }
+
+        $table_name_process = $wpdb->prefix . 'lpagery_process';
+        $installation_date = '';
+        if ($this->lpagery_table_exists_migrate($table_name_process)) {
+            $create_time = $wpdb->get_var($wpdb->prepare("SELECT CREATE_TIME
+                FROM information_schema.TABLES
+                WHERE TABLE_NAME = %s AND TABLE_SCHEMA = %s", $table_name_process, $wpdb->dbname));
+            if (is_string($create_time) && trim($create_time) !== '') {
+                $installation_date = $create_time;
+            }
+        }
+        if ($installation_date === '') {
+            $installation_date = current_time('mysql');
+        }
+
+        update_option(InstallationDateHandler::OPTION_NAME, $installation_date);
+
+        $stored_date = get_option(InstallationDateHandler::OPTION_NAME, false);
+        return is_string($stored_date) && trim($stored_date) !== '';
+    }
 
     function migrate()
     {
         global $wpdb;
 
-        // Short-circuit if already at latest version (15)
+        // Re-record the installation date whenever it is missing — ahead of the version short-circuit,
+        // so a site restored from a backup without the option gets it back on the next admin load
+        // rather than staying on the fallback answers forever. Costs one autoloaded get_option() once
+        // the option is there.
+        $this->record_installation_date_if_missing();
+
+        // Short-circuit if already at latest version (23).
+        // NOTE: the installed version can be ahead of this constant — the Views feature
+        // shipped v16 (lpagery_view) and v17 (lpagery_process_post_meta) to some installs.
+        // A step numbered <= the stored version is silently skipped; Live Mode's column shipped
+        // as v18, then the queue `operation` column (v19) and the `background_run_document` blob
+        // (v20); the per-page `spin_seed` shipped as v21, the installation date option as v22, and
+        // the latest step adds the (template_id, modified) index behind the Template Page
+        // pending-changes check (v23), raising the ceiling to 23.
         $db_version = intval(get_option("lpagery_database_version", 0));
-        if ($db_version >= 15) {
+        if ($db_version >= 23) {
             return;
         }
 
@@ -150,8 +231,8 @@ class LPageryDatabaseMigrator
                     if (!$process_post_data) {
                         continue;
                     }
-                    $params = InputParamProviderFactory::create()->lpagery_get_input_params_without_images($process_post_data);
-                    $replaced_slug = sanitize_title(SubstitutionHandlerFactory::create()->lpagery_substitute($params,
+                    $params = lpagery_root()->inputParamProvider()->lpagery_get_input_params_without_images($process_post_data);
+                    $replaced_slug = sanitize_title(lpagery_root()->substitutionHandler()->lpagery_substitute($params,
                         $slug));
                     $wpdb->query($wpdb->prepare("update $table_name_process_post set replaced_slug = %s where id = %s and replaced_slug is null",
                         $replaced_slug, $process_post_result->id));
@@ -325,10 +406,178 @@ class LPageryDatabaseMigrator
 
             $wpdb->query($sql_attachment_basename);
 
-            // Backfill from existing attachments
-            AttachmentBasenameService::get_instance()->backfill();
+            // Backfill from existing attachments. Constructed directly rather than via the
+            // composition root: the migrator runs during schema setup (below the wiring layer,
+            // where lpagery_root() is not guaranteed) and this is a zero-dependency leaf.
+            (new AttachmentBasenameService())->backfill();
 
             update_option("lpagery_database_version", 15);
+        }
+
+        // v16: Views storage table (related-pages display Views). One row per saved View,
+        // each belonging to exactly one Process. See ADR-0003.
+        if ($db_version < 16 && $this->lpagery_table_exists_migrate($table_name_process)) {
+            $table_name_view = $wpdb->prefix . 'lpagery_view';
+
+            $sql_view = "CREATE TABLE {$table_name_view} (
+                id bigint auto_increment primary key,
+                process_id bigint not null,
+                name varchar(191) not null default '',
+                match_key varchar(191) not null,
+                mode varchar(50) not null default 'list',
+                config longtext,
+                created timestamp null,
+                modified timestamp null,
+                KEY idx_view_process_id (process_id)
+            ) $charset_collate";
+
+            // Create the table only if it isn't already there, then advance the version once it
+            // exists. Treating an already-existing table as success (a prior run may have created it
+            // but failed to bump the version) keeps a plain CREATE TABLE returning false on an
+            // existing table from blocking retries forever; only a genuinely absent table leaves the
+            // version unchanged so the next load retries. Track the bump locally too: the sequential
+            // v17 step below must not run (and skip v16 forever) while this step is pending.
+            $view_table_exists = (bool)$this->lpagery_table_exists_migrate($table_name_view);
+            if (!$view_table_exists) {
+                $wpdb->query($sql_view);
+                $view_table_exists = (bool)$this->lpagery_table_exists_migrate($table_name_view);
+            }
+            if ($view_table_exists) {
+                update_option("lpagery_database_version", 16);
+                $db_version = 16;
+            }
+        }
+
+        // v17: Sparse meta index for View matching. Mirrors selected per-page placeholder
+        // values (only Indexed keys — keys used as some View's match key) out of the
+        // serialized wp_lpagery_process_post.data, so value-based matching is an indexed
+        // query rather than a 100k-blob deserialize. See ADR-0001.
+        // Gated on $db_version >= 16 so a failed v16 (above) blocks v17 from advancing the version
+        // past the missing lpagery_view table; the retry on the next load runs v16 first.
+        if ($db_version >= 16 && $db_version < 17 && $this->lpagery_table_exists_migrate($table_name_process_post)) {
+            $table_name_process_post_meta = $wpdb->prefix . 'lpagery_process_post_meta';
+
+            // One row per (post_id, meta_key): lpagery_upsert_post_meta does delete-then-insert and
+            // the resolver reads rows without DISTINCT, so a UNIQUE key here keeps overlapping
+            // backfill/write syncs from ever creating duplicate rows (and duplicate related pages).
+            // The composite (process_id, meta_key, meta_value, post_id) is a covering index for the
+            // resolver lookup lpagery_get_post_ids_by_meta() — WHERE process_id+meta_key+meta_value
+            // ORDER BY post_id, SELECT post_id — so it resolves without a filesort or row lookup and
+            // its prefix also serves process_id/meta_key scans (subsuming the older split indexes).
+            $sql_process_post_meta = "CREATE TABLE {$table_name_process_post_meta} (
+                id bigint auto_increment primary key,
+                post_id bigint not null,
+                process_id bigint not null,
+                meta_key varchar(191) not null,
+                meta_value varchar(191) not null,
+                KEY idx_meta_process_key_value_post (process_id, meta_key, meta_value, post_id),
+                UNIQUE KEY uq_meta_post_key (post_id, meta_key),
+                KEY idx_meta_post (post_id)
+            ) $charset_collate";
+
+            // Create the table only if absent, then advance the version once it exists (an
+            // already-existing table counts as success), so a CREATE TABLE returning false on a
+            // pre-existing table can't block retries; only a genuinely absent table holds the version.
+            $meta_table_exists = (bool)$this->lpagery_table_exists_migrate($table_name_process_post_meta);
+            if (!$meta_table_exists) {
+                $wpdb->query($sql_process_post_meta);
+                $meta_table_exists = (bool)$this->lpagery_table_exists_migrate($table_name_process_post_meta);
+            }
+            if ($meta_table_exists) {
+                update_option("lpagery_database_version", 17);
+                $db_version = 17;
+            }
+        }
+
+        // v18: Live Mode — attachment_id_pairs column on process_post. Gated on
+        // $db_version >= 17 so a failed v16/v17 (above) can't advance the version to 18
+        // and short-circuit the retry of the Views tables on the next load.
+        if ($db_version >= 17 && $db_version < 18 && $this->lpagery_table_exists_migrate($table_name_process_post)) {
+            if (!$this->lpagery_column_exists_migrate($table_name_process_post, "attachment_id_pairs")) {
+                $wpdb->query("ALTER TABLE $table_name_process_post add column attachment_id_pairs longtext");
+            }
+            update_option("lpagery_database_version", 18);
+            $db_version = 18;
+        }
+
+        // v19: Background Generation — the `operation` discriminator on the queue (issue #220 Phase 3).
+        // Generalizes lpagery_sync_queue from a sheet-sync-only queue into the one background-job queue:
+        // every row carries the operation the worker dispatches on. Existing rows and the sheet-sync
+        // producer default to 'sheet_sync', so sync behaviour is unchanged. Gated on $db_version >= 18
+        // so a failed earlier step can't skip it, and the column add is guarded for idempotency.
+        if ($db_version >= 18 && $db_version < 19 && $this->lpagery_table_exists_migrate($table_name_sync_queue)) {
+            if (!$this->lpagery_column_exists_migrate($table_name_sync_queue, "operation")) {
+                $wpdb->query("ALTER TABLE $table_name_sync_queue add column operation varchar(50) not null default 'sheet_sync'");
+            }
+            update_option("lpagery_database_version", 19);
+            $db_version = 19;
+        }
+
+        // v20: Background Generation — the run-record document blob on the Page Set (issue #220 Phase 4).
+        // A background file-upload run stores its parsed Row Data document as a LONGTEXT blob on
+        // lpagery_process; the enqueue pipeline expands it into queue items and clears the blob, so no
+        // long-lived intermediary storage remains. Gated on $db_version >= 19 so a failed earlier step
+        // can't skip it, and the column add is guarded for idempotency.
+        if ($db_version >= 19 && $db_version < 20 && $this->lpagery_table_exists_migrate($table_name_process)) {
+            if (!$this->lpagery_column_exists_migrate($table_name_process, "background_run_document")) {
+                $wpdb->query("ALTER TABLE $table_name_process add column background_run_document longtext");
+            }
+            update_option("lpagery_database_version", 20);
+            $db_version = 20;
+        }
+
+        // v21: Spintax — the per-page Spin Seed on process_post (issue #244, ADR 0017). Each Generated
+        // Page freezes its spintax picks by resolving them from a seed stored once at creation, so
+        // template edits, Google Sheet re-syncs and forced updates no longer reshuffle its wording.
+        // Existing rows predate the seed, so the same step backfills every one of them with its own
+        // random value (RAND() is evaluated per row) — a page that has been generated already keeps
+        // whatever wording it lands on from here, instead of re-rolling forever. Gated on
+        // $db_version >= 20 so a failed earlier step can't skip it; the column add and the backfill
+        // are both guarded, so a retry is a no-op.
+        if ($db_version >= 20 && $db_version < 21 && $this->lpagery_table_exists_migrate($table_name_process_post)) {
+            if (!$this->lpagery_column_exists_migrate($table_name_process_post, "spin_seed")) {
+                $wpdb->query("ALTER TABLE $table_name_process_post add column spin_seed int null");
+            }
+            if ($this->lpagery_column_exists_migrate($table_name_process_post, "spin_seed")) {
+                // Advance only when the backfill ran; a failed UPDATE leaves the version at 20 so the
+                // next migrate() retries instead of leaving rows with a NULL seed forever.
+                $backfilled = $wpdb->query("UPDATE $table_name_process_post SET spin_seed = FLOOR(1 + RAND() * 2147483646) WHERE spin_seed IS NULL");
+                if ($backfilled !== false) {
+                    update_option("lpagery_database_version", 21);
+                    $db_version = 21;
+                }
+            }
+        }
+
+        // v22: the installation date option (issue #276). The three install-age decisions in
+        // InstallationDateHandler used to derive the date from an information_schema query on every
+        // admin request; from here they read this option instead. Existing installs inherit the
+        // lpagery_process table's create time, fresh installs the current time. Gated on
+        // $db_version >= 21 so a failed earlier step can't skip it, and the version advances only
+        // once the option actually holds a date, so a failed write is retried on the next load.
+        if ($db_version >= 21 && $db_version < 22) {
+            if ($this->record_installation_date_if_missing()) {
+                update_option("lpagery_database_version", 22);
+                $db_version = 22;
+            }
+        }
+
+        // v23: the (template_id, modified) index behind the Template Page pending-changes check
+        // (issue #278). That check now reads the template's post_modified once and stops at the
+        // first Generated Page older than it; this composite index is what turns the range
+        // condition into an index lookup instead of a scan over the whole Page Set. The existing
+        // single-column process_post_template index stays — dropping it is a separate decision.
+        // Gated on $db_version >= 22 so a failed earlier step can't skip it; the existence check
+        // makes a re-run a no-op and the version advances only once the index is really there, so
+        // a failed CREATE is retried on the next admin load.
+        if ($db_version >= 22 && $db_version < 23 && $this->lpagery_table_exists_migrate($table_name_process_post)) {
+            if (!$this->lpagery_index_exists_migrate($table_name_process_post, "process_post_template_modified")) {
+                $wpdb->query("CREATE INDEX process_post_template_modified ON $table_name_process_post (template_id, modified)");
+            }
+            if ($this->lpagery_index_exists_migrate($table_name_process_post, "process_post_template_modified")) {
+                update_option("lpagery_database_version", 23);
+                $db_version = 23;
+            }
         }
     }
 }

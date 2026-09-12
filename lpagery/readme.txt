@@ -4,7 +4,7 @@ Tags: bulk page, seo, local seo, mass page, programmatic seo
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 2.5.8
+Stable tag: 3.0.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -165,6 +165,12 @@ Generate thousands of pages in a single run without any limitations, unlike the 
 * **Google Sheet Sync:**
 Synchronize your landing page data directly from Google Sheets, enabling real-time content updates. Create, delete and update pages directly from your Google Sheet without having to even log in to WordPress.
 
+* **Live Mode:**
+Generate thousands of pages without bloating your database. Live Mode stores only a lightweight stub per page and fills in your template at render time, so a template change reaches every page instantly and your database stays small. Switch between Classic and Live Mode at any time.
+
+* **Virtual Image URLs:**
+Keep your media library clean. Instead of copying the template's images into a new attachment for every generated page, Live Mode serves each page's images through virtual URLs. No duplicated files, no cluttered media library, and a fraction of the storage.
+
 * **Radius Feature:**
 Automatically targets and generates landing pages for cities within a specified radius, perfect for local SEO.
 
@@ -276,12 +282,25 @@ We are committed to transparency and your control over your data. For more infor
 
 == Changelog ==
 
+= 3.0.0 - 2026-09-11 =
+* Feat: Live Mode. A new Render Mode that stores only a lightweight stub per generated page and fills in the template at render time. Template changes reach every page instantly, and your database stays small. Switch a page set between Classic and Live at any time, per page or for the whole set
+* Feat: Views. Show related generated pages anywhere with the new [lpagery_view] shortcode. Build a list or card grid in the new Views tab with live preview, match pages by a placeholder column or show all pages of a page set, and control ordering, limit and pagination
+* Feat: Background Generation. Creating, updating and re-uploading page sets, as well as Render Mode switches, run in the background with live progress, so large runs no longer block the browser or time out. Cancel a run at any time
+* Feat: Overview tab. The new landing view shows what LPagery has built on your site: page counts, recent page sets, a month-by-month chart of your inventory, and health checks for Google Sheet Sync and background tasks
+* Feat: Spintax: Each page keeps its wording across template edits, sheet syncs and forced updates
+* Feat: Polylang support, and WPML pages now get the right language for their terms and links. LPagery sets the language of every generated page in Classic and Live Mode, the template picker shows each template's language, and the slug check only looks at pages in that language
+* Feat: Manage tab shows the Render Mode of every page set and how much database space switching it to Live Mode would free
+* Feat: Settings screen redesigned into tabs with a save bar, plus new options for Background Generation and Virtual Image URLs
+* Feat: Live Mode pages serve their images through Virtual Image URLs instead of duplicating attachments, with an edge cache check that warns you when your CDN would get in the way
+
 = 2.5.8 - 2026-07-17 =
 * Security: Fix stored XSS via post titles in the LPagery admin filter banner (CVE-2026-15404). Post titles and permalinks are now escaped, and the banner only renders for posts the current user is allowed to edit.
 
 = 2.5.7 - 2026-06-19 =
 * Fix: Google Sheet sync "update look" now correctly updates existing pages instead of skipping them
 * Fix: Honor the "overwrite manual changes" choice when re-syncing manually edited pages
+* Security: Escape the LPagery template-filter labels shown above the admin post list so a page title containing a quote or markup can no longer break or inject into the inline script
+* Chore: Refactor the plugin bootstrap (lpagery.php) into per-concern hook registrar modules under src/io/hooks/ — internal only, no behavior change (some undocumented global hook callbacks were renamed to static methods)
 
 = 2.5.6 - 2026-06-05 =
 * Chore: Update libraries

@@ -3,19 +3,14 @@
 namespace LPagery;
 
 use Exception;
-use LPagery\controller\DuplicatedSlugController;
-use LPagery\controller\PostController;
-use LPagery\controller\ProcessController;
-use LPagery\controller\SlugController;
-use LPagery\controller\TaxonomyController;
-use LPagery\controller\UtilityController;
 use LPagery\data\DbDeltaExecutor;
-use LPagery\data\LPageryDao;
-use LPagery\factories\CreatePostControllerFactory;
+use LPagery\io\AjaxEndpoint;
+use LPagery\io\Cap;
 use LPagery\io\CreatePageDebugger;
-use LPagery\io\suite\SuiteClient;
-use LPagery\model\ProcessSheetSyncParams;
+use LPagery\model\TrackingPermissions;
 use LPagery\service\image_lookup\AttachmentBasenameService;
+use LPagery\service\settings\Settings;
+use LPagery\service\save_page\update\RenderModeBatchSwitcher;
 use LPagery\service\settings\SettingsController;
 use LPagery\utils\Utils;
 
@@ -31,32 +26,30 @@ function lpagery_require_editor() {
     }
 }
 
-add_action('wp_ajax_lpagery_sanitize_slug', 'LPagery\lpagery_sanitize_slug');
+AjaxEndpoint::register('lpagery_sanitize_slug', Cap::none(), 'LPagery\lpagery_sanitize_slug');
 
 function lpagery_sanitize_slug()
 {
-    check_ajax_referer('lpagery_ajax');
     $parent_id = (int)$_POST['parent_id'];
     $template_id = (int)($_POST["template_id"] ?? 0);
     $slug = sanitize_text_field($_POST['slug'] ?? '');
 
-    $slugController = SlugController::get_instance();
+    $slugController = lpagery_root()->slugController();
     $result = $slugController->sanitizeSlug($slug, $parent_id, $template_id);
 
-    wp_send_json($result);
+    return $result;
 }
 
-add_action('wp_ajax_lpagery_custom_sanitize_title', 'LPagery\lpagery_custom_sanitize_title');
+AjaxEndpoint::register('lpagery_custom_sanitize_title', Cap::none(), 'LPagery\lpagery_custom_sanitize_title');
 
 function lpagery_custom_sanitize_title()
 {
-    check_ajax_referer('lpagery_ajax');
     $slug = sanitize_text_field($_POST['slug'] ?? '');
 
-    $slugController = SlugController::get_instance();
+    $slugController = lpagery_root()->slugController();
     $sanitized_title = $slugController->customSanitizeTitle($slug);
 
-    wp_send_json($sanitized_title);
+    return $sanitized_title;
 }
 
 add_action('wp_ajax_lpagery_create_posts', 'LPagery\lpagery_create_posts');
@@ -81,7 +74,7 @@ function lpagery_create_posts()
     if ($debug_mode) {
         $initial_query_count = is_array($wpdb->queries) ? count($wpdb->queries) : 0;
         // Start hook profiling
-        $debugger = CreatePageDebugger::get_instance();
+        $debugger = lpagery_root()->createPageDebugger();
         $debugger->start_hook_profiler();
     }
 
@@ -92,7 +85,7 @@ function lpagery_create_posts()
     $initial_ob_level = ob_get_level();
 
     try {
-        $createPostController = CreatePostControllerFactory::create();
+        $createPostController = lpagery_root()->createPostController();
         $result = $createPostController->lpagery_create_posts_ajax($_POST);
         // Capture any output that was generated
         $buffer_content = '';
@@ -149,27 +142,34 @@ function lpagery_create_posts()
     wp_send_json($result);
 }
 
-add_action('wp_ajax_lpagery_get_settings', 'LPagery\lpagery_get_settings');
+AjaxEndpoint::register('lpagery_get_settings', Cap::none(), 'LPagery\lpagery_get_settings');
 function lpagery_get_settings()
 {
-    check_ajax_referer('lpagery_ajax');
-    $settings = SettingsController::get_instance()->getSettings();
-    wp_send_json($settings);
+    $settings = lpagery_root()->settingsController()->getSettings();
+    return $settings;
 }
 
-add_action('wp_ajax_lpagery_get_batch_size', 'LPagery\lpagery_get_batch_size');
+// On-demand Edge Cache Probe run (issue #233): the settings screen's "run detection" action. Bypasses the
+// probe's dormancy gates to refresh the provenance verdict, but never overwrites a decided setting value
+// (see EdgeCacheProbe::run_manual()). Free code — the probe decides a serve-path default.
+AjaxEndpoint::register('lpagery_run_edge_cache_probe', Cap::admin(), 'LPagery\lpagery_run_edge_cache_probe');
+function lpagery_run_edge_cache_probe()
+{
+    $verdict = lpagery_root()->edgeCacheProbe()->run_manual();
+    return array("conclusive" => $verdict !== null);
+}
+
+AjaxEndpoint::register('lpagery_get_batch_size', Cap::none(), 'LPagery\lpagery_get_batch_size');
 function lpagery_get_batch_size()
 {
-    check_ajax_referer('lpagery_ajax');
-    $batch_size = SettingsController::get_instance()->getBatchSize();
-    wp_send_json(array("batch_size" => $batch_size));
+    $batch_size = lpagery_root()->settingsController()->getBatchSize();
+    return array("batch_size" => $batch_size);
 }
 
-add_action('wp_ajax_lpagery_get_pages', 'LPagery\lpagery_get_pages');
+AjaxEndpoint::register('lpagery_get_pages', Cap::none(), 'LPagery\lpagery_get_pages');
 function lpagery_get_pages()
 {
-    check_ajax_referer('lpagery_ajax');
-    $custom_post_types = SettingsController::get_instance()->getEnabledCustomPostTypes();
+    $custom_post_types = lpagery_root()->settingsController()->getEnabledCustomPostTypes();
 
     $mode = sanitize_text_field($_POST["mode"]);
     $select = sanitize_text_field($_POST["select"]);
@@ -179,139 +179,149 @@ function lpagery_get_pages()
     }
     $search = isset($_POST['search']) ? sanitize_text_field($_POST['search']) : "";
 
-    $postController = PostController::get_instance();
+    $postController = lpagery_root()->postController();
     $mapped_posts = $postController->getPosts($search, $custom_post_types, $mode, $select, $template_id);
 
-    wp_send_json($mapped_posts);
+    return $mapped_posts;
 }
 
 
-add_action('wp_ajax_lpagery_get_taxonomy_terms', 'LPagery\lpagery_get_taxonomy_terms');
+AjaxEndpoint::register('lpagery_get_taxonomy_terms', Cap::none(), 'LPagery\lpagery_get_taxonomy_terms');
 function lpagery_get_taxonomy_terms()
 {
-    check_ajax_referer('lpagery_ajax');
-
-    $taxonomyController = TaxonomyController::get_instance();
+    $taxonomyController = lpagery_root()->taxonomyController();
     $result = $taxonomyController->getTaxonomyTerms();
 
-    wp_send_json($result);
+    return $result;
 }
 
-add_action('wp_ajax_lpagery_get_taxonomies', 'LPagery\lpagery_get_taxonomies');
+AjaxEndpoint::register('lpagery_get_taxonomies', Cap::none(), 'LPagery\lpagery_get_taxonomies');
 function lpagery_get_taxonomies()
 {
-    check_ajax_referer('lpagery_ajax');
     $post_type = isset($_POST["post_type"]) ? sanitize_text_field($_POST["post_type"]) : null;
 
-    $taxonomyController = TaxonomyController::get_instance();
+    $taxonomyController = lpagery_root()->taxonomyController();
     $result = $taxonomyController->getTaxonomies($post_type);
 
-    wp_send_json(array_values($result));
+    return array_values($result);
 }
 
 
-add_action('wp_ajax_lpagery_search_processes', 'LPagery\lpagery_search_processes');
+AjaxEndpoint::register('lpagery_search_processes', Cap::none(), 'LPagery\lpagery_search_processes');
 function lpagery_search_processes()
 {
-    check_ajax_referer('lpagery_ajax');
     $post_id = (int)($_POST['post_id'] ?? null);
     $user_id = (int)(($_POST['user_id'] ?? null));
     $search_term = sanitize_text_field(urldecode($_POST['purpose'] ?? ""));
     $empty_filter = sanitize_text_field(urldecode($_POST['empty_filter'] ?? ""));
 
-    $processController = ProcessController::get_instance();
+    $processController = lpagery_root()->processController();
     $processes = $processController->searchProcesses($post_id, $user_id, $search_term, $empty_filter);
 
-    wp_send_json($processes);
+    return $processes;
 }
 
-add_action('wp_ajax_lpagery_get_ram_usage', 'LPagery\lpagery_get_ram_usage');
+
+// The Overview snapshot (issue #269): one read that answers what LPagery has built on this site —
+// page totals with their status and Render Mode splits, the Page Set total, the health block, the
+// twelve monthly buckets and the most recent Page Sets. Computed live per request, no caching, so
+// the tab always agrees with Manage. Free on every tier; admin-gated because it reports the whole
+// site's inventory.
+AjaxEndpoint::register('lpagery_get_overview_snapshot', Cap::admin(), 'LPagery\lpagery_get_overview_snapshot');
+function lpagery_get_overview_snapshot()
+{
+    return lpagery_root()->overviewController()->getSnapshot();
+}
+
+AjaxEndpoint::register('lpagery_get_ram_usage', Cap::none(), 'LPagery\lpagery_get_ram_usage');
 function lpagery_get_ram_usage()
 {
-    check_ajax_referer('lpagery_ajax');
-
-    $utilityController = UtilityController::get_instance();
+    $utilityController = lpagery_root()->utilityController();
     $ram_usage = $utilityController->getRAMUsage();
 
-    wp_send_json($ram_usage);
+    return $ram_usage;
 }
 
 
-add_action('wp_ajax_lpagery_get_post_title_as_slug', 'LPagery\lpagery_get_post_title_as_slug');
+AjaxEndpoint::register('lpagery_get_post_title_as_slug', Cap::none(), 'LPagery\lpagery_get_post_title_as_slug');
 function lpagery_get_post_title_as_slug()
 {
-    check_ajax_referer('lpagery_ajax');
     $post_id = (int)$_POST['post_id'];
 
-    $slugController = SlugController::get_instance();
+    $slugController = lpagery_root()->slugController();
     $result = $slugController->getPostTitleAsSlug($post_id);
 
-    wp_send_json($result);
+    return $result;
 }
 
 
-add_action('wp_ajax_lpagery_get_users', 'LPagery\lpagery_get_users');
+AjaxEndpoint::register('lpagery_get_users', Cap::none(), 'LPagery\lpagery_get_users');
 function lpagery_get_users()
 {
-    check_ajax_referer('lpagery_ajax');
-
-    $utilityController = UtilityController::get_instance();
+    $utilityController = lpagery_root()->utilityController();
     $users = $utilityController->getUsersWithProcesses();
 
-    wp_send_json($users);
+    return $users;
 }
 
-add_action('wp_ajax_lpagery_get_template_posts', 'LPagery\lpagery_get_template_posts');
+AjaxEndpoint::register('lpagery_get_template_posts', Cap::none(), 'LPagery\lpagery_get_template_posts');
 function lpagery_get_template_posts()
 {
-    check_ajax_referer('lpagery_ajax');
-
-    $postController = PostController::get_instance();
+    $postController = lpagery_root()->postController();
     $template_posts = $postController->getTemplatePosts();
 
-    wp_send_json($template_posts);
+    return $template_posts;
 }
 
-add_action('wp_ajax_lpagery_upsert_process', 'LPagery\lpagery_upsert_process');
+AjaxEndpoint::register('lpagery_get_live_mode_support', Cap::editor(), 'LPagery\lpagery_get_live_mode_support');
+function lpagery_get_live_mode_support()
+{
+    $template_id = intval($_POST['template_id'] ?? 0);
+    $builderSupport = lpagery_root()->liveBuilderSupport();
+
+    return array(
+        "supported" => $builderSupport->is_supported($template_id),
+        "builder" => $builderSupport->detect_builder($template_id),
+    );
+}
+
+// Beta render-error telemetry drain (Phase 9). PostHog capture is frontend-only in this plugin, but
+// live-render errors happen on anonymous visitor requests; the render path records them server-side
+// (consent- and throttle-gated) and the dashboard drains + reports them to PostHog once on load.
+AjaxEndpoint::register('lpagery_get_live_render_errors', Cap::editor(), 'LPagery\lpagery_get_live_render_errors');
+function lpagery_get_live_render_errors()
+{
+    $events = lpagery_root()->liveRenderTelemetry()->consume_events();
+    return array("success" => true, "events" => $events);
+}
+
+AjaxEndpoint::register('lpagery_upsert_process', Cap::editor(), 'LPagery\lpagery_upsert_process');
 function lpagery_upsert_process()
 {
-    check_ajax_referer('lpagery_ajax');
-    lpagery_require_editor();
-    try {
-        $processController = ProcessController::get_instance();
-        $upsertParams = \LPagery\model\UpsertProcessParams::fromArray($_POST, "plugin");
-        $result = $processController->upsertProcess($upsertParams);
+    $processController = lpagery_root()->processController();
+    $upsertParams = \LPagery\model\UpsertProcessParams::fromArray($_POST, "plugin");
+    $result = $processController->upsertProcess($upsertParams);
 
-        wp_send_json($result);
-    } catch (\Throwable $exception) {
-        wp_send_json(array("success" => false,
-            "exception" => $exception->__toString()));
-    }
+    return $result;
 }
 
-add_action('wp_ajax_lpagery_get_duplicated_slugs', 'LPagery\lpagery_get_duplicated_slugs');
+AjaxEndpoint::register('lpagery_get_duplicated_slugs', Cap::none(), 'LPagery\lpagery_get_duplicated_slugs');
 function lpagery_get_duplicated_slugs()
 {
-    check_ajax_referer('lpagery_ajax');
-    try {
-        $slug = isset($_POST['slug']) ? Utils::lpagery_sanitize_title_with_dashes($_POST['slug']) : null;
-        $process_id = isset($_POST['process_id']) ? intval($_POST['process_id']) : -1;
-        $data = $_POST['data'] ?? null;
-        $template_id = intval($_POST['post_id']);
-        $parent_id = intval($_POST['parent_id'] ?? 0);
-        $includeParentAsIdentifier = rest_sanitize_boolean($_POST["includeParentAsIdentifier"] ?? false);
-        $json_decode = json_decode(wp_unslash($_POST['keys']), true);
-        $keys = isset($_POST['keys']) ? array_map('sanitize_text_field', $json_decode) : [];
+    $slug = isset($_POST['slug']) ? Utils::lpagery_sanitize_title_with_dashes($_POST['slug']) : null;
+    $process_id = isset($_POST['process_id']) ? intval($_POST['process_id']) : -1;
+    $data = $_POST['data'] ?? null;
+    $template_id = intval($_POST['post_id']);
+    $parent_id = intval($_POST['parent_id'] ?? 0);
+    $includeParentAsIdentifier = rest_sanitize_boolean($_POST["includeParentAsIdentifier"] ?? false);
+    $json_decode = json_decode(wp_unslash($_POST['keys']), true);
+    $keys = isset($_POST['keys']) ? array_map('sanitize_text_field', $json_decode) : [];
 
-        $duplicatedSlugController = DuplicatedSlugController::get_instance();
-        $result = $duplicatedSlugController->getDuplicatedSlugs($data, $template_id, $includeParentAsIdentifier,
-            $parent_id, $slug, $process_id, $keys, true);
+    $duplicatedSlugController = lpagery_root()->duplicatedSlugController();
+    $result = $duplicatedSlugController->getDuplicatedSlugs($data, $template_id, $includeParentAsIdentifier,
+        $parent_id, $slug, $process_id, $keys, true);
 
-        wp_send_json($result);
-    } catch (\Throwable $throwable) {
-        wp_send_json(array("success" => false,
-            "exception" => $throwable->__toString()));
-    }
+    return $result;
 }
 
 add_action('wp_ajax_lpagery_download_post_json', 'LPagery\lpagery_download_post_json');
@@ -320,95 +330,68 @@ function lpagery_download_post_json()
     check_ajax_referer('lpagery_ajax');
     $process_id = intval($_GET["process_id"]);
 
-    $processController = ProcessController::get_instance();
+    $processController = lpagery_root()->processController();
     $processController->exportProcessJson($process_id);
 
     exit;
 }
 
 
-add_action('wp_ajax_lpagery_get_users_for_settings', 'LPagery\lpagery_get_users_for_settings');
+AjaxEndpoint::register('lpagery_get_users_for_settings', Cap::none(), 'LPagery\lpagery_get_users_for_settings');
 function lpagery_get_users_for_settings()
 {
-    check_ajax_referer('lpagery_ajax');
-
-    $utilityController = UtilityController::get_instance();
+    $utilityController = lpagery_root()->utilityController();
     $users = $utilityController->getUsersForSettings();
 
-    wp_send_json($users);
+    return $users;
 }
 
 
-add_action('wp_ajax_lpagery_get_process_details', 'LPagery\lpagery_get_process_details');
+AjaxEndpoint::register('lpagery_get_process_details', Cap::none(), 'LPagery\lpagery_get_process_details');
 function lpagery_get_process_details()
 {
-    check_ajax_referer('lpagery_ajax');
-
     $id = (int)$_POST['id'];
 
-    $processController = ProcessController::get_instance();
+    $processController = lpagery_root()->processController();
     $result = $processController->getProcessDetails($id);
 
-    wp_send_json($result);
+    return $result;
 }
 
 
-add_action('wp_ajax_lpagery_get_post', 'LPagery\lpagery_get_post');
+AjaxEndpoint::register('lpagery_get_post', Cap::none(), 'LPagery\lpagery_get_post');
 function lpagery_get_post()
 {
-    check_ajax_referer('lpagery_ajax');
-
     $post_id = intval($_POST["post_id"]);
 
-    $postController = PostController::get_instance();
+    $postController = lpagery_root()->postController();
     $post = $postController->getPost($post_id);
 
-    wp_send_json($post);
+    return $post;
 }
 
-add_action('wp_ajax_lpagery_get_google_sheet_scheduled_data', 'LPagery\lpagery_get_google_sheet_scheduled_data');
 
-function lpagery_get_google_sheet_scheduled_data()
-{
-    check_ajax_referer('lpagery_ajax');
-
-    $utilityController = UtilityController::get_instance();
-    $response = $utilityController->getGoogleSheetScheduledData();
-
-    wp_send_json((object)$response);
-}
-
-add_action('wp_ajax_lpagery_create_onboarding_template_page', 'LPagery\lpagery_create_onboarding_template_page');
+AjaxEndpoint::register('lpagery_create_onboarding_template_page', Cap::editor(), 'LPagery\lpagery_create_onboarding_template_page');
 function lpagery_create_onboarding_template_page()
 {
-    check_ajax_referer('lpagery_ajax');
-    lpagery_require_editor();
-
-    $utilityController = UtilityController::get_instance();
+    $utilityController = lpagery_root()->utilityController();
     $result = $utilityController->createOnboardingTemplatePage();
 
-    wp_send_json($result);
+    return $result;
 }
 
-add_action('wp_ajax_lpagery_assign_page_set_to_me', 'LPagery\lpagery_assign_page_set_to_me');
+AjaxEndpoint::register('lpagery_assign_page_set_to_me', Cap::editor(), 'LPagery\lpagery_assign_page_set_to_me');
 function lpagery_assign_page_set_to_me()
 {
-    check_ajax_referer('lpagery_ajax');
-    lpagery_require_editor();
-    try {
-        $process_id = isset($_POST['process_id']) ? (int)$_POST['process_id'] : null;
-        if (!$process_id) {
-            throw new \Exception('Process ID is required');
-        }
-
-        $processController = ProcessController::get_instance();
-        $result = $processController->assignPageSetToMe($process_id);
-
-        wp_send_json($result);
-    } catch (\Throwable $exception) {
-        wp_send_json(array("success" => false,
-            "exception" => $exception->getMessage()));
+    $process_id = isset($_POST['process_id']) ? (int)$_POST['process_id'] : null;
+    if (!$process_id) {
+        throw new \Exception('Process ID is required');
     }
+
+    $processController = lpagery_root()->processController();
+    $result = $processController->assignPageSetToMe($process_id);
+
+    return $result;
 }
 
 add_action('wp_ajax_lpagery_reset_data', 'LPagery\lpagery_reset_data');
@@ -420,21 +403,18 @@ function lpagery_reset_data()
     // Get delete_pages parameter
     $delete_pages = isset($_POST['delete_pages']) ? rest_sanitize_boolean($_POST['delete_pages']) : false;
 
-    $processController = ProcessController::get_instance();
+    $processController = lpagery_root()->processController();
     $processController->resetData($delete_pages);
 
     wp_die();
 }
 
-add_action('wp_ajax_lpagery_update_process_managing_system', 'LPagery\lpagery_update_process_managing_system_ajax');
+AjaxEndpoint::register('lpagery_update_process_managing_system', Cap::editor(), 'LPagery\lpagery_update_process_managing_system_ajax');
 function lpagery_update_process_managing_system_ajax()
 {
-    check_ajax_referer('lpagery_ajax');
-    lpagery_require_editor();
     $id = isset($_POST['id']) ? (int)$_POST['id'] : 0;
-    $LPageryDao = LPageryDao::get_instance();
 
-    $suiteClient = SuiteClient::get_instance();
+    $suiteClient = lpagery_root()->suiteClient();
 
 
     try {
@@ -443,208 +423,211 @@ function lpagery_update_process_managing_system_ajax()
         error_log("Error disconnecting page set: " . $throwable->getMessage());
     }
 
-    $LPageryDao->lpagery_update_process_managing_system($id, "plugin");
-    wp_send_json(["success" => true,
-        "process_id" => $id]);
+    lpagery_root()->pageSetRepository()->update_process_managing_system($id, "plugin");
+    return ["success" => true,
+        "process_id" => $id];
 }
 
-add_action('wp_ajax_lpagery_get_fresh_nonce', 'LPagery\lpagery_get_fresh_nonce');
+// Every View across all Page Sets, for the global Views page. Deliberately FREE and only
+// editor-gated (NOT lpagery_require_views_pro): reading the Views list stays available after a
+// downgrade so saved Views remain discoverable, while create/edit/delete keep their Pro gates in
+// the premium file (ADR-0006 / ADR-0002). This handler lives in the free AjaxActions.php so it
+// still exists once Freemius strips the premium file from the free build.
+AjaxEndpoint::register('lpagery_get_all_views', Cap::editor(), 'LPagery\lpagery_get_all_views');
+function lpagery_get_all_views()
+{
+    $views = lpagery_root()->viewController()->getAllViews();
+    return array("success" => true, "views" => $views);
+}
+
+AjaxEndpoint::register('lpagery_get_fresh_nonce', Cap::none(), 'LPagery\lpagery_get_fresh_nonce');
 function lpagery_get_fresh_nonce()
 {
-
-    check_ajax_referer('lpagery_ajax');
     $nonce = wp_create_nonce('lpagery_ajax');
 
-    wp_send_json(['nonce' => $nonce]);
+    return ['nonce' => $nonce];
 }
 
 
 // App Tokens AJAX Actions
-add_action('wp_ajax_lpagery_fetch_app_tokens', 'LPagery\lpagery_fetch_app_tokens_ajax');
+AjaxEndpoint::register('lpagery_fetch_app_tokens', Cap::none(), 'LPagery\lpagery_fetch_app_tokens_ajax');
 function lpagery_fetch_app_tokens_ajax()
 {
-    check_ajax_referer('lpagery_ajax');
+    $tokens = lpagery_root()->appTokenRepository()->getAllAppTokens();
 
-    try {
-
-
-        $lpageryDao = LPageryDao::get_instance();
-        $tokens = $lpageryDao->getAllAppTokens();
-
-
-        wp_send_json($tokens);
-    } catch (\Throwable $exception) {
-        wp_send_json(array("success" => false,
-            "exception" => $exception->getMessage(),
-            "data" => []));
-    }
+    return $tokens;
 }
 
-add_action('wp_ajax_lpagery_revoke_app_token', 'LPagery\lpagery_revoke_app_token_ajax');
+AjaxEndpoint::register('lpagery_revoke_app_token', Cap::none(), 'LPagery\lpagery_revoke_app_token_ajax');
 function lpagery_revoke_app_token_ajax()
 {
-    check_ajax_referer('lpagery_ajax');
+    if (!current_user_can('manage_options')) {
+        throw new Exception('You do not have permission to revoke app tokens.');
+    }
 
-    try {
-        if (!current_user_can('manage_options')) {
-            throw new Exception('You do not have permission to revoke app tokens.');
-        }
+    $token_id = isset($_POST['id']) ? intval($_POST['id']) : 0;
 
-        $token_id = isset($_POST['id']) ? intval($_POST['id']) : 0;
+    if (!$token_id) {
+        throw new Exception('Invalid token ID.');
+    }
 
-        if (!$token_id) {
-            throw new Exception('Invalid token ID.');
-        }
+    $success = lpagery_root()->appTokenRepository()->deleteAppToken($token_id);
 
-        $lpageryDao = LPageryDao::get_instance();
-        $success = $lpageryDao->deleteAppToken($token_id);
+    if (!$success) {
+        throw new Exception('Failed to revoke the token.');
+    }
 
-        if (!$success) {
-            throw new Exception('Failed to revoke the token.');
-        }
+    return array("success" => true,
+        "data" => ['id' => $token_id],
+        "message" => 'Token revoked successfully.');
+}
 
-        wp_send_json(array("success" => true,
-            "data" => ['id' => $token_id],
-            "message" => 'Token revoked successfully.'));
-    } catch (\Throwable $exception) {
-        wp_send_json(array("success" => false,
-            "exception" => $exception->getMessage(),
-            "data" => []));
+
+AjaxEndpoint::register('repair_database_schema', Cap::admin(), 'LPagery\lpagery_repair_database_schema_ajax');
+function lpagery_repair_database_schema_ajax()
+{
+    $dbDeltaExecutor = new DbDeltaExecutor();
+    $error = $dbDeltaExecutor->run();
+    if($error) {
+        return array("success" => false,
+            "exception" => $error);
+    } else {
+        $rows_inserted = lpagery_root()->attachmentBasenameService()->backfill();
+
+        return array("success" => true,
+            "message" => "Database schema repaired successfully. Attachment basename index updated ({$rows_inserted} entries).");
     }
 }
 
-add_action('wp_ajax_lpagery_trigger_look_sync', 'LPagery\lpagery_trigger_look_sync_ajax');
-function lpagery_trigger_look_sync_ajax()
+AjaxEndpoint::register('delete_lpagery_revisions', Cap::admin(), 'LPagery\lpagery_delete_revisions_ajax');
+function lpagery_delete_revisions_ajax()
+{
+    try {
+        $deleted_count = lpagery_root()->generatedPageRepository()->delete_revisions_for_generated_pages();
+
+        $message = $deleted_count > 0
+            ? "Successfully deleted {$deleted_count} revision(s) from LPagery-generated pages."
+            : "No revisions found for LPagery-generated pages.";
+
+        return array(
+            "success" => true,
+            "message" => $message,
+            "deleted_count" => $deleted_count
+        );
+
+    } catch (Exception $e) {
+        return array(
+            "success" => false,
+            "exception" => $e->getMessage()
+        );
+    }
+}
+
+// Settings and tracking permissions are free on every tier: the Settings tab is reachable without a
+// license (the paid rows inside it are locked individually in the UI) and the tracking consent form has
+// no plan gate at all, so both writes have to exist in the free build. Nonce + editor capability.
+add_action('wp_ajax_lpagery_save_settings', 'LPagery\lpagery_save_settings');
+function lpagery_save_settings()
 {
     check_ajax_referer('lpagery_ajax');
     lpagery_require_editor();
 
-    try {
-        $page_set_id = isset($_POST['page_set_id']) ? intval($_POST['page_set_id']) : 0;
-        $overwrite_manual_changes = isset($_POST['overwrite_manual_changes']) ? rest_sanitize_boolean($_POST['overwrite_manual_changes']) : null;
+    // Sanitize incoming settings data
+    $settings_data = Utils::lpagery_sanitize_object($_POST);
+    $settings = new Settings();
 
-        if (!$page_set_id) {
-            throw new \Exception('Page set ID is required');
-        }
-        $lpageryDao = LPageryDao::get_instance();
-        $process = $lpageryDao->lpagery_get_process_by_id($page_set_id);
-        if($process->managing_system ==='app') {
+    // Populate the settings object with sanitized data
+    $settings->spintax = rest_sanitize_boolean($settings_data['spintax']);
+    $settings->google_sheet_sync_force_update = rest_sanitize_boolean($settings_data['google_sheet_sync_force_update']);
+    $settings->google_sheet_sync_overwrite_manual_changes = rest_sanitize_boolean($settings_data['google_sheet_sync_overwrite_manual_changes']);
+    $settings->image_processing = rest_sanitize_boolean($settings_data['image_processing']);
+    $settings->image_partial_match = rest_sanitize_boolean($settings_data['image_partial_match'] ?? true);
+    $settings->author_id = intval($settings_data['author_id']);
+    $settings->google_sheet_sync_interval = sanitize_text_field($settings_data['google_sheet_sync_interval']);
+    $settings->hierarchical_taxonomy_handling = sanitize_text_field($settings_data['hierarchical_taxonomy_handling']);
+    $settings->google_sheet_sync_enabled = rest_sanitize_boolean($settings_data['google_sheet_sync_enabled']);
+    $settings->sync_batch_size = intval($settings_data['sync_batch_size']);
+    $settings->hide_generated_pages = rest_sanitize_boolean($settings_data['hide_generated_pages'] ?? false);
+    $settings->default_render_mode = sanitize_text_field($settings_data['default_render_mode'] ?? 'classic');
+    $settings->default_background_generation = rest_sanitize_boolean($settings_data['default_background_generation'] ?? false);
+    // Site-wide Virtual Image URLs setting (ADR 0015). Default on when absent so a client that omits the
+    // field never silently flips live pages into Source URL Fallback.
+    $settings->virtual_images_enabled = rest_sanitize_boolean($settings_data['virtual_images_enabled'] ?? true);
 
-            $lpageryDao->lpagery_update_process_sync_status($page_set_id, "PLANNED");
-            $suiteClient = SuiteClient::get_instance();
-            try {
-                $result = $suiteClient->trigger_look_sync($page_set_id, $overwrite_manual_changes);
-                wp_send_json(array("success" => true,
-                    "data" => $result,
-                    "message" => 'Look sync triggered successfully.'));
-            } catch (\Throwable $exception) {
-                throw new \Exception('Failed to trigger look sync: ' . $exception->getMessage());
-            }
-        } else {
-            wp_schedule_single_event(time(), 'lpagery_start_sync_for_process', array(ProcessSheetSyncParams::processOnly($page_set_id, true, (bool)$overwrite_manual_changes)));
-            wp_send_json(array("success" => true,
-                "message" => 'Sync scheduled successfully.'));
-        }
-
-    } catch (\Throwable $exception) {
-        wp_send_json(array("success" => false,
-            "exception" => $exception->getMessage(),
-            "data" => []));
+    // Validate Google Sheet sync interval
+    $schedules = array_keys(wp_get_schedules());
+    if (!in_array($settings->google_sheet_sync_interval, $schedules)) {
+        $settings->google_sheet_sync_interval = 'daily';
     }
-}
 
-add_action('wp_ajax_repair_database_schema', 'LPagery\lpagery_repair_database_schema_ajax');
-function lpagery_repair_database_schema_ajax()
-{
-    check_ajax_referer('lpagery_ajax');
-    lpagery_require_admin();
+    // Sanitize custom post types
+    $settings->custom_post_types = is_array($settings_data['custom_post_types'] ?? null)
+        ? array_map('sanitize_text_field', $settings_data['custom_post_types'])
+        : array();
 
-    $dbDeltaExecutor = new DbDeltaExecutor();
-    $error = $dbDeltaExecutor->run();
-    if($error) {
-        wp_send_json(array("success" => false,
-            "exception" => $error));
+    // Custom post types and hiding Generated Pages from the WordPress lists are Extended-tier. The UI
+    // locks both rows below Extended, but this endpoint is free, so the server keeps whatever is stored
+    // rather than trusting the payload. The gate is written out of non-suffixed calls so it survives
+    // Freemius' strip, and includes `is_premium()` because a free build's site can still carry a paid
+    // plan (a licence activated before the premium zip is installed).
+    if (!(lpagery_fs()->is_premium() && lpagery_fs()->is_plan_or_trial('extended'))) {
+        $settingsController = lpagery_root()->settingsController();
+        // getSettings() masks custom post types on limited plans, so read the persisted value directly.
+        $settings->custom_post_types = $settingsController->getStoredCustomPostTypes();
+        $settings->hide_generated_pages = $settingsController->getSettings()->hide_generated_pages;
+    }
+
+    // Parse next Google Sheet sync time if provided
+    if (isset($settings_data["next_google_sheet_sync"])) {
+        $settings->next_google_sheet_sync = strval(strtotime(get_gmt_from_date($settings_data["next_google_sheet_sync"])));
     } else {
-        $rows_inserted = AttachmentBasenameService::get_instance()->backfill();
-        
-        wp_send_json(array("success" => true,
-            "message" => "Database schema repaired successfully. Attachment basename index updated ({$rows_inserted} entries)."));
+        $settings->next_google_sheet_sync = null;
     }
+
+    // Save settings through the controller
+    lpagery_root()->settingsController()->saveSettings($settings);
+
+    wp_die();
 }
 
-add_action('wp_ajax_delete_lpagery_revisions', 'LPagery\lpagery_delete_revisions_ajax');
-function lpagery_delete_revisions_ajax()
+add_action('wp_ajax_lpagery_save_tracking_permissions', 'LPagery\lpagery_save_tracking_permissions');
+function lpagery_save_tracking_permissions()
 {
     check_ajax_referer('lpagery_ajax');
-    lpagery_require_admin();
+    lpagery_require_editor();
+    $sentry = filter_var($_POST["sentry"], FILTER_VALIDATE_BOOLEAN);
+    $posthog = filter_var($_POST["posthog"], FILTER_VALIDATE_BOOLEAN);
+    $intercom = filter_var($_POST["intercom"], FILTER_VALIDATE_BOOLEAN);
+    lpagery_root()->trackingPermissionService()->savePermissions(new TrackingPermissions($sentry,
+        $posthog, $intercom));
 
-    global $wpdb;
-    
-    try {
-        $table_name_process_post = $wpdb->prefix . 'lpagery_process_post';
-        
-        // Get all LPagery-generated post IDs
-        $lpagery_post_ids = $wpdb->get_col(
-            "SELECT DISTINCT post_id FROM $table_name_process_post"
-        );
-        
-        if (empty($lpagery_post_ids)) {
-            wp_send_json(array(
-                "success" => true,
-                "message" => "No LPagery-generated pages found. 0 revisions deleted."
-            ));
-        }
-        
-        // First, get the IDs of revisions we're about to delete
-        // (so we can clean up their postmeta specifically, not all orphaned postmeta)
-        $placeholders = implode(',', array_fill(0, count($lpagery_post_ids), '%d'));
-        $revision_ids = $wpdb->get_col($wpdb->prepare(
-            "SELECT ID FROM $wpdb->posts 
-             WHERE post_type = 'revision' 
-             AND post_parent IN ($placeholders)",
-            ...$lpagery_post_ids
-        ));
-        
-        // Delete the revisions
-        $revisions_deleted = $wpdb->query($wpdb->prepare(
-            "DELETE FROM $wpdb->posts 
-             WHERE post_type = 'revision' 
-             AND post_parent IN ($placeholders)",
-            ...$lpagery_post_ids
-        ));
-        
-        if ($revisions_deleted === false) {
-            wp_send_json(array(
-                "success" => false,
-                "exception" => "Failed to delete revisions from database."
-            ));
-        }
-        
-        // Clean up postmeta only for the specific revisions we just deleted
-        // This is much safer and faster than a broad orphaned postmeta cleanup
-        if (!empty($revision_ids)) {
-            $meta_placeholders = implode(',', array_fill(0, count($revision_ids), '%d'));
-            $wpdb->query($wpdb->prepare(
-                "DELETE FROM $wpdb->postmeta WHERE post_id IN ($meta_placeholders)",
-                ...$revision_ids
-            ));
-        }
-        
-        $message = $revisions_deleted > 0 
-            ? "Successfully deleted {$revisions_deleted} revision(s) from LPagery-generated pages."
-            : "No revisions found for LPagery-generated pages.";
-            
-        wp_send_json(array(
-            "success" => true,
-            "message" => $message,
-            "deleted_count" => $revisions_deleted
-        ));
-        
-    } catch (Exception $e) {
-        wp_send_json(array(
-            "success" => false,
-            "exception" => $e->getMessage()
-        ));
-    }
+    wp_die();
+
 }
 
+// Render Mode conversion (ADR 0019). Materialize (Live to Classic) runs on every tier, so both
+// endpoints are free and carry the nonce + editor capability check like every other free action. The
+// controller routes by direction and refuses Strip to Stub (Classic to Live) below Extended.
+AjaxEndpoint::register('lpagery_convert_page_render_mode', Cap::editor(), 'LPagery\lpagery_convert_page_render_mode');
+function lpagery_convert_page_render_mode()
+{
+    $post_id = (int)($_POST['post_id'] ?? 0);
+    $direction = sanitize_text_field($_POST['direction'] ?? 'classic');
+
+    $result = lpagery_root()->liveModeConversionController()->convert_page($post_id, $direction);
+
+    return array("success" => true) + $result;
+}
+
+AjaxEndpoint::register('lpagery_switch_process_render_mode', Cap::editor(), 'LPagery\lpagery_switch_process_render_mode');
+function lpagery_switch_process_render_mode()
+{
+    $process_id = (int)($_POST['process_id'] ?? 0);
+    $target_type = sanitize_text_field($_POST['target_type'] ?? '');
+    $limit = min((int)($_POST['limit'] ?? RenderModeBatchSwitcher::DEFAULT_BATCH_SIZE),
+        RenderModeBatchSwitcher::MAX_BATCH_SIZE);
+
+    $result = lpagery_root()->liveModeConversionController()->switch_process($process_id, $target_type, $limit);
+
+    return array("success" => true) + $result;
+}

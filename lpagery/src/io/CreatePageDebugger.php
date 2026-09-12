@@ -5,11 +5,6 @@ namespace LPagery\io;
 class CreatePageDebugger
 {
     /**
-     * @var CreatePageDebugger|null Singleton instance
-     */
-    private static $instance = null;
-    
-    /**
      * Hook profiling data
      * @var array
      */
@@ -18,20 +13,7 @@ class CreatePageDebugger
         'hooks' => array(),
         'stack' => array(),
     );
-    
-    /**
-     * Get singleton instance
-     * 
-     * @return CreatePageDebugger
-     */
-    public static function get_instance()
-    {
-        if (self::$instance === null) {
-            self::$instance = new self();
-        }
-        return self::$instance;
-    }
-    
+
     /**
      * Collects database queries executed during the request and returns them as an array.
      * 
@@ -173,7 +155,7 @@ class CreatePageDebugger
         // Add a callback to measure time after hook completes
         // IMPORTANT: Must accept and return the first argument to preserve filter values
         add_filter($hook_name, function($value = null) use ($hook_id) {
-            return self::get_instance()->hook_profiler_end($hook_id, $value);
+            return lpagery_root()->createPageDebugger()->hook_profiler_end($hook_id, $value);
         }, PHP_INT_MAX, 1);
     }
     

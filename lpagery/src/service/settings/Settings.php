@@ -16,4 +16,11 @@ class Settings
     public ?string $next_google_sheet_sync;
     public ?bool $wp_cron_disabled;
     public bool $hide_generated_pages;
+    public string $default_render_mode = 'classic';
+    public bool $default_background_generation = false;
+    public bool $virtual_images_enabled = false;
+    // Read-only provenance for the Virtual Image URLs default (issue #233): how the Edge Cache Probe
+    // judged this site — 'detected_on' (an Edge Cache absorbed the probe), 'detected_off' (none did), or
+    // 'undetermined' (no conclusive verdict yet). Never accepted on the save path; GET response only.
+    public string $virtual_images_detection = 'undetermined';
 }

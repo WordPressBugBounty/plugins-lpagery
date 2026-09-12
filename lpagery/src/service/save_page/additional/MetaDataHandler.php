@@ -10,7 +10,6 @@ use WP_Post;
 class MetaDataHandler
 {
 
-    private static $instance;
     private SubstitutionHandler $substitutionHandler;
 
     public function __construct(SubstitutionHandler $substitutionHandler)
@@ -18,15 +17,28 @@ class MetaDataHandler
         $this->substitutionHandler = $substitutionHandler;
     }
 
-    public static function get_instance(SubstitutionHandler $substitutionHandler)
+    /**
+     * Classic Mode copy path: mirror the Template Page's custom meta onto the Generated Page, then
+     * stamp the LPagery tracking metas.
+     *
+     * The tracking stamp runs unconditionally. The generic copy still short-circuits on a Template
+     * Page with no custom meta, but that early return must not take the stamp with it: a Generated
+     * Page without `_lpagery_plan` / `_lpagery_process` / `_lpagery_page_source` silently breaks
+     * everything keyed on them, the `[lpagery_link]` plan gate included.
+     */
+    public function lpagery_copy_post_meta_info($new_id, WP_Post $template, $meta_excludelist,Params $params)
     {
-        if (null === self::$instance) {
-            self::$instance = new self($substitutionHandler);
-        }
-        return self::$instance;
+        $this->copy_template_meta($new_id, $template, $meta_excludelist, $params);
+        $this->reset_tracking_metas($new_id, $template, $params);
     }
 
-    public function lpagery_copy_post_meta_info($new_id, WP_Post $template, $meta_excludelist,Params $params)
+    /**
+     * The generic per-key copy of the Template Page's custom meta, substituting each value with the
+     * row's data. No-ops when the Template Page has no custom meta keys.
+     *
+     * @param array<int, string>|mixed $meta_excludelist
+     */
+    private function copy_template_meta($new_id, WP_Post $template, $meta_excludelist, Params $params): void
     {
         $post_meta_keys = \get_post_custom_keys($template->ID);
         if (empty($post_meta_keys)) {
@@ -66,6 +78,27 @@ class MetaDataHandler
                 add_post_meta($new_id, $meta_key, Utils::lpagery_recursively_slash_strings($replacedValue));
             }
         }
+    }
+
+    /**
+     * Live Mode stub metas (ADR 0010): the LPagery tracking metas plus the substituted
+     * featured image, which is a physical scalar on the stub. Everything else stays on the
+     * Template Page and is proxied at render time, so the generic meta copy is skipped.
+     */
+    public function lpagery_copy_stub_meta_info($new_id, WP_Post $template, Params $params)
+    {
+        $this->reset_tracking_metas($new_id, $template, $params);
+
+        $thumbnail_id = get_post_meta($template->ID, "_thumbnail_id", true);
+        delete_post_meta($new_id, "_thumbnail_id");
+        if ($thumbnail_id !== "" && $thumbnail_id !== false && $thumbnail_id !== null) {
+            $substituted_thumbnail_id = $this->substitutionHandler->lpagery_substitute($params, $thumbnail_id);
+            add_post_meta($new_id, "_thumbnail_id", $substituted_thumbnail_id);
+        }
+    }
+
+    private function reset_tracking_metas($new_id, WP_Post $template, Params $params): void
+    {
         delete_post_meta($new_id, "_lpagery_page_source");
         delete_post_meta($new_id, "_lpagery_process");
         delete_post_meta($new_id, "_lpagery_plan");
@@ -73,8 +106,6 @@ class MetaDataHandler
         add_post_meta($new_id, "_lpagery_page_source", $template->ID);
         add_post_meta($new_id, "_lpagery_process", $params->process_id);
         add_post_meta($new_id, "_lpagery_plan", lpagery_fs()->is_free_plan() ? 'FREE' : 'PRO');
-
     }
-
 
 }

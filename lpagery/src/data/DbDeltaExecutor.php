@@ -50,6 +50,7 @@ class DbDeltaExecutor
                 include_parent_as_identifier TINYINT(1) DEFAULT 0 NOT NULL,
                 existing_page_update_action VARCHAR(100) DEFAULT 'create' NOT NULL,
                 managing_system VARCHAR(255) DEFAULT 'plugin' NOT NULL,
+                background_run_document LONGTEXT NULL,
                 KEY process_post_id (post_id),
                 KEY process_user_id (user_id),
                 PRIMARY KEY (id)
@@ -71,10 +72,13 @@ class DbDeltaExecutor
                 parent_search_term TEXT NULL,
                 client_generated_slug TEXT NULL,
                 hashed_payload           varchar(255)      null,
+                attachment_id_pairs LONGTEXT NULL,
+                spin_seed INT NULL,
                 KEY idx_wp_lpagery_process_post (post_id, lpagery_process_id),
                 KEY process_post_lpagery_process_id (lpagery_process_id),
                 KEY process_post_post_id (post_id),
                 KEY process_post_template (template_id),
+                KEY process_post_template_modified (template_id, modified),
                 KEY process_post_hashed_payload_process_id (hashed_payload, lpagery_process_id),
                 PRIMARY KEY (id)
             ) $charset_collate;",
@@ -95,6 +99,7 @@ class DbDeltaExecutor
                 existing_page_update_action VARCHAR(100) DEFAULT 'create' NOT NULL,
                 parent_id INT DEFAULT 0 NOT NULL,
                 hashed_payload           varchar(255)      null,
+                operation VARCHAR(50) DEFAULT 'sheet_sync' NOT NULL,
                 KEY sync_queue_process_id (process_id),
                 PRIMARY KEY (id)
             ) $charset_collate;",
@@ -106,6 +111,35 @@ class DbDeltaExecutor
                 KEY idx_basename (basename),
                 KEY idx_basename_no_ext (basename_no_ext),
                 PRIMARY KEY (attachment_id)
+            ) $charset_collate;",
+
+            // Mirrors LPageryDatabaseMigrator's v16 lpagery_view step so a fresh install gets the
+            // Views table the same as an upgraded one (see SchemaDriftTest).
+            "CREATE TABLE {$prefix}lpagery_view (
+                id BIGINT AUTO_INCREMENT,
+                process_id BIGINT NOT NULL,
+                name VARCHAR(191) NOT NULL DEFAULT '',
+                match_key VARCHAR(191) NOT NULL,
+                mode VARCHAR(50) NOT NULL DEFAULT 'list',
+                config LONGTEXT NULL,
+                created TIMESTAMP NULL,
+                modified TIMESTAMP NULL,
+                KEY idx_view_process_id (process_id),
+                PRIMARY KEY (id)
+            ) $charset_collate;",
+
+            // Mirrors LPageryDatabaseMigrator's v17 lpagery_process_post_meta step (the sparse Page
+            // meta index — ADR-0001) so fresh and upgraded installs share it (see SchemaDriftTest).
+            "CREATE TABLE {$prefix}lpagery_process_post_meta (
+                id BIGINT AUTO_INCREMENT,
+                post_id BIGINT NOT NULL,
+                process_id BIGINT NOT NULL,
+                meta_key VARCHAR(191) NOT NULL,
+                meta_value VARCHAR(191) NOT NULL,
+                KEY idx_meta_process_key_value_post (process_id, meta_key, meta_value, post_id),
+                UNIQUE KEY uq_meta_post_key (post_id, meta_key),
+                KEY idx_meta_post (post_id),
+                PRIMARY KEY (id)
             ) $charset_collate;"
         ];
 

@@ -1,48 +1,6 @@
 {
     "packages": [
         {
-            "name": "kucrut/vite-for-wp",
-            "version": "v0.12.0",
-            "version_normalized": "0.12.0.0",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/kucrut/vite-for-wp.git",
-                "reference": "45ec51bbaedbc4e7335db3b3d4a4923962634fea"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/kucrut/vite-for-wp/zipball/45ec51bbaedbc4e7335db3b3d4a4923962634fea",
-                "reference": "45ec51bbaedbc4e7335db3b3d4a4923962634fea",
-                "shasum": ""
-            },
-            "require-dev": {
-                "wp-coding-standards/wpcs": "^3.0"
-            },
-            "time": "2025-06-26T03:15:40+00:00",
-            "type": "library",
-            "installation-source": "dist",
-            "autoload": {
-                "files": [
-                    "vite-for-wp.php"
-                ]
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "GPL-2.0-only"
-            ],
-            "authors": [
-                {
-                    "name": "Dzikri Aziz"
-                }
-            ],
-            "description": "Vite integration for WordPress plugins and themes development.",
-            "support": {
-                "issues": "https://github.com/kucrut/vite-for-wp/issues",
-                "source": "https://github.com/kucrut/vite-for-wp/tree/v0.12.0"
-            },
-            "install-path": "../kucrut/vite-for-wp"
-        },
-        {
             "name": "shuchkin/simplexlsxgen",
             "version": "1.5.11",
             "version_normalized": "1.5.11.0",

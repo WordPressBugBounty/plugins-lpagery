@@ -2,66 +2,52 @@
 
 namespace LPagery\controller;
 
-use LPagery\data\LPageryDao;
+use LPagery\data\repository\GeneratedPageRepository;
+use LPagery\data\repository\PageSetRepository;
 use LPagery\io\Mapper;
 use LPagery\model\ProcessSheetSyncParams;
 use LPagery\model\UpsertProcessParams;
-use LPagery\service\delete\DeletePageService;
-use LPagery\service\delete\DeleteProcessService;
 use LPagery\service\delete\ResetLPageryService;
+use LPagery\service\live_render\LiveBuilderSupport;
 use LPagery\service\PageExportHandler;
+use LPagery\utils\Utils;
 
 /**
  * Controller for handling process-related operations
  */
 class ProcessController
 {
-    private static $instance;
-    private LPageryDao $lpageryDao;
     private Mapper $mapper;
     private ResetLPageryService $resetLPageryService;
     private PageExportHandler $pageExportHandler;
+    private LiveBuilderSupport $liveBuilderSupport;
+    private GeneratedPageRepository $generatedPageRepository;
+    private PageSetRepository $pageSetRepository;
 
     /**
      * ProcessController constructor.
      *
-     * @param LPageryDao $lpageryDao
      * @param Mapper $mapper
      * @param ResetLPageryService $resetLPageryService
      * @param PageExportHandler $pageExportHandler
+     * @param LiveBuilderSupport $liveBuilderSupport
+     * @param GeneratedPageRepository $generatedPageRepository
+     * @param PageSetRepository $pageSetRepository
      */
     public function __construct(
-        LPageryDao $lpageryDao,
         Mapper $mapper,
         ResetLPageryService $resetLPageryService,
-        PageExportHandler $pageExportHandler
+        PageExportHandler $pageExportHandler,
+        LiveBuilderSupport $liveBuilderSupport,
+        GeneratedPageRepository $generatedPageRepository,
+        PageSetRepository $pageSetRepository
     ) {
-        $this->lpageryDao = $lpageryDao;
         $this->mapper = $mapper;
         $this->resetLPageryService = $resetLPageryService;
         $this->pageExportHandler = $pageExportHandler;
-    }
-
-    /**
-     * Singleton pattern implementation
-     */
-    public static function get_instance(): self
-    {
-        if (null === self::$instance) {
-            $lpageryDao = LPageryDao::get_instance();
-            $deleteProcessService = DeleteProcessService::getInstance(
-                $lpageryDao, 
-                DeletePageService::getInstance($lpageryDao)
-            );
-            
-            self::$instance = new self(
-                $lpageryDao,
-                Mapper::get_instance(),
-                ResetLPageryService::getInstance($deleteProcessService),
-                PageExportHandler::get_instance()
-            );
-        }
-        return self::$instance;
+        $this->liveBuilderSupport = $liveBuilderSupport;
+        $this->generatedPageRepository = $generatedPageRepository;
+        $this->pageSetRepository = $pageSetRepository;
     }
 
     /**
@@ -75,7 +61,7 @@ class ProcessController
      */
     public function searchProcesses(?int $post_id = null, ?int $user_id = null, string $search_term = "", string $empty_filter = "", string $managing_system = null): array
     {
-        $lpagery_processes = $this->lpageryDao->lpagery_search_processes($post_id, $user_id, $search_term, $empty_filter, $managing_system);
+        $lpagery_processes = $this->pageSetRepository->search_processes($post_id, $user_id, $search_term, $empty_filter, $managing_system);
         
         if (is_null($lpagery_processes)) {
             return [];
@@ -92,15 +78,15 @@ class ProcessController
      */
     public function getProcessDetails(int $id): array
     {
-        $process = $this->lpageryDao->lpagery_get_process_by_id($id);
+        $process = $this->pageSetRepository->get_process_by_id($id);
         return $this->mapper->lpagery_map_process_update_details($process, []);
     }
 
     public function updateManagingSystem($id, string $managingSystem)
     {
-        $process = $this->lpageryDao->lpagery_get_process_by_id($id);
+        $process = $this->pageSetRepository->get_process_by_id($id);
         if ($process) {
-            $this->lpageryDao->lpagery_update_process_managing_system($id, $managingSystem);
+            $this->pageSetRepository->update_process_managing_system($id, $managingSystem);
         }
         return $process;
     }
@@ -113,7 +99,7 @@ class ProcessController
      */
     public function upsertProcess(UpsertProcessParams $upsertParams): array
     {
-        $process = $this->lpageryDao->lpagery_get_process_by_id($upsertParams->getProcessId());
+        $process = $this->pageSetRepository->get_process_by_id($upsertParams->getProcessId());
 
         if($process && $process->managing_system !== $upsertParams->getManagingsystem()) {
             throw new \Exception('Process source mismatch ' . $process->managing_system . ' != ' . $upsertParams->getManagingsystem());
@@ -125,16 +111,30 @@ class ProcessController
         if ($upsertParams->getData()) {
             $data = $this->extractProcessData($upsertParams->getData(), $process);
         }
-        
-        $lpagery_process_id = $this->lpageryDao->lpagery_upsert_process(
-            $upsertParams->getPostId(), 
-            $upsertParams->getProcessId(), 
-            $upsertParams->getPurpose(), 
+
+        // Live Mode creation is Extended-tier only (ADR 0009) and needs a builder the render
+        // pipeline supports (ADR 0007). Reject a live request instead of silently degrading to
+        // classic, so the UI contract stays honest.
+        if (is_array($data) && ($data['render_mode'] ?? 'classic') === 'live') {
+            $this->assertLiveModeAllowed($upsertParams->getPostId());
+        }
+
+        // Validate-then-persist (Design D): when the slug template changed on an update, compute and
+        // validate the per-page replaced_slug list HERE (throwing before any write on an invalid
+        // slug), then hand the finished list to the persist-only DAO upsert. Persistence no longer
+        // does substitution/validation.
+        $slug_updates = $this->computeReplacedSlugUpdates($process, $upsertParams->getProcessId(), $data);
+
+        $lpagery_process_id = $this->pageSetRepository->upsert(
+            $upsertParams->getPostId(),
+            $upsertParams->getProcessId(),
+            $upsertParams->getPurpose(),
             $data,
-            $upsertParams->getGoogleSheetDataArray(), 
-            $upsertParams->isSyncEnabled(), 
+            $upsertParams->getGoogleSheetDataArray(),
+            $upsertParams->isSyncEnabled(),
             $upsertParams->isIncludeParentAsIdentifier(),
             $upsertParams->getManagingsystem(),
+            $slug_updates,
         );
 
         if ($upsertParams->isGoogleSheetEnabled() && $upsertParams->isSyncEnabled()) {
@@ -150,6 +150,71 @@ class ProcessController
             "success" => true,
             "process_id" => $lpagery_process_id
         ];
+    }
+
+    /**
+     * Compute (and validate) the per-Generated-Page `replaced_slug` updates a Page Set upsert must
+     * persist when its slug template changed (Design D — evicted from persistence). Returns:
+     *   - null  when there is nothing to recompute: no config data, an insert (`$process_id <= 0`),
+     *           no existing process, or an unchanged slug template. The persist-only upsert then
+     *           leaves every `replaced_slug` untouched, exactly as before.
+     *   - a list of `['id' => process_post_id, 'replaced_slug' => sanitized_slug]` when the slug
+     *           template changed: each existing Generated Page's stored placeholder data is
+     *           substituted into the new slug template and sanitized.
+     *
+     * Validate-then-persist: an invalid slug (one whose placeholder-aware sanitization still leaves
+     * unreplaced `{…}` braces, i.e. a placeholder not present in that page's data) throws the exact
+     * legacy "Slug … is not valid" exception BEFORE any write happens, so nothing is persisted —
+     * behaviourally identical to the old in-transaction validation, which rolled everything back on
+     * the same condition.
+     *
+     * @param object|null $process the already-fetched existing Page Set (or null on an insert)
+     * @param array<string, mixed>|null $data the processed config data being persisted
+     * @return array<int, array{id: int|string, replaced_slug: string}>|null
+     */
+    private function computeReplacedSlugUpdates(?object $process, int $process_id, ?array $data): ?array
+    {
+        if (!$data || $process_id <= 0 || !$process) {
+            return null;
+        }
+
+        $old_slug = maybe_unserialize($process->data)["slug"] ?? null;
+        $new_slug = $data["slug"];
+        if ($old_slug === $new_slug) {
+            return null;
+        }
+
+        $slug_updates = [];
+        $process_posts = $this->generatedPageRepository->get_process_post_input_data($process_id);
+        foreach ($process_posts as $process_post) {
+            $params = lpagery_root()->inputParamProvider()->lpagery_get_input_params_without_images(maybe_unserialize($process_post->data));
+            $slug = lpagery_root()->substitutionHandler()->lpagery_substitute_slug($params, $new_slug);
+            $slug_with_braces = Utils::lpagery_sanitize_title_with_dashes($slug);
+            $slug = sanitize_title($slug);
+            if ($slug_with_braces !== $slug) {
+                throw new \Exception("Slug $slug_with_braces is not valid. Please make sure to only use placeholders which are available in the current data. If you want to add new data to the slug, please make sure to update the content first.");
+            }
+            $slug_updates[] = ['id' => $process_post->id, 'replaced_slug' => $slug];
+        }
+
+        return $slug_updates;
+    }
+
+    /**
+     * Enforces the Live Mode creation gate: Extended tier (ADR 0009) plus a builder the render
+     * pipeline supports (ADR 0007). Throws a clear exception the AJAX layer surfaces to the user.
+     *
+     * @param int|null $template_id Template Page ID the set is being created from
+     */
+    private function assertLiveModeAllowed(?int $template_id): void
+    {
+        if (!lpagery_fs()->is_plan_or_trial('extended')) {
+            throw new \Exception('Live Mode is an Extended plan feature. Upgrade to create Live Mode page sets.');
+        }
+
+        if (!$template_id || !$this->liveBuilderSupport->is_supported($template_id)) {
+            throw new \Exception("The template's page builder is not supported by Live Mode yet. Please use Classic Mode for this template.");
+        }
     }
 
     /**
@@ -186,12 +251,21 @@ class ProcessController
             }
         }
 
-        return [
+        $result = [
             "taxonomy_terms" => $taxonomy_terms,
             "status" => $status,
             "parent_path" => $parent_path,
             "slug" => $slug
         ];
+
+        // Render Mode: absent or non-live ⇒ classic (the default), which is never
+        // written so classic config blobs stay byte-for-byte identical.
+        $render_mode = sanitize_text_field($input_data['render_mode'] ?? 'classic');
+        if ($render_mode === 'live') {
+            $result['render_mode'] = 'live';
+        }
+
+        return $result;
     }
 
     /**
@@ -202,14 +276,14 @@ class ProcessController
      */
     public function assignPageSetToMe(int $process_id): array
     {
-        $process = $this->lpageryDao->lpagery_get_process_by_id($process_id);
+        $process = $this->pageSetRepository->get_process_by_id($process_id);
         
         if (!$process) {
             throw new \Exception('Process not found');
         }
 
         $current_user_id = get_current_user_id();
-        $this->lpageryDao->lpagery_update_process_user($process_id, $current_user_id);
+        $this->pageSetRepository->update_process_user($process_id, $current_user_id);
 
         return [
             "success" => true,

@@ -6,6 +6,9 @@ use DateTime;
 
 class Utils
 {
+    /** German umlauts keep their ae/ue/oe spelling in slugs on every locale. */
+    private const UMLAUT_SEARCH = array("ä", "ü", "ö", "Ä", "Ü", "Ö");
+    private const UMLAUT_REPLACE = array("ae", "ue", "oe", "ae", "ue", "oe");
 
     public static function lpagery_is_image_column($header)
     {
@@ -89,20 +92,66 @@ class Utils
         return substr_compare($haystack, $needle, -strlen($needle)) === 0;
     }
 
+    /**
+     * Placeholder-preserving fork of core sanitize_title_with_dashes(): `{}` survive so a slug
+     * pattern keeps its placeholders. Static text is transliterated the way core treats row
+     * values, on top of the ae/ue/oe spelling for German umlauts on every locale.
+     *
+     * Pages generated before this transliteration existed carry the spelling of
+     * lpagery_sanitize_title_with_dashes_legacy(); that variant is kept for matching them.
+     */
     public static function lpagery_sanitize_title_with_dashes($title, $raw_title = '', $context = 'save')
     {
 
-        $search = array("ä",
-            "ü",
-            "ö");
-
-        $replace = array("ae",
-            "ue",
-            "oe");
-
-        $title = str_replace($search, $replace, $title);
-
         $title = strip_tags($title);
+
+        // German umlauts keep their ae/ue/oe spelling on every locale. Both cases are mapped
+        // here so the spelling does not depend on the lowercasing below, which needs mbstring.
+        $title = str_replace(self::UMLAUT_SEARCH, self::UMLAUT_REPLACE, $title);
+
+        // Lowercase what is left, multibyte safe where mbstring is available.
+        $title = self::lpagery_slug_lowercase($title);
+
+        // Transliterate every remaining diacritic the same way WordPress does for row values,
+        // so static slug text and substituted values end up spelled alike.
+        $title = remove_accents($title);
+
+        return self::lpagery_encode_slug($title, $context);
+    }
+
+    /**
+     * The spelling lpagery_sanitize_title_with_dashes() produced before diacritics were
+     * transliterated: only lowercase ä ü ö were mapped, every other non-ASCII character was
+     * percent-encoded (`Straße` became `stra%c3%9fe`, `café` became `caf%c3%a9`).
+     *
+     * Generated Pages created back then still carry that spelling in `post_name` and
+     * `replaced_slug`. This variant exists ONLY to recognise those pages on an update run so
+     * they are updated in place instead of duplicated. Never use it to build a new slug.
+     */
+    public static function lpagery_sanitize_title_with_dashes_legacy($title, $context = 'save')
+    {
+        $title = str_replace(array("ä", "ü", "ö"), array("ae", "ue", "oe"), $title);
+        $title = strip_tags($title);
+        $title = self::lpagery_slug_lowercase($title);
+
+        return self::lpagery_encode_slug($title, $context);
+    }
+
+    private static function lpagery_slug_lowercase(string $title): string
+    {
+        if (function_exists('mb_strtolower')) {
+            return mb_strtolower($title, 'UTF-8');
+        }
+        return strtolower($title);
+    }
+
+    /**
+     * The core sanitize_title_with_dashes() tail shared by both variants: percent-encodes what
+     * is still non-ASCII, strips entities and punctuation, collapses whitespace to dashes. The
+     * only deviation from core is the character class, which keeps `{}`.
+     */
+    private static function lpagery_encode_slug(string $title, string $context): string
+    {
         // Preserve escaped octets.
         $title = preg_replace('|%([a-fA-F0-9][a-fA-F0-9])|', '---$1---', $title);
         // Remove percent signs that are not part of an octet.
@@ -111,9 +160,6 @@ class Utils
         $title = preg_replace('|---([a-fA-F0-9][a-fA-F0-9])---|', '%$1', $title);
 
         if (seems_utf8($title)) {
-            if (function_exists('mb_strtolower')) {
-                $title = mb_strtolower($title, 'UTF-8');
-            }
             $title = utf8_uri_encode($title, 200);
         }
 
@@ -185,7 +231,6 @@ class Utils
         $title = preg_replace('|-+|', '-', $title);
         $title = trim($title, '-');
         return $title;
-
     }
 
     public static function lpagery_time_ago($timestamp)

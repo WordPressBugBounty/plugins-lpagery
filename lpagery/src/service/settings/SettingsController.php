@@ -2,12 +2,17 @@
 
 namespace LPagery\service\settings;
 
-use LPagery\data\LPageryDao;
+use LPagery\data\repository\PageSetRepository;
+use LPagery\service\image_endpoint\EdgeCacheProbe;
+use LPagery\service\image_endpoint\EdgeCacheProbeStore;
+use LPagery\service\live_render\LivePagePurger;
 use WP_Post_Type;
 
 class SettingsController
 {
-    private static $instance;
+    private PageSetRepository $pageSetRepository;
+    private LivePagePurger $livePagePurger;
+    private EdgeCacheProbeStore $edgeCacheProbeStore;
 
     const OPTION_GOOGLE_SHEET_SYNC_ENABLED = "lpagery_google_sheet_sync_enabled";
     const OPTION_GOOGLE_SHEET_SYNC_FORCE_UPDATE = "lpagery_google_sheet_sync_force_update";
@@ -15,16 +20,21 @@ class SettingsController
     const OPTION_SYNC_OVERWRITE_MANUAL_CHANGES = "lpagery_sync_overwrite_manual_changes";
     const OPTION_GOOGLE_SHEET_SYNC_INTERVAL = "lpagery_google_sheet_sync_interval";
     const OPTION_HIDE_GENERATED_PAGES = "lpagery_hide_generated_pages";
+    const OPTION_DEFAULT_RENDER_MODE = "lpagery_default_render_mode";
+    const OPTION_DEFAULT_BACKGROUND_GENERATION = "lpagery_default_background_generation";
+    // Persisted UI toggle for the site-wide Virtual Image URLs setting (ADR 0015). Distinct key from
+    // the identically-purposed `lpagery_virtual_images_enabled` *filter* (the code-only override) so the
+    // two AND-inputs in VirtualImageAvailability::site_wide_enabled() never share a literal string.
+    const OPTION_VIRTUAL_IMAGES_ENABLED = "lpagery_virtual_image_urls_enabled";
 
-    /**
-     * Singleton pattern implementation
-     */
-    public static function get_instance(): self
-    {
-        if (null === self::$instance) {
-            self::$instance = new self();
-        }
-        return self::$instance;
+    public function __construct(
+        PageSetRepository $pageSetRepository,
+        LivePagePurger $livePagePurger,
+        EdgeCacheProbeStore $edgeCacheProbeStore
+    ) {
+        $this->pageSetRepository = $pageSetRepository;
+        $this->livePagePurger = $livePagePurger;
+        $this->edgeCacheProbeStore = $edgeCacheProbeStore;
     }
 
     /**
@@ -98,6 +108,28 @@ class SettingsController
             filter_var($settings->google_sheet_sync_overwrite_manual_changes, FILTER_VALIDATE_BOOLEAN) ? '1' : '0');
         update_option(self::OPTION_HIDE_GENERATED_PAGES,
             filter_var($settings->hide_generated_pages, FILTER_VALIDATE_BOOLEAN) ? '1' : '0');
+        update_option(self::OPTION_DEFAULT_RENDER_MODE, $this->sanitizeRenderMode($settings->default_render_mode));
+        update_option(self::OPTION_DEFAULT_BACKGROUND_GENERATION,
+            filter_var($settings->default_background_generation, FILTER_VALIDATE_BOOLEAN) ? '1' : '0');
+
+        // Site-wide Virtual Image URLs setting (ADR 0015). Flipping it changes the site-wide render shape,
+        // so on a *changed* value purge every live page's cached HTML through the shared issue-228 seam so
+        // it converges to the new shape instead of waiting for expiry; an unchanged save purges nothing.
+        $previousVirtualImagesEnabled = $this->isVirtualImagesEnabled();
+        $newVirtualImagesEnabled = filter_var($settings->virtual_images_enabled, FILTER_VALIDATE_BOOLEAN);
+        update_option(self::OPTION_VIRTUAL_IMAGES_ENABLED, $newVirtualImagesEnabled ? '1' : '0');
+        if ($newVirtualImagesEnabled !== $previousVirtualImagesEnabled) {
+            $this->livePagePurger->purge_all_live_pages();
+        }
+
+        // An explicit save is a permanent choice, so end the Edge Cache Probe (issue #233): the persisted
+        // option above already makes every future probe run a no-op, and clearing the scheduled hook removes
+        // any pending one-off event so no probe fires after the operator has decided the setting by hand.
+        // Guarded on the raw option actually holding a value: if the write above failed, the setting is
+        // still undecided and the pending probe retry must survive to decide it.
+        if (get_option(self::OPTION_VIRTUAL_IMAGES_ENABLED, false) !== false) {
+            wp_clear_scheduled_hook(\LPagery\io\hooks\EdgeCacheProbeHooks::PROBE_HOOK);
+        }
 
         // Handle Google Sheet sync interval and scheduling
         $currentInterval = get_option(self::OPTION_GOOGLE_SHEET_SYNC_INTERVAL);
@@ -138,6 +170,21 @@ class SettingsController
     }
 
     /**
+     * The persisted custom post types, unmasked by plan. `getSettings()` hides them below Extended,
+     * so a save on a limited plan reads this to keep what is stored instead of writing the mask back.
+     *
+     * @return string[]
+     */
+    public function getStoredCustomPostTypes(): array
+    {
+        $custom_post_types = $this->getUserSettings()['custom_post_types'] ?? [];
+        if (!is_array($custom_post_types)) {
+            return [];
+        }
+        return array_values(array_filter($custom_post_types, 'is_string'));
+    }
+
+    /**
      * Retrieves default settings
      */
     private function getDefaultSettings(): Settings
@@ -169,6 +216,14 @@ class SettingsController
         $settings->hierarchical_taxonomy_handling = 'last';
         $settings->wp_cron_disabled = defined('DISABLE_WP_CRON') && DISABLE_WP_CRON;
         $settings->hide_generated_pages = filter_var(get_option(self::OPTION_HIDE_GENERATED_PAGES, '0'), FILTER_VALIDATE_BOOLEAN);
+        // Live Mode creation is Extended-only, so a limited plan always defaults to Classic.
+        $settings->default_render_mode = 'classic';
+        // Background Generation is Extended-only, so a limited plan can never pre-select it.
+        $settings->default_background_generation = false;
+        // Virtual Image URLs is a site-wide render setting with no premium gate (ADR 0015/0009), so a
+        // limited plan reads the real persisted value like any other global toggle.
+        $settings->virtual_images_enabled = $this->isVirtualImagesEnabled();
+        $settings->virtual_images_detection = $this->getVirtualImagesDetection();
 
         return $settings;
     }
@@ -206,7 +261,77 @@ class SettingsController
         $settings->google_sheet_sync_overwrite_manual_changes = filter_var($this->isOverwriteManualChangesEnabled(), FILTER_VALIDATE_BOOLEAN);
         $settings->wp_cron_disabled = defined('DISABLE_WP_CRON') && DISABLE_WP_CRON;
         $settings->hide_generated_pages = filter_var(get_option(self::OPTION_HIDE_GENERATED_PAGES, '0'), FILTER_VALIDATE_BOOLEAN);
+        $settings->default_render_mode = $this->getDefaultRenderMode();
+        $settings->default_background_generation = $this->getDefaultBackgroundGeneration();
+        $settings->virtual_images_enabled = $this->isVirtualImagesEnabled();
+        $settings->virtual_images_detection = $this->getVirtualImagesDetection();
         return $settings;
+    }
+
+    /**
+     * Read-only provenance for the Virtual Image URLs default (issue #233): what the Edge Cache Probe
+     * found on this site, for the frontend to disclose under the toggle. The verdict reports the
+     * **detection result**, not the toggle state — a manual save can override the value while the verdict
+     * stays what was measured (the frontend derives its warning from the two together). With no verdict,
+     * the three ways detection can be over or pending are distinguished, so the UI never claims
+     * "hasn't completed yet" for a state that will never complete: an explicitly-set option means a save
+     * ended probing before any verdict (`manual`), a spent attempt cap means the probe gave up
+     * (`inconclusive`), and only a probe that can still run reports `undetermined`. Surfaced in the GET
+     * response only — the save path neither accepts nor persists it.
+     */
+    public function getVirtualImagesDetection(): string
+    {
+        switch ($this->edgeCacheProbeStore->get_verdict()) {
+            case EdgeCacheProbeStore::VERDICT_ABSORBED:
+                return 'detected_on';
+            case EdgeCacheProbeStore::VERDICT_UNABSORBED:
+                return 'detected_off';
+        }
+        if (get_option(self::OPTION_VIRTUAL_IMAGES_ENABLED, false) !== false) {
+            return 'manual';
+        }
+        if ($this->edgeCacheProbeStore->get_attempts() >= EdgeCacheProbe::MAX_ATTEMPTS) {
+            return 'inconclusive';
+        }
+        return 'undetermined';
+    }
+
+    /**
+     * The default Render Mode ('classic' | 'live') pre-selected in the create form for new
+     * Page Sets. Global option; Live is only honoured for Extended users (enforced at creation).
+     */
+    public function getDefaultRenderMode(): string
+    {
+        return $this->sanitizeRenderMode(get_option(self::OPTION_DEFAULT_RENDER_MODE, 'classic'));
+    }
+
+    private function sanitizeRenderMode($value): string
+    {
+        return $value === 'live' ? 'live' : 'classic';
+    }
+
+    /**
+     * Whether "Generate in background" is pre-selected across the create/update/re-upload/switch
+     * flows. Global option, default off; Background Generation is Extended-only, so this is only
+     * honoured for Extended users (limited plans always resolve to false, and the enqueue endpoints
+     * enforce the tier regardless).
+     */
+    public function getDefaultBackgroundGeneration(): bool
+    {
+        return filter_var(get_option(self::OPTION_DEFAULT_BACKGROUND_GENERATION, '0'), FILTER_VALIDATE_BOOLEAN);
+    }
+
+    /**
+     * Whether the site-wide Virtual Image URLs setting is on (ADR 0015, default reversed to off by
+     * ADR 0016). Global option, default off, no premium gate (the render path is free per ADR 0009).
+     * The unset option reads as off so a site the Edge Cache Probe has not yet judged serves shared
+     * source URLs; the probe writes the option once it has evidence. This is one AND-input in
+     * {@see \LPagery\service\live_render\VirtualImageAvailability::site_wide_enabled()}; when off, Live
+     * Mode pages render the Source URL Fallback shape site-wide.
+     */
+    public function isVirtualImagesEnabled(): bool
+    {
+        return filter_var(get_option(self::OPTION_VIRTUAL_IMAGES_ENABLED, '0'), FILTER_VALIDATE_BOOLEAN);
     }
 
 
@@ -322,8 +447,7 @@ class SettingsController
         $userId = get_current_user_id();
 
         if (!$userId && $processId) {
-            $lpageryDao = LPageryDao::get_instance();
-            $process = $lpageryDao->lpagery_get_process_by_id($processId);
+            $process = $this->pageSetRepository->get_process_by_id($processId);
             if (!empty($process)) {
                 $userId = $process->user_id;
             } else {

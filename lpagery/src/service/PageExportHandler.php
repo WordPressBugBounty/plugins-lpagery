@@ -2,30 +2,22 @@
 
 namespace LPagery\service;
 
-use LPagery\data\LPageryDao;
+use LPagery\data\repository\PageSetRepository;
 use ZipArchive;
 
 class PageExportHandler
 {
-    private static $instance;
+    private PageSetRepository $pageSetRepository;
 
-    private function __construct()
+    public function __construct(PageSetRepository $pageSetRepository)
     {
-        // Initialization code here
-    }
-
-    public static function get_instance()
-    {
-        if (null === self::$instance) {
-            self::$instance = new self();
-        }
-        return self::$instance;
+        $this->pageSetRepository = $pageSetRepository;
     }
 
 
     public function export($process_id)
     {
-        $process_by_id = LPageryDao::get_instance()->lpagery_get_process_by_id($process_id);
+        $process_by_id = $this->pageSetRepository->get_process_by_id($process_id);
         $post_id = $process_by_id->post_id;
 
         // Ensure the post ID is valid

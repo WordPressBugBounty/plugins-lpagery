@@ -2,48 +2,31 @@
 
 namespace LPagery\controller;
 
-use LPagery\data\LPageryDao;
+use LPagery\data\repository\PageSetRepository;
 use LPagery\data\SearchPostService;
 use LPagery\io\Mapper;
-use LPagery\wpml\WpmlHelper;
 
 /**
  * Controller for handling post-related operations
  */
 class PostController
 {
-    private static $instance;
     private SearchPostService $searchPostService;
-    private LPageryDao $lpageryDao;
+    private PageSetRepository $pageSetRepository;
     private Mapper $mapper;
 
     /**
      * PostController constructor.
      *
      * @param SearchPostService $searchPostService
-     * @param LPageryDao $lpageryDao
+     * @param PageSetRepository $pageSetRepository
      * @param Mapper $mapper
      */
-    public function __construct(SearchPostService $searchPostService, LPageryDao $lpageryDao, Mapper $mapper)
+    public function __construct(SearchPostService $searchPostService, PageSetRepository $pageSetRepository, Mapper $mapper)
     {
         $this->searchPostService = $searchPostService;
-        $this->lpageryDao = $lpageryDao;
+        $this->pageSetRepository = $pageSetRepository;
         $this->mapper = $mapper;
-    }
-
-    /**
-     * Singleton pattern implementation
-     */
-    public static function get_instance(): self
-    {
-        if (null === self::$instance) {
-            self::$instance = new self(
-                SearchPostService::get_instance(),
-                LPageryDao::get_instance(),
-                Mapper::get_instance()
-            );
-        }
-        return self::$instance;
     }
 
     /**
@@ -87,16 +70,13 @@ class PostController
             return ["found" => false];
         }
         
-        $wpml_data = WpmlHelper::get_wpml_language_data($post_id);
         $array = [
             "title" => $WP_Post->post_title,
             "found" => true,
             "permalink" => get_permalink($post_id)
         ];
-        
-        if ($wpml_data->language_code) {
-            $array["language_code"] = $wpml_data->language_code;
-        }
+
+        $array = array_merge($array, $this->mapper->language_payload($post_id));
 
         $post_type_object = get_post_type_object($WP_Post->post_type);
 
@@ -133,27 +113,14 @@ class PostController
      */
     public function getTemplatePosts(): array
     {
-        $template_posts = $this->lpageryDao->lpagery_get_template_posts();
+        $template_posts = $this->pageSetRepository->get_template_posts();
         
-        if ($this->hasWpmlSupport()) {
-            foreach ($template_posts as &$post_array) {
-                $wpmlData = WpmlHelper::get_wpml_language_data($post_array->id);
-                if ($wpmlData->language_code) {
-                    $post_array->language_code = $wpmlData->language_code;
-                }
+        foreach ($template_posts as $post_array) {
+            foreach ($this->mapper->language_payload((int)$post_array->id) as $field => $value) {
+                $post_array->$field = $value;
             }
         }
         
         return $template_posts;
     }
-
-    /**
-     * Check if WPML support is available
-     * 
-     * @return bool Whether WPML support is available
-     */
-    protected function hasWpmlSupport(): bool
-    {
-        return function_exists('wpml_get_language_information');
-    }
-} 
+}

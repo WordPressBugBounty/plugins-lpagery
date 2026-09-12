@@ -4,16 +4,6 @@ namespace LPagery\service\image_lookup;
 
 class AttachmentBasenameService
 {
-    private static ?AttachmentBasenameService $instance = null;
-
-    public static function get_instance(): AttachmentBasenameService
-    {
-        if (self::$instance === null) {
-            self::$instance = new AttachmentBasenameService();
-        }
-        return self::$instance;
-    }
-
     /**
      * Get the basename lookup table name
      */

@@ -1,18 +1,15 @@
 <?php
 namespace LPagery\service\onboarding;
-use LPagery\wpml\WpmlHelper;
+
+use LPagery\multilingual\MultilingualPlugin;
 
 class OnboardingService
 {
+    private ?MultilingualPlugin $multilingualPlugin;
 
-    public static ?OnboardingService $instance = null;
-
-    public static function get_instance(): OnboardingService
+    public function __construct(?MultilingualPlugin $multilingualPlugin)
     {
-        if (null === self::$instance) {
-            self::$instance = new self();
-        }
-        return self::$instance;
+        $this->multilingualPlugin = $multilingualPlugin;
     }
 
     public function createOnboardingTemplatePage()
@@ -32,15 +29,16 @@ class OnboardingService
             'post_type'     => 'page'
         );
 
-        // Add WPML language if the plugin is active
-        if (WpmlHelper::is_wpml_installed()) {
-            global $sitepress;
-            if ($sitepress) {
-                $page_data['wpml_language'] = $sitepress->get_current_language();
-            }
+        $page_id = wp_insert_post($page_data);
+
+        // The Template Page starts out in the language the admin is browsing, so the Page Sets built
+        // from it inherit that Page Language. Set through the adapter, after the insert, so no
+        // plugin-specific argument leaks into $page_data.
+        $admin_language = $this->multilingualPlugin === null ? null : $this->multilingualPlugin->get_current_admin_language();
+        if ($page_id && $admin_language !== null) {
+            $this->multilingualPlugin->set_post_language((int)$page_id, $admin_language);
         }
 
-        $page_id = wp_insert_post($page_data);
         return $page_id;
     }
 

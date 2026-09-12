@@ -6,18 +6,8 @@ use function fifu_dev_set_image;
 
 class FifuHandler
 {
-    private static $instance;
-
-    private function __construct()
+    public function __construct()
     {
-    }
-
-    public static function get_instance()
-    {
-        if (null === self::$instance) {
-            self::$instance = new self();
-        }
-        return self::$instance;
     }
 
     public function lpagery_handle_fifu($new_id, $raw_data)

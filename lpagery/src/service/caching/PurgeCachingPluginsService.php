@@ -6,16 +6,6 @@ namespace LPagery\service\caching;
 class PurgeCachingPluginsService
 {
 
-    private static ?PurgeCachingPluginsService $instance = null;
-
-    public static function get_instance(): PurgeCachingPluginsService
-    {
-        if (null === self::$instance) {
-            self::$instance = new self();
-        }
-        return self::$instance;
-    }
-
     public function purge_caching_plugins($post_id)
     {
         try {

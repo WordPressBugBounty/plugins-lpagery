@@ -2,15 +2,7 @@
 
 namespace LPagery\suite;
 
-use LPagery\controller\DuplicatedSlugController;
-use LPagery\controller\PostController;
-use LPagery\controller\ProcessController;
-use LPagery\controller\SlugController;
-use LPagery\controller\TaxonomyController;
-use LPagery\data\LPageryDao;
-use LPagery\factories\CreatePostControllerFactory;
 use LPagery\io\Mapper;
-use LPagery\service\delete\DeletePageService;
 use LPagery\service\settings\SettingsController;
 use LPagery\utils\Utils;
 
@@ -121,7 +113,7 @@ class SuiteRestApi
      */
     public function check_token_permission(\WP_REST_Request $request)
     {
-        $tokenService = TokenValidator::get_instance();
+        $tokenService = lpagery_root()->tokenValidator();
         return $tokenService->check_token_permission($request);
     }
 
@@ -131,7 +123,7 @@ class SuiteRestApi
     public function get_post(\WP_REST_Request $request)
     {
         $post_id = intval($request->get_json_params() ['post_id']);
-        $post_controller = PostController::get_instance();
+        $post_controller = lpagery_root()->postController();
         $post_data = $post_controller->getPost($post_id);
         return rest_ensure_response($post_data);
     }
@@ -143,8 +135,8 @@ class SuiteRestApi
         $mode = sanitize_text_field($json_params ['mode'] ?? '');
         $select = sanitize_text_field($json_params ['select'] ?? '');
         $template_id = intval($json_params ['template_id'] ?? 0);
-        $post_controller = PostController::get_instance();
-        $custom_post_types = SettingsController::get_instance()->getEnabledCustomPostTypes();
+        $post_controller = lpagery_root()->postController();
+        $custom_post_types = lpagery_root()->settingsController()->getEnabledCustomPostTypes();
         $post_data = $post_controller->getPosts($search, $custom_post_types, $mode, $select, $template_id);
         return rest_ensure_response($post_data);
     }
@@ -153,7 +145,7 @@ class SuiteRestApi
     {
         $json_params = $request->get_json_params();
         $upsertParams = \LPagery\model\UpsertProcessParams::fromArray($json_params, "app");
-        $result = ProcessController::get_instance()->upsertProcess($upsertParams);
+        $result = lpagery_root()->processController()->upsertProcess($upsertParams);
 
         return rest_ensure_response($result);
     }
@@ -165,7 +157,7 @@ class SuiteRestApi
         $template_id = (int)($json_params["template_id"] ?? 0);
         $slug = sanitize_text_field($json_params['slug'] ?? '');
 
-        $slugController = SlugController::get_instance();
+        $slugController = lpagery_root()->slugController();
         $result = $slugController->sanitizeSlug($slug, $parent_id, $template_id);
 
 
@@ -178,7 +170,7 @@ class SuiteRestApi
         $post_id = (int)$json_params['post_id'];
 
 
-        $slugController = SlugController::get_instance();
+        $slugController = lpagery_root()->slugController();
         $result = $slugController->getPostTitleAsSlug($post_id);
 
 
@@ -190,7 +182,7 @@ class SuiteRestApi
         $json_params = $request->get_json_params();
         $post_type = sanitize_text_field($json_params['post_type']);
 
-        $result = TaxonomyController::get_instance()->getTaxonomies($post_type);
+        $result = lpagery_root()->taxonomyController()->getTaxonomies($post_type);
 
         return rest_ensure_response($result);
     }
@@ -198,7 +190,7 @@ class SuiteRestApi
     public function get_taxonomy_terms(\WP_REST_Request $request)
     {
 
-        $result = TaxonomyController::get_instance()->getTaxonomyTerms();
+        $result = lpagery_root()->taxonomyController()->getTaxonomyTerms();
 
         return rest_ensure_response($result);
     }
@@ -209,7 +201,7 @@ class SuiteRestApi
         $json_params = $request->get_json_params();
 
         $id = intval($json_params['id']);
-        $result = ProcessController::get_instance()->getProcessDetails($id);
+        $result = lpagery_root()->processController()->getProcessDetails($id);
 
         return rest_ensure_response($result);
     }
@@ -219,7 +211,7 @@ class SuiteRestApi
         $json_params = $request->get_json_params();
 
         $id = intval($json_params['id']);
-        ProcessController::get_instance()->updateManagingSystem($id, "plugin");
+        lpagery_root()->processController()->updateManagingSystem($id, "plugin");
 
         return rest_ensure_response(["success" => true]);
     }
@@ -229,7 +221,7 @@ class SuiteRestApi
         $json_params = $request->get_json_params();
 
         $id = intval($json_params['id']);
-        $process = ProcessController::get_instance()->updateManagingSystem($id, "app");
+        $process = lpagery_root()->processController()->updateManagingSystem($id, "app");
 
         $data = maybe_unserialize($process->data);
         return rest_ensure_response(["success" => true,
@@ -246,7 +238,7 @@ class SuiteRestApi
         if(!$user || !$user->ID) {
             return rest_ensure_response([]);
         }
-        $processes = ProcessController::get_instance()->searchProcesses(null, $user->ID, $search, "", "plugin");
+        $processes = lpagery_root()->processController()->searchProcesses(null, $user->ID, $search, "", "plugin");
 
         return rest_ensure_response($processes);
     }
@@ -264,7 +256,7 @@ class SuiteRestApi
             $json_decode = $json_params['keys'];
             $keys = isset($json_params['keys']) ? array_map('sanitize_text_field', $json_decode) : [];
 
-            $duplicatedSlugController = DuplicatedSlugController::get_instance();
+            $duplicatedSlugController = lpagery_root()->duplicatedSlugController();
             $result = $duplicatedSlugController->getDuplicatedSlugs($data, $template_id, $includeParentAsIdentifier,
                 $parent_id, $slug, $process_id, $keys, false);
 
@@ -282,11 +274,11 @@ class SuiteRestApi
         ob_start();
 
         try {
-            $createPostController = CreatePostControllerFactory::create();
+            $createPostController = lpagery_root()->createPostController();
             $index = intval($json_params["index"]);
             if ($index == 0) {
                 $process_id = (int)$json_params['process_id'];
-                LPageryDao::get_instance()->lpagery_update_process_sync_status($process_id, "RUNNING");
+                lpagery_root()->syncQueueRepository()->update_process_sync_status($process_id, "RUNNING");
             }
             $result = $createPostController->lpagery_create_posts_ajax($json_params);
             $ob_get_contents = ob_get_clean();
@@ -312,8 +304,7 @@ class SuiteRestApi
         $process_id = intval($json_params['process_id']);
         $sanitized_slugs = array_map('sanitize_text_field', $slugs);
 
-        $LPageryDao = LPageryDao::get_instance();
-        $result = $LPageryDao->lpagery_get_process_posts_slugs($process_id);
+        $result = lpagery_root()->generatedPageRepository()->get_process_posts_slugs($process_id);
         $post_ids = [];
         foreach ($result as $post_slug_entry) {
             if (!$post_slug_entry->client_generated_slug || in_array($post_slug_entry->client_generated_slug,
@@ -322,11 +313,26 @@ class SuiteRestApi
             }
             $post_ids[] = $post_slug_entry->post_id;
         }
+        $skipped_template_ids = [];
         if (!empty($post_ids)) {
-            DeletePageService::getInstance($LPageryDao)->deletePages($post_ids);
+            $skipped_template_ids = lpagery_root()->deletePageService()->deletePages($post_ids);
+            if (!empty($skipped_template_ids)) {
+                // A Generated Page of this set can be the Template Page of another, live set, and the
+                // delete guard keeps it (ADR 0017). The Suite client reads the count from the response;
+                // the log line is for the site owner, who never sees that client.
+                error_log(sprintf(
+                    'LPagery: kept page(s) %s of page set %s while deleting from the Suite, they are template pages for Live Mode pages.',
+                    implode(', ', $skipped_template_ids),
+                    (string)$process_id
+                ));
+            }
         }
 
-        return rest_ensure_response(["success" => true]);
+        return rest_ensure_response([
+            "success" => true,
+            "skipped_template_count" => count($skipped_template_ids),
+            "skipped_template_ids" => array_values($skipped_template_ids),
+        ]);
     }
 
     public function get_pages_for_delete(\WP_REST_Request $request)
@@ -336,8 +342,7 @@ class SuiteRestApi
         $process_id = intval($json_params['process_id']);
         $sanitized_slugs = array_map('sanitize_text_field', $slugs);
 
-        $LPageryDao = LPageryDao::get_instance();
-        $result = $LPageryDao->lpagery_get_process_posts_slugs($process_id);
+        $result = lpagery_root()->generatedPageRepository()->get_process_posts_slugs($process_id);
         $posts = [];
         foreach ($result as $post_slug_entry) {
             if (!$post_slug_entry->client_generated_slug || in_array($post_slug_entry->client_generated_slug,
@@ -362,10 +367,9 @@ class SuiteRestApi
         $json_params = $request->get_json_params();
 
         $process_id = (intval($json_params["process_id"] ?? 0));
-        $LPageryDao = LPageryDao::get_instance();
 
-        $posts = $LPageryDao->lpagery_get_existing_posts_for_update_modal(null, $process_id);
-        $mapper = Mapper::get_instance();
+        $posts = lpagery_root()->generatedPageRepository()->get_existing_posts_for_update_modal(null, $process_id);
+        $mapper = lpagery_root()->mapper();
         $mapped = array_map([$mapper,
             'lpagery_map_post_for_update_modal'], $posts);
         return rest_ensure_response($mapped);
@@ -375,9 +379,8 @@ class SuiteRestApi
         $json_params = $request->get_json_params();
 
         $process_id = (intval($json_params["process_id"] ?? 0));
-        $LPageryDao = LPageryDao::get_instance();
 
-        $processes = $LPageryDao->lpagery_get_process_post_input_data($process_id);
+        $processes = lpagery_root()->generatedPageRepository()->get_process_post_input_data($process_id);
 
 
         $data = array_map(function ($process) {

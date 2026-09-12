@@ -2,7 +2,6 @@
 
 namespace LPagery\controller;
 
-use LPagery\factories\DuplicateSlugHandlerFactory;
 use LPagery\service\duplicates\DuplicateSlugProvider;
 use LPagery\service\duplicates\DuplicateSlugResult;
 use LPagery\utils\Utils;
@@ -12,7 +11,6 @@ use LPagery\utils\Utils;
  */
 class DuplicatedSlugController
 {
-    private static $instance;
     private DuplicateSlugProvider $duplicateSlugHandler;
 
     /**
@@ -23,17 +21,6 @@ class DuplicatedSlugController
     public function __construct(DuplicateSlugProvider $duplicateSlugHandler)
     {
         $this->duplicateSlugHandler = $duplicateSlugHandler;
-    }
-
-    /**
-     * Singleton pattern implementation
-     */
-    public static function get_instance(): self
-    {
-        if (null === self::$instance) {
-            self::$instance = new self(DuplicateSlugHandlerFactory::create());
-        }
-        return self::$instance;
     }
 
     /**

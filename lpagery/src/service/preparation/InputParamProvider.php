@@ -9,25 +9,16 @@ use LPagery\model\PageCreationDashboardSettings;
 use LPagery\model\Params;
 use LPagery\utils\Utils;
 class InputParamProvider {
-    private static ?InputParamProvider $instance = null;
-
     private SettingsController $settingsController;
 
     private InstallationDateHandler $installationDateHandler;
 
-    private ?InputParamMediaProvider $paramMediaProvider;
+    private ?MediaParamProvider $paramMediaProvider;
 
-    public function __construct( SettingsController $settingsController, InstallationDateHandler $installationDateHandler, ?InputParamMediaProvider $paramMediaProvider ) {
+    public function __construct( SettingsController $settingsController, InstallationDateHandler $installationDateHandler, ?MediaParamProvider $paramMediaProvider ) {
         $this->settingsController = $settingsController;
         $this->installationDateHandler = $installationDateHandler;
         $this->paramMediaProvider = $paramMediaProvider;
-    }
-
-    public static function get_instance( SettingsController $settingsController, InstallationDateHandler $installationDateHandler, ?InputParamMediaProvider $paramMediaProvider ) {
-        if ( null === self::$instance ) {
-            self::$instance = new self($settingsController, $installationDateHandler, $paramMediaProvider);
-        }
-        return self::$instance;
     }
 
     public function lpagery_provide_input_params(
@@ -38,11 +29,13 @@ class InputParamProvider {
         bool $force_update_content,
         bool $overwrite_manual_changes,
         bool $include_parent_as_identifier,
-        string $existingPageUpdateAction
+        string $existingPageUpdateAction,
+        string $render_mode = 'classic'
     ) : Params {
         $base_params = self::lpagery_get_input_params_without_images( $json_data );
         $source_attachment_ids = array();
         $target_attachment_ids = array();
+        $virtual_image_map = array();
         $keys = $base_params->keys;
         $values = $base_params->values;
         $numeric_keys = $base_params->numeric_keys;
@@ -50,7 +43,7 @@ class InputParamProvider {
         $image_keys = array();
         $image_values = array();
         if ( lpagery_fs()->is_plan_or_trial__premium_only( 'extended' ) && $this->settingsController->isImageProcessingEnabled( $process_id ) && $this->paramMediaProvider ) {
-            list( $image_keys, $image_values, $source_attachment_ids, $target_attachment_ids ) = $this->paramMediaProvider->provideMediaParams( $base_params, $source_post_id );
+            list( $image_keys, $image_values, $source_attachment_ids, $target_attachment_ids, $virtual_image_map ) = $this->paramMediaProvider->provideMediaParams( $base_params, $source_post_id, $render_mode );
         }
         $params = new Params();
         $params->keys = $keys;
@@ -64,6 +57,8 @@ class InputParamProvider {
         $params->author_id = $this->settingsController->getAuthorId( $process_id );
         $params->source_attachment_ids = $source_attachment_ids;
         $params->target_attachment_ids = $target_attachment_ids;
+        $params->virtual_image_map = ( is_array( $virtual_image_map ) ? $virtual_image_map : array() );
+        $params->render_mode = $render_mode;
         $params->raw_data = $json_data;
         $params->process_id = $process_id;
         $params->settings = $post_settings;

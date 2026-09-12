@@ -7,19 +7,6 @@ namespace LPagery\controller;
  */
 class TaxonomyController
 {
-    private static $instance;
-
-    /**
-     * Singleton pattern implementation
-     */
-    public static function get_instance(): self
-    {
-        if (null === self::$instance) {
-            self::$instance = new self();
-        }
-        return self::$instance;
-    }
-
     /**
      * Gets taxonomy terms
      *

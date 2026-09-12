@@ -3,31 +3,25 @@
 namespace LPagery\service\duplicates;
 
 
-use LPagery\data\LPageryDao;
+use LPagery\data\repository\GeneratedPageRepository;
+use LPagery\data\repository\PageSetRepository;
 use LPagery\service\substitution\SubstitutionDataPreparator;
 use LPagery\utils\Utils;
 
 
 class DuplicateSlugProvider
 {
-    private static ?DuplicateSlugProvider $instance = null;
     private SubstitutionDataPreparator $substitutionDataPreparator;
-    private LPageryDao $lpageryDao;
     private DuplicateSlugHelper $duplicateSlugHelper;
+    private GeneratedPageRepository $generatedPageRepository;
+    private PageSetRepository $pageSetRepository;
 
-    private function __construct(SubstitutionDataPreparator $substitutionDataPreparator, LPageryDao $lpageryDao, DuplicateSlugHelper $duplicateSlugHelper)
+    public function __construct(SubstitutionDataPreparator $substitutionDataPreparator, DuplicateSlugHelper $duplicateSlugHelper, GeneratedPageRepository $generatedPageRepository, PageSetRepository $pageSetRepository)
     {
         $this->substitutionDataPreparator = $substitutionDataPreparator;
-        $this->lpageryDao = $lpageryDao;
         $this->duplicateSlugHelper = $duplicateSlugHelper;
-    }
-
-    public static function get_instance(SubstitutionDataPreparator $substitutionDataPreparator, LPageryDao $lpageryDao, DuplicateSlugHelper $duplicateSlugHelper)
-    {
-        if (null === self::$instance) {
-            self::$instance = new self($substitutionDataPreparator, $lpageryDao, $duplicateSlugHelper);
-        }
-        return self::$instance;
+        $this->generatedPageRepository = $generatedPageRepository;
+        $this->pageSetRepository = $pageSetRepository;
     }
 
     private function findMissingPlaceholders(string $slug, array $keys): array
@@ -64,7 +58,7 @@ class DuplicateSlugProvider
             $json_decode = $this->substitutionDataPreparator->recursive_sanitize_array($data);
         }
         if (!$slug) {
-            $process = $this->lpageryDao->lpagery_get_process_by_id($process_id);
+            $process = $this->pageSetRepository->get_process_by_id($process_id);
             $process_data = maybe_unserialize($process->data);
             $slug = $process_data['slug'];
         }
@@ -93,11 +87,11 @@ class DuplicateSlugProvider
 
         $post_type = get_post_type($post_id);
 
-        $existing_slugs = $this->lpageryDao->lpagery_get_existing_posts_by_slug($slugs_result, $process_id, $post_type,
+        $existing_slugs = $this->generatedPageRepository->get_existing_posts_by_slug($slugs_result, $process_id, $post_type,
             $post_id);
         $duplicates = $this->duplicateSlugHelper->lpagery_find_array_duplicates($slugs_result,
             $includeParentAsIdentifier);
-        $attachment_slugs = $this->lpageryDao->lpagery_get_existing_attachments_by_slug($slugs);
+        $attachment_slugs = $this->generatedPageRepository->get_existing_attachments_by_slug($slugs);
         $numeric_slugs = $this->duplicateSlugHelper->lpagery_find_array_numeric_values($slugs_result);
 
         $foundDuplicatedSlugsWithDifferentParents = false;

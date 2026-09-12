@@ -5,7 +5,9 @@ namespace LPagery\service\save_page\additional;
 use ET\Builder\FrontEnd\BlockParser\BlockParser;
 use ET\Builder\Migration\MigrationContext;
 use LPagery\model\Params;
+use LPagery\service\save_page\additional\pagebuilder\PagebuilderAdapter;
 use LPagery\service\substitution\SubstitutionHandler;
+use WP_Post;
 
 /**
  * Handler for Divi 5 page builder content.
@@ -13,22 +15,29 @@ use LPagery\service\substitution\SubstitutionHandler;
  * Divi 5 uses Gutenberg blocks with the 'wp:divi/' namespace.
  * This handler parses blocks, runs substitution, processes images, and serializes back.
  */
-class Divi5Handler
+class Divi5Handler implements PagebuilderAdapter
 {
-    private static ?Divi5Handler $instance = null;
     private SubstitutionHandler $substitutionHandler;
 
-    private function __construct(SubstitutionHandler $substitutionHandler)
+    public function __construct(SubstitutionHandler $substitutionHandler)
     {
         $this->substitutionHandler = $substitutionHandler;
     }
 
-    public static function get_instance(SubstitutionHandler $substitutionHandler): Divi5Handler
+    /**
+     * {@see PagebuilderAdapter::supports()} — delegates to the existing Divi 5 detection.
+     */
+    public function supports(WP_Post $template_post, Params $params): bool
     {
-        if (null === self::$instance) {
-            self::$instance = new self($substitutionHandler);
-        }
-        return self::$instance;
+        return $this->is_divi5_content($template_post->post_content);
+    }
+
+    /**
+     * {@see PagebuilderAdapter::apply()} — delegates to the existing handle().
+     */
+    public function apply(int $template_post_id, int $generated_page_id, Params $params): void
+    {
+        $this->handle($template_post_id, $generated_page_id, $params);
     }
 
     /**
@@ -448,13 +457,5 @@ class Divi5Handler
         }
 
         return $attrs;
-    }
-
-    /**
-     * Reset the singleton instance (useful for testing).
-     */
-    public static function reset_instance(): void
-    {
-        self::$instance = null;
     }
 }

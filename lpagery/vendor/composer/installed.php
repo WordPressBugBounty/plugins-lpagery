@@ -10,15 +10,6 @@
         'dev' => false,
     ),
     'versions' => array(
-        'kucrut/vite-for-wp' => array(
-            'pretty_version' => 'v0.12.0',
-            'version' => '0.12.0.0',
-            'reference' => '45ec51bbaedbc4e7335db3b3d4a4923962634fea',
-            'type' => 'library',
-            'install_path' => __DIR__ . '/../kucrut/vite-for-wp',
-            'aliases' => array(),
-            'dev_requirement' => false,
-        ),
         'niklas/lpagery' => array(
             'pretty_version' => '2.3.6',
             'version' => '2.3.6.0',

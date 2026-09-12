@@ -3,16 +3,6 @@ namespace LPagery\io\suite;
 
 class SuiteClient
 {
-
-    private static ?SuiteClient $instance = null;
-    public static function get_instance(): SuiteClient
-    {
-        if (null === self::$instance) {
-            self::$instance = new self();
-        }
-        return self::$instance;
-    }
-
     public function disconnect_page_set($page_set_id)
     {
          $this->perform_request('page_sets/' . $page_set_id . '/disconnect');

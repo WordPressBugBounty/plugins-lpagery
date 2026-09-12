@@ -2,7 +2,7 @@
 
 namespace LPagery\controller;
 
-use LPagery\data\LPageryDao;
+use LPagery\data\repository\PageSetRepository;
 use LPagery\service\onboarding\OnboardingService;
 use LPagery\utils\MemoryUtils;
 use LPagery\utils\Utils;
@@ -12,34 +12,19 @@ use LPagery\utils\Utils;
  */
 class UtilityController
 {
-    private static $instance;
     private OnboardingService $onboardingService;
-    private LPageryDao $lpageryDao;
+    private PageSetRepository $pageSetRepository;
 
     /**
      * UtilityController constructor.
      *
      * @param OnboardingService $onboardingService
-     * @param LPageryDao $lpageryDao
+     * @param PageSetRepository $pageSetRepository
      */
-    public function __construct(OnboardingService $onboardingService, LPageryDao $lpageryDao)
+    public function __construct(OnboardingService $onboardingService, PageSetRepository $pageSetRepository)
     {
         $this->onboardingService = $onboardingService;
-        $this->lpageryDao = $lpageryDao;
-    }
-
-    /**
-     * Singleton pattern implementation
-     */
-    public static function get_instance(): self
-    {
-        if (null === self::$instance) {
-            self::$instance = new self(
-                OnboardingService::get_instance(),
-                LPageryDao::get_instance()
-            );
-        }
-        return self::$instance;
+        $this->pageSetRepository = $pageSetRepository;
     }
 
     /**
@@ -75,7 +60,7 @@ class UtilityController
      */
     public function getUsersWithProcesses(): array
     {
-        return $this->lpageryDao->lpagery_get_users_with_processes();
+        return $this->pageSetRepository->get_users_with_processes();
     }
 
     /**

@@ -24,7 +24,6 @@
     "ext-dom": "*",
     "ext-fileinfo": "*",
     "ext-curl": "*",
-    "kucrut/vite-for-wp": "0.12.0",
     "shuchkin/simplexlsxgen": "^1.4",
     "stechstudio/backoff": "^1.4"
   },
@@ -35,6 +34,11 @@
     "psr-4": {
       "LPagery\\": "src/"
     }
+  },
+  "autoload-dev": {
+    "classmap": [
+      "tools/"
+    ]
   },
   "config": {
     "platform": {
