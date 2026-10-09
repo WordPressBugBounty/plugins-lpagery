@@ -95,6 +95,126 @@ class AttachmentBasenameService
     }
 
     /**
+     * Every media-library attachment whose file has one of the basenames, in one query, with what
+     * the Pre-flight Check needs about each: its `_wp_attached_file` path and its LPagery Download
+     * Filename ('' when it has none). Ordered by id.
+     *
+     * @param string[] $basenames
+     * @return array<int, object{id: int, basename: string, attached_file: string, download_filename: string}>
+     */
+    public function find_by_basenames(array $basenames): array
+    {
+        global $wpdb;
+        $basenames = array_values(array_unique(array_map('strval', $basenames)));
+        if (empty($basenames)) {
+            return [];
+        }
+        $table = $this->get_table_name();
+        $in = implode(', ', array_fill(0, count($basenames), '%s'));
+
+        $query = $wpdb->prepare(
+            "SELECT ab.attachment_id AS id, ab.basename, file.meta_value AS attached_file, download.meta_value AS download_filename
+             FROM {$table} ab
+             INNER JOIN {$wpdb->posts} p ON p.ID = ab.attachment_id
+             LEFT JOIN {$wpdb->postmeta} file ON file.post_id = ab.attachment_id AND file.meta_key = '_wp_attached_file'
+             LEFT JOIN {$wpdb->postmeta} download ON download.post_id = ab.attachment_id AND download.meta_key = '_lpagery_replace_filename'
+             WHERE p.post_type = 'attachment'
+             AND p.post_status IN ('inherit','private')
+             AND ab.basename IN ($in)
+             ORDER BY ab.attachment_id",
+            $basenames
+        );
+
+        return array_map(function ($row) {
+            return (object)[
+                'id' => (int)$row->id,
+                'basename' => (string)$row->basename,
+                'attached_file' => (string)($row->attached_file ?? ''),
+                'download_filename' => (string)($row->download_filename ?? ''),
+            ];
+        }, $wpdb->get_results($query) ?: []);
+    }
+
+    /**
+     * Which of the image names (row values such as `hero.jpg` or `hero`) find a media-library image,
+     * with the file names the run's search accepts ({@see \LPagery\service\media\AttachmentSearchService}):
+     * `.jpg` and `.jpeg` alike, with or without `-scaled`, numbered `-1` to `-5`, and a name without
+     * an extension matching the file name without one. The run takes an image only by such an exact
+     * name, whether or not partial matching widens its search. One query per 1,000 names.
+     *
+     * @param string[] $names
+     * @return string[] the names that find an image, as given
+     */
+    public function find_existing_names(array $names): array
+    {
+        global $wpdb;
+        $names = array_values(array_unique(array_map('strval', $names)));
+        $candidates = [];
+        foreach ($names as $name) {
+            $candidates[$name] = $this->name_candidates($name);
+        }
+
+        $table = $this->get_table_name();
+        $found = [];
+        foreach (array_chunk($candidates, 1000, true) as $chunk) {
+            $basenames = array_values(array_unique(array_merge([''], ...array_column($chunk, 'basenames'))));
+            $stems = array_values(array_unique(array_merge([''], ...array_column($chunk, 'stems'))));
+            $query = $wpdb->prepare(
+                "SELECT ab.basename, ab.basename_no_ext
+                 FROM {$table} ab
+                 INNER JOIN {$wpdb->posts} p ON p.ID = ab.attachment_id
+                 WHERE p.post_type = 'attachment'
+                 AND p.post_status IN ('inherit','private')
+                 AND (ab.basename IN (" . implode(', ', array_fill(0, count($basenames), '%s')) . ")
+                      OR ab.basename_no_ext IN (" . implode(', ', array_fill(0, count($stems), '%s')) . "))",
+                array_merge($basenames, $stems)
+            );
+            foreach ($wpdb->get_results($query) ?: [] as $row) {
+                $found['basename:' . strtolower((string)$row->basename)] = true;
+                $found['stem:' . strtolower((string)$row->basename_no_ext)] = true;
+            }
+        }
+
+        return array_values(array_filter($names, function ($name) use ($candidates, $found) {
+            foreach ($candidates[$name]['basenames'] as $basename) {
+                if (isset($found['basename:' . strtolower($basename)])) {
+                    return true;
+                }
+            }
+            foreach ($candidates[$name]['stems'] as $stem) {
+                if (isset($found['stem:' . strtolower($stem)])) {
+                    return true;
+                }
+            }
+            return false;
+        }));
+    }
+
+    /**
+     * @return array{basenames: string[], stems: string[]}
+     */
+    private function name_candidates(string $name): array
+    {
+        $basename = basename(urldecode($name));
+        $extension = pathinfo($basename, PATHINFO_EXTENSION);
+        $stem = pathinfo($basename, PATHINFO_FILENAME);
+        if ($extension === '') {
+            return ['basenames' => [], 'stems' => array_values(array_unique([$basename, $basename . '-scaled', preg_replace('/-scaled$/i', '', $basename)]))];
+        }
+        $basenames = [];
+        foreach ($this->get_base_variations($basename) as $variation) {
+            $variation_stem = pathinfo($variation, PATHINFO_FILENAME);
+            $variation_extension = pathinfo($variation, PATHINFO_EXTENSION);
+            $basenames[] = $variation;
+            $basenames[] = $variation_stem . '-scaled.' . $variation_extension;
+        }
+        for ($i = 1; $i <= 5; $i++) {
+            $basenames[] = "{$stem}-{$i}.{$extension}";
+        }
+        return ['basenames' => array_values(array_unique($basenames)), 'stems' => []];
+    }
+
+    /**
      * Search for attachments - automatically chooses the right column based on whether
      * the search term has an extension
      * 

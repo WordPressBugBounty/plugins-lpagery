@@ -58,6 +58,21 @@ class LPageryDatabaseMigrator
 
 
     /**
+     * The prefix length (information_schema SUB_PART) $index_name indexes $column_name with, or null
+     * when it indexes the whole column (or the index does not exist; ask
+     * {@see lpagery_index_exists_migrate()} to tell those apart).
+     */
+    private function lpagery_index_prefix_length_migrate(string $table_name, string $index_name, string $column_name): ?int
+    {
+        global $wpdb;
+        $sub_part = $wpdb->get_var($wpdb->prepare("SELECT SUB_PART
+                FROM information_schema.STATISTICS
+                WHERE TABLE_NAME = %s AND INDEX_NAME = %s AND COLUMN_NAME = %s AND TABLE_SCHEMA = %s", $table_name,
+            $index_name, $column_name, $wpdb->dbname));
+        return $sub_part === null ? null : intval($sub_part);
+    }
+
+    /**
      * Stamps the plugin's installation date into the `lpagery_installation_date` option unless it is
      * already there, and reports whether the option holds a date afterwards (issue #276).
      *
@@ -112,9 +127,10 @@ class LPageryDatabaseMigrator
         // as v18, then the queue `operation` column (v19) and the `background_run_document` blob
         // (v20); the per-page `spin_seed` shipped as v21, the installation date option as v22, and
         // the latest step adds the (template_id, modified) index behind the Template Page
-        // pending-changes check (v23), raising the ceiling to 23.
+        // pending-changes check (v23); v24 shrinks the two indexes that broke MyISAM's 1000-byte key
+        // limit, raising the ceiling to 24.
         $db_version = intval(get_option("lpagery_database_version", 0));
-        if ($db_version >= 23) {
+        if ($db_version >= 24) {
             return;
         }
 
@@ -460,19 +476,21 @@ class LPageryDatabaseMigrator
             // One row per (post_id, meta_key): lpagery_upsert_post_meta does delete-then-insert and
             // the resolver reads rows without DISTINCT, so a UNIQUE key here keeps overlapping
             // backfill/write syncs from ever creating duplicate rows (and duplicate related pages).
-            // The composite (process_id, meta_key, meta_value, post_id) is a covering index for the
-            // resolver lookup lpagery_get_post_ids_by_meta() — WHERE process_id+meta_key+meta_value
-            // ORDER BY post_id, SELECT post_id — so it resolves without a filesort or row lookup and
-            // its prefix also serves process_id/meta_key scans (subsuming the older split indexes).
+            // Its post_id prefix also serves the per-page delete.
+            // (process_id, meta_value) serves the resolver lookup get_post_ids_by_meta() and the
+            // per-Process delete. meta_key stays out of it on purpose: a Process has only a handful
+            // of Indexed keys, so filtering them after the index range is cheap, and keeping two
+            // utf8mb4 varchar(191) columns out of one key keeps it under MyISAM's 1000-byte limit.
+            // The original v17 index (process_id, meta_key, meta_value, post_id) was ~1548 bytes and
+            // failed the CREATE on MyISAM-default servers, holding the ladder at v16 (see v24).
             $sql_process_post_meta = "CREATE TABLE {$table_name_process_post_meta} (
                 id bigint auto_increment primary key,
                 post_id bigint not null,
                 process_id bigint not null,
                 meta_key varchar(191) not null,
                 meta_value varchar(191) not null,
-                KEY idx_meta_process_key_value_post (process_id, meta_key, meta_value, post_id),
-                UNIQUE KEY uq_meta_post_key (post_id, meta_key),
-                KEY idx_meta_post (post_id)
+                KEY idx_meta_process_value (process_id, meta_value),
+                UNIQUE KEY uq_meta_post_key (post_id, meta_key)
             ) $charset_collate";
 
             // Create the table only if absent, then advance the version once it exists (an
@@ -577,6 +595,52 @@ class LPageryDatabaseMigrator
             if ($this->lpagery_index_exists_migrate($table_name_process_post, "process_post_template_modified")) {
                 update_option("lpagery_database_version", 23);
                 $db_version = 23;
+            }
+        }
+
+        // v24: keep every index under MyISAM's 1000-byte limit, so upgraded and fresh installs share
+        // one schema on any storage engine. Two indexes broke it:
+        //  - lpagery_process_post_meta: the original v17 composite (process_id, meta_key, meta_value,
+        //    post_id), ~1548 bytes. v17 now creates (process_id, meta_value) + the unique key instead;
+        //    here installs that ran the original v17 drop the composite and the redundant (post_id)
+        //    index (the unique key's prefix covers it) and gain the new one.
+        //  - lpagery_process_post: the v13 (hashed_payload, lpagery_process_id) index, ~1030 bytes.
+        //    The column only holds short hashes, so it is rebuilt on a 191-character prefix; MyISAM
+        //    installs, where the v13 CREATE INDEX failed, get it for the first time.
+        // Gated on $db_version >= 23 so a failed earlier step can't skip it; each statement is guarded
+        // by an existence check, and the version advances only once both tables are in the target
+        // shape, so a failed statement is retried on the next admin load.
+        if ($db_version >= 23 && $db_version < 24
+            && $this->lpagery_table_exists_migrate($table_name_process_post)) {
+            $table_name_process_post_meta = $wpdb->prefix . 'lpagery_process_post_meta';
+            $meta_converged = false;
+            if ($this->lpagery_table_exists_migrate($table_name_process_post_meta)) {
+                if (!$this->lpagery_index_exists_migrate($table_name_process_post_meta, "idx_meta_process_value")) {
+                    $wpdb->query("CREATE INDEX idx_meta_process_value ON $table_name_process_post_meta (process_id, meta_value)");
+                }
+                foreach (array("idx_meta_process_key_value_post", "idx_meta_post") as $obsolete_index) {
+                    if ($this->lpagery_index_exists_migrate($table_name_process_post_meta, $obsolete_index)) {
+                        $wpdb->query("DROP INDEX $obsolete_index ON $table_name_process_post_meta");
+                    }
+                }
+                $meta_converged = $this->lpagery_index_exists_migrate($table_name_process_post_meta, "idx_meta_process_value")
+                    && !$this->lpagery_index_exists_migrate($table_name_process_post_meta, "idx_meta_process_key_value_post")
+                    && !$this->lpagery_index_exists_migrate($table_name_process_post_meta, "idx_meta_post");
+            }
+
+            $hashed_index = "process_post_hashed_payload_process_id";
+            if (!$this->lpagery_index_exists_migrate($table_name_process_post, $hashed_index)) {
+                $wpdb->query("CREATE INDEX $hashed_index ON $table_name_process_post (hashed_payload(191), lpagery_process_id)");
+            } elseif ($this->lpagery_index_prefix_length_migrate($table_name_process_post, $hashed_index, "hashed_payload") !== 191) {
+                // One ALTER, so the table is never left without the index between the drop and the add.
+                $wpdb->query("ALTER TABLE $table_name_process_post DROP INDEX $hashed_index, ADD INDEX $hashed_index (hashed_payload(191), lpagery_process_id)");
+            }
+            $hashed_converged = $this->lpagery_index_exists_migrate($table_name_process_post, $hashed_index)
+                && $this->lpagery_index_prefix_length_migrate($table_name_process_post, $hashed_index, "hashed_payload") === 191;
+
+            if ($meta_converged && $hashed_converged) {
+                update_option("lpagery_database_version", 24);
+                $db_version = 24;
             }
         }
     }

@@ -2,9 +2,9 @@
 Contributors: niklaslindemann, jonaslindemann
 Tags: bulk page, seo, local seo, mass page, programmatic seo
 Requires at least: 6.2
-Tested up to: 7.0
+Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 3.0.0
+Stable tag: 3.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -281,6 +281,17 @@ You can revoke your consent at any time, and the integrations will be disabled i
 We are committed to transparency and your control over your data. For more information, please refer to our Privacy Policy.
 
 == Changelog ==
+
+= 3.1.0 - 2026-10-09 =
+* Feat: Pre-flight Check. Before a run, LPagery checks your sheet and template and lists Problems to fix and Notes about what it will do. You can still create anyway
+* Feat: Pre-flight Check marks each affected row in the review table and outlines the cell to fix. Filter the table to rows with problems or notes, or click a Finding to see only its rows
+* Feat: New checks for template placeholders with no matching column (with "did you mean"), empty values in slug or title columns, and rows skipped by lpagery_ignore
+* Feat: New Extended checks for image columns (missing, unused or ambiguous source images, missing Download Filename, image processing switched off, columns that look like images but aren't used), unknown parents, templates and authors, unreadable status or publish date, and image values not in the media library
+* Feat: Review dialog fits the screen. The check status, run options and Create button stay visible, and only the preview table scrolls
+* Improvement: The slug check runs much faster on large sheets, reports the right row numbers when the sheet has empty rows, and runs again when you swap the file
+* Fix: The review table no longer crashes with React error #185
+* Fix: Database indexes now fit MyISAM's 1000-byte key limit
+* Chore: WordPress 7.1 Support
 
 = 3.0.0 - 2026-09-11 =
 * Feat: Live Mode. A new Render Mode that stores only a lightweight stub per generated page and fills in the template at render time. Template changes reach every page instantly, and your database stays small. Switch a page set between Classic and Live at any time, per page or for the whole set

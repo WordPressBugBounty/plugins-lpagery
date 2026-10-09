@@ -9,6 +9,7 @@ use LPagery\io\Cap;
 use LPagery\io\CreatePageDebugger;
 use LPagery\model\TrackingPermissions;
 use LPagery\service\image_lookup\AttachmentBasenameService;
+use LPagery\service\preflight\PreflightRequest;
 use LPagery\service\settings\Settings;
 use LPagery\service\save_page\update\RenderModeBatchSwitcher;
 use LPagery\service\settings\SettingsController;
@@ -305,23 +306,12 @@ function lpagery_upsert_process()
     return $result;
 }
 
-AjaxEndpoint::register('lpagery_get_duplicated_slugs', Cap::none(), 'LPagery\lpagery_get_duplicated_slugs');
-function lpagery_get_duplicated_slugs()
+AjaxEndpoint::register('lpagery_run_preflight_check', Cap::editor(), 'LPagery\lpagery_run_preflight_check');
+function lpagery_run_preflight_check()
 {
-    $slug = isset($_POST['slug']) ? Utils::lpagery_sanitize_title_with_dashes($_POST['slug']) : null;
-    $process_id = isset($_POST['process_id']) ? intval($_POST['process_id']) : -1;
-    $data = $_POST['data'] ?? null;
-    $template_id = intval($_POST['post_id']);
-    $parent_id = intval($_POST['parent_id'] ?? 0);
-    $includeParentAsIdentifier = rest_sanitize_boolean($_POST["includeParentAsIdentifier"] ?? false);
-    $json_decode = json_decode(wp_unslash($_POST['keys']), true);
-    $keys = isset($_POST['keys']) ? array_map('sanitize_text_field', $json_decode) : [];
+    $request = PreflightRequest::fromArray($_POST);
 
-    $duplicatedSlugController = lpagery_root()->duplicatedSlugController();
-    $result = $duplicatedSlugController->getDuplicatedSlugs($data, $template_id, $includeParentAsIdentifier,
-        $parent_id, $slug, $process_id, $keys, true);
-
-    return $result;
+    return lpagery_root()->preflightController()->runPreflightCheck($request);
 }
 
 add_action('wp_ajax_lpagery_download_post_json', 'LPagery\lpagery_download_post_json');

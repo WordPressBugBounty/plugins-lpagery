@@ -65,6 +65,12 @@ class GeneratedPageRepository
     private const DELETE_REVISIONS_CHUNK_SIZE = 500;
 
     /**
+     * Cap on how many values go into one Pre-flight Check `IN (...)` lookup, so a sheet with tens
+     * of thousands of rows costs a bounded number of queries of a bounded size.
+     */
+    private const SLUG_CHUNK_SIZE = 1000;
+
+    /**
      * Cross-request store of {@see get_generated_page_counts_by_status()}, holding
      * `post_type => [post_status => count]`. A transient rather than an option so it is never
      * autoloaded and routes through the object cache when the site has one.
@@ -924,88 +930,148 @@ class GeneratedPageRepository
 
     }
 
-    public function get_existing_posts_by_slug($slug_with_parents, $process_id, $post_type, $template_id)
+    /**
+     * The posts of `$post_type` whose slug is one of `$slugs`, for the Pre-flight Check. The Page
+     * Set's own pages are left out, and so is every post outside the Template Page's Page Language:
+     * a slug that exists only in another language is no clash. Queried in chunks of
+     * {@see SLUG_CHUNK_SIZE}, so the query count stays bounded however many rows a sheet has.
+     *
+     * @param string[] $slugs
+     * @return array<int, object> rows of { id, post_name, post_parent }
+     */
+    public function find_existing_posts_by_slugs(array $slugs, string $post_type, int $process_id, int $template_id): array
     {
         global $wpdb;
         $table_name_process_post = $wpdb->prefix . 'lpagery_process_post';
 
-        if (empty($slug_with_parents)) {
-            //return array();
-        }
-
-        // A Page Set inherits the Template Page's Page Language, so a page whose slug already exists
-        // in another language is not a duplicate. Both the language and the SQL come from the adapter.
-        $template_language = null;
+        // Both the language and the SQL come from the Multilingual Plugin adapter.
         $language_join = '';
         $language_condition = '';
-
+        $language_args = array();
         if ($this->multilingualPlugin !== null) {
-            $template_language = $this->multilingualPlugin->get_post_language((int)$template_id);
+            $template_language = $this->multilingualPlugin->get_post_language($template_id);
             if ($template_language) {
                 $fragments = $this->multilingualPlugin->post_language_sql('p');
                 $language_join = $fragments->join;
                 $language_condition = 'AND ' . $fragments->where;
+                $language_args[] = $template_language;
             }
         }
 
-
-        // Base query, language-agnostic unless the Template Page carries a Page Language
-        $query = "
-            SELECT p.ID AS id, p.post_name, p.post_type, p.post_parent, exists(select id from $table_name_process_post lpp where lpp.post_id = p.id and lpp.lpagery_process_id != %d) as exists_in_other_set
-            FROM $wpdb->posts p
-            LEFT JOIN $table_name_process_post lpp
-                ON lpp.post_id = p.ID
-                AND lpp.lpagery_process_id = %d
-            $language_join
-            WHERE p.post_type = %s
-                AND p.post_status NOT IN ('inherit', 'attachment')
-                AND lpp.post_id IS NULL
-                $language_condition
-        ";
-
-
-        // The language join carries no placeholder of its own, so only the language condition adds one.
-        $prepared_query = $template_language ? $wpdb->prepare($query, $process_id, $process_id, $post_type,
-            $template_language) : $wpdb->prepare($query, $process_id, $process_id, $post_type);
-
-        $all_posts = $wpdb->get_results($prepared_query);
-
-        // Filter posts by the provided slugs
-        $filtered_posts = array();
-
-        foreach ($all_posts as $post) {
-            $found_posts = array_filter($slug_with_parents, function ($element) use ($post) {
-                return $element->slug == $post->post_name && $element->parent_id == $post->post_parent;
-
-            });
-            if (!empty($found_posts)) {
-                $post->permalink = get_permalink($post->id);
-                $post->exists_in_other_set = filter_var($post->exists_in_other_set, FILTER_VALIDATE_BOOLEAN);
-                $filtered_posts[] = $post;
-            }
+        $posts = array();
+        foreach (array_chunk(array_values(array_unique($slugs)), self::SLUG_CHUNK_SIZE) as $chunk) {
+            $in = implode(', ', array_fill(0, count($chunk), '%s'));
+            // The language join carries no placeholder of its own, so only the language condition adds one.
+            $query = "SELECT p.ID AS id, p.post_name, p.post_parent
+                FROM $wpdb->posts p
+                LEFT JOIN $table_name_process_post lpp
+                    ON lpp.post_id = p.ID
+                    AND lpp.lpagery_process_id = %d
+                $language_join
+                WHERE p.post_type = %s
+                    AND p.post_status NOT IN ('inherit', 'attachment')
+                    AND lpp.post_id IS NULL
+                    AND p.post_name IN ($in)
+                    $language_condition";
+            $args = array_merge(array($process_id, $post_type), $chunk, $language_args);
+            $posts = array_merge($posts, $wpdb->get_results($wpdb->prepare($query, $args)) ?: array());
         }
-
-        return $filtered_posts;
+        return $posts;
     }
 
-    public function get_existing_attachments_by_slug($slugs)
+    /**
+     * Which of `$post_ids` belong to a Page Set other than `$process_id`.
+     *
+     * @param int[] $post_ids
+     * @return int[]
+     */
+    public function find_post_ids_in_other_page_sets(array $post_ids, int $process_id): array
+    {
+        global $wpdb;
+        $table_name_process_post = $wpdb->prefix . 'lpagery_process_post';
+
+        $found = array();
+        foreach (array_chunk(array_values(array_unique(array_map('intval', $post_ids))), self::SLUG_CHUNK_SIZE) as $chunk) {
+            $in = implode(', ', array_fill(0, count($chunk), '%d'));
+            $query = "SELECT DISTINCT post_id FROM $table_name_process_post
+                WHERE lpagery_process_id != %d AND post_id IN ($in)";
+            $found = array_merge($found, $wpdb->get_col($wpdb->prepare($query, array_merge(array($process_id), $chunk))));
+        }
+        return array_map('intval', $found);
+    }
+
+    /**
+     * The media-library items whose slug is one of `$slugs`. A page can't take an attachment's slug,
+     * so WordPress would number it instead.
+     *
+     * @param string[] $slugs
+     * @return array<int, object> rows of { id, post_name }
+     */
+    public function find_attachments_by_slugs(array $slugs): array
     {
         global $wpdb;
 
-        $results = $wpdb->get_results($wpdb->prepare("SELECT p.ID, p.post_name
-            FROM $wpdb->posts p
-            WHERE p.post_type = 'attachment'"));
+        $attachments = array();
+        foreach (array_chunk(array_values(array_unique($slugs)), self::SLUG_CHUNK_SIZE) as $chunk) {
+            $in = implode(', ', array_fill(0, count($chunk), '%s'));
+            $query = "SELECT p.ID AS id, p.post_name
+                FROM $wpdb->posts p
+                WHERE p.post_type = 'attachment'
+                    AND p.post_name IN ($in)";
+            $attachments = array_merge($attachments, $wpdb->get_results($wpdb->prepare($query, $chunk)) ?: array());
+        }
+        return $attachments;
+    }
 
-        $slugs_lookup = array_flip($slugs);
-        $filtered_posts = array();
-        foreach ($results as $post) {
-            if (isset($slugs_lookup[$post->post_name])) {
-                $post->permalink = admin_url("upload.php?item={$post->ID}");
-                $filtered_posts[] = $post;
+    /**
+     * Which of `$ids` name a post that can be a parent: published, draft or private, the statuses
+     * {@see find_post_by_id()} accepts.
+     *
+     * @param int[] $ids
+     * @return int[]
+     */
+    public function find_post_ids_by_ids(array $ids): array
+    {
+        global $wpdb;
+
+        $found = array();
+        foreach (array_chunk(array_values(array_unique(array_map('intval', $ids))), self::SLUG_CHUNK_SIZE) as $chunk) {
+            $in = implode(', ', array_fill(0, count($chunk), '%d'));
+            $query = "SELECT p.ID FROM $wpdb->posts p
+                WHERE p.ID IN ($in)
+                    AND p.post_status IN ('private', 'draft', 'publish')";
+            $found = array_merge($found, $wpdb->get_col($wpdb->prepare($query, $chunk)));
+        }
+        return array_map('intval', $found);
+    }
+
+    /**
+     * The post of `$post_type` each of `$names` (slugs) names, the oldest first when several share
+     * one, as {@see find_post_by_name_and_type_equal()} picks it.
+     *
+     * @param string[] $names
+     * @return array<string, int> lowercased slug => post id
+     */
+    public function find_post_ids_by_names(array $names, string $post_type): array
+    {
+        global $wpdb;
+
+        $found = array();
+        $names = array_values(array_unique(array_map('strtolower', $names)));
+        foreach (array_chunk($names, self::SLUG_CHUNK_SIZE) as $chunk) {
+            $in = implode(', ', array_fill(0, count($chunk), '%s'));
+            $query = "SELECT p.ID AS id, LOWER(p.post_name) AS post_name FROM $wpdb->posts p
+                WHERE p.post_name IN ($in)
+                    AND p.post_type = %s
+                    AND p.post_status IN ('publish', 'draft', 'private')
+                ORDER BY p.post_date, p.ID";
+            foreach ($wpdb->get_results($wpdb->prepare($query, array_merge($chunk, array($post_type)))) ?: array() as $post) {
+                if (!isset($found[$post->post_name])) {
+                    $found[$post->post_name] = (int)$post->id;
+                }
             }
         }
-
-        return $filtered_posts;
+        return $found;
     }
 
     /**

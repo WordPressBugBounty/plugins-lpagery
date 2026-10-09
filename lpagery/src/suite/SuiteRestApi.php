@@ -4,7 +4,7 @@ namespace LPagery\suite;
 
 use LPagery\io\Mapper;
 use LPagery\service\settings\SettingsController;
-use LPagery\utils\Utils;
+use LPagery\service\preflight\PreflightRequest;
 
 class SuiteRestApi
 {
@@ -243,22 +243,22 @@ class SuiteRestApi
         return rest_ensure_response($processes);
     }
 
+    /**
+     * The Pre-flight Check for the Suite. It returns the same report as the dashboard's AJAX
+     * endpoint. A Suite that still sends its rows as `data` (a list of rows without ids) gets them
+     * numbered from 1 in order.
+     */
     public function check_duplicated_slugs(\WP_REST_Request $request)
     {
         $json_params = $request->get_json_params();
         try {
-            $slug = isset($json_params['slug']) ? Utils::lpagery_sanitize_title_with_dashes($json_params['slug']) : null;
-            $process_id = isset($json_params['process_id']) ? intval($json_params['process_id']) : -1;
-            $data = $json_params['data'] ?? null;
-            $template_id = intval($json_params['post_id']);
-            $parent_id = intval($json_params['parent_id'] ?? 0);
-            $includeParentAsIdentifier = rest_sanitize_boolean($json_params["includeParentAsIdentifier"] ?? false);
-            $json_decode = $json_params['keys'];
-            $keys = isset($json_params['keys']) ? array_map('sanitize_text_field', $json_decode) : [];
-
-            $duplicatedSlugController = lpagery_root()->duplicatedSlugController();
-            $result = $duplicatedSlugController->getDuplicatedSlugs($data, $template_id, $includeParentAsIdentifier,
-                $parent_id, $slug, $process_id, $keys, false);
+            if (!isset($json_params['rows']) && isset($json_params['data']) && is_array($json_params['data'])) {
+                $json_params['rows'] = array_map(function ($row, $index) {
+                    return array('row_id' => $index + 1, 'data' => $row);
+                }, array_values($json_params['data']), array_keys(array_values($json_params['data'])));
+            }
+            $preflight_request = PreflightRequest::fromArray($json_params);
+            $result = lpagery_root()->preflightController()->runPreflightCheck($preflight_request);
 
             return rest_ensure_response($result);
         } catch (\Throwable $throwable) {

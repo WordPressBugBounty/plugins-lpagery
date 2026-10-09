@@ -79,7 +79,7 @@ class DbDeltaExecutor
                 KEY process_post_post_id (post_id),
                 KEY process_post_template (template_id),
                 KEY process_post_template_modified (template_id, modified),
-                KEY process_post_hashed_payload_process_id (hashed_payload, lpagery_process_id),
+                KEY process_post_hashed_payload_process_id (hashed_payload(191), lpagery_process_id),
                 PRIMARY KEY (id)
             ) $charset_collate;",
 
@@ -130,15 +130,15 @@ class DbDeltaExecutor
 
             // Mirrors LPageryDatabaseMigrator's v17 lpagery_process_post_meta step (the sparse Page
             // meta index — ADR-0001) so fresh and upgraded installs share it (see SchemaDriftTest).
+            // Every key stays under MyISAM's 1000-byte index limit (one utf8mb4 varchar(191) per key).
             "CREATE TABLE {$prefix}lpagery_process_post_meta (
                 id BIGINT AUTO_INCREMENT,
                 post_id BIGINT NOT NULL,
                 process_id BIGINT NOT NULL,
                 meta_key VARCHAR(191) NOT NULL,
                 meta_value VARCHAR(191) NOT NULL,
-                KEY idx_meta_process_key_value_post (process_id, meta_key, meta_value, post_id),
+                KEY idx_meta_process_value (process_id, meta_value),
                 UNIQUE KEY uq_meta_post_key (post_id, meta_key),
-                KEY idx_meta_post (post_id),
                 PRIMARY KEY (id)
             ) $charset_collate;"
         ];

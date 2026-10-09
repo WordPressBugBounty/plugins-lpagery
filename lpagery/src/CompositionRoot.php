@@ -3,7 +3,7 @@
 namespace LPagery;
 
 use LPagery\controller\CreatePostController;
-use LPagery\controller\DuplicatedSlugController;
+use LPagery\controller\PreflightController;
 use LPagery\controller\LiveModeConversionController;
 use LPagery\controller\OverviewController;
 use LPagery\controller\PostController;
@@ -33,7 +33,20 @@ use LPagery\service\delete\DeletePageService;
 use LPagery\service\delete\DeleteProcessService;
 use LPagery\service\delete\ResetLPageryService;
 use LPagery\service\duplicates\DuplicateSlugHelper;
-use LPagery\service\duplicates\DuplicateSlugProvider;
+use LPagery\service\preflight\check\AttachmentSlugCheck;
+use LPagery\service\preflight\check\DuplicateRowsCheck;
+use LPagery\service\preflight\check\EmptyPlaceholderValueCheck;
+use LPagery\service\preflight\check\ExtendedColumnsCheck;
+use LPagery\service\preflight\check\IgnoredRowsCheck;
+use LPagery\service\preflight\check\ExistingPagesCheck;
+use LPagery\service\preflight\check\NumericSlugCheck;
+use LPagery\service\preflight\check\PlaceholderCheck;
+use LPagery\service\preflight\check\SameSlugDifferentParentsCheck;
+use LPagery\service\preflight\check\TemplatePlaceholderCheck;
+use LPagery\service\preflight\PreflightCheckService;
+use LPagery\service\preflight\PreflightPostResolver;
+use LPagery\service\preflight\PreflightRowResolver;
+use LPagery\service\preflight\TemplateScanner;
 use LPagery\service\DynamicPageAttributeHandler;
 use LPagery\service\FindPostService;
 use LPagery\service\InstallationDateHandler;
@@ -186,13 +199,43 @@ final class CompositionRoot {
         return $this->shared[__FUNCTION__] ??= new DuplicateSlugHelper($this->inputParamProvider(), $this->substitutionHandler(), $this->dynamicPageAttributeHandler());
     }
 
-    public function duplicateSlugProvider() : DuplicateSlugProvider {
-        return $this->shared[__FUNCTION__] ??= new DuplicateSlugProvider(
-            $this->substitutionDataPreparator(),
-            $this->duplicateSlugHelper(),
-            $this->generatedPageRepository(),
-            $this->pageSetRepository()
+    public function preflightCheckService() : PreflightCheckService {
+        if ( isset( $this->shared[__FUNCTION__] ) ) {
+            return $this->shared[__FUNCTION__];
+        }
+        // The image and row value checks are Extended and live on the premium root. A plain premium
+        // `if`, so Freemius removes the whole statement and the free build keeps the free default:
+        // one Note naming the columns those checks would read.
+        $imageChecks = [];
+        $rowChecks = [new ExtendedColumnsCheck()];
+        return $this->shared[__FUNCTION__] = new PreflightCheckService(
+            new PreflightRowResolver(
+                $this->substitutionDataPreparator(),
+                $this->inputParamProvider(),
+                $this->substitutionHandler(),
+                $this->preflightPostResolver()
+            ),
+            new TemplateScanner(),
+            $this->pageSetRepository(),
+            array_merge(
+                [new PlaceholderCheck(), new TemplatePlaceholderCheck()],
+                $imageChecks,
+                [new EmptyPlaceholderValueCheck()],
+                $rowChecks,
+                [
+                    new IgnoredRowsCheck(),
+                    new DuplicateRowsCheck(),
+                    new SameSlugDifferentParentsCheck(),
+                    new NumericSlugCheck(),
+                    new ExistingPagesCheck($this->generatedPageRepository()),
+                    new AttachmentSlugCheck($this->generatedPageRepository())
+                ]
+            )
         );
+    }
+
+    public function preflightPostResolver() : PreflightPostResolver {
+        return $this->shared[__FUNCTION__] ??= new PreflightPostResolver($this->generatedPageRepository());
     }
 
     /**
@@ -608,8 +651,8 @@ final class CompositionRoot {
         return $this->shared[__FUNCTION__] ??= new UtilityController($this->onboardingService(), $this->pageSetRepository());
     }
 
-    public function duplicatedSlugController() : DuplicatedSlugController {
-        return $this->shared[__FUNCTION__] ??= new DuplicatedSlugController($this->duplicateSlugProvider());
+    public function preflightController() : PreflightController {
+        return $this->shared[__FUNCTION__] ??= new PreflightController($this->preflightCheckService());
     }
 
     public function tokenValidator() : TokenValidator {
