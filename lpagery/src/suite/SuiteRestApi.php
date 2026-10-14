@@ -427,13 +427,25 @@ class SuiteRestApi
             return new \WP_Error('invalid_code', 'Invalid or expired code', ['status' => 400]);
         }
 
-        $nonce = $auth_data["nonce"];
-        $nonce_from_request = $request->get_header('X-LPagery-WP-Nonce');
-        if (!$nonce_from_request || $nonce !== $nonce_from_request) {
+        // A code is single-use: burn it on any failure so a leaked code cannot be retried.
+        $nonce = (string)($auth_data["nonce"] ?? '');
+        $nonce_from_request = (string)$request->get_header('X-LPagery-WP-Nonce');
+        if ($nonce === '' || $nonce_from_request === '' || !hash_equals($nonce, $nonce_from_request)) {
+            delete_transient($transient_key);
             return new \WP_Error('invalid_nonce', 'Invalid nonce', ['status' => 403]);
         }
-        $user_id = intval($auth_data["user_id"]);
-        $app_user_mail_address = sanitize_email($auth_data["app_user_mail_address"]);
+        // Claim the code: only the request whose delete actually removed it may mint a token, so two
+        // concurrent exchanges of the same code cannot both succeed.
+        if (!delete_transient($transient_key)) {
+            return new \WP_Error('invalid_code', 'Invalid or expired code', ['status' => 400]);
+        }
+
+        $user_id = intval($auth_data["user_id"] ?? 0);
+        $user = get_user_by('id', $user_id);
+        if (!$user || !user_can($user, 'manage_options')) {
+            return new \WP_Error('lpagery_app_forbidden', 'User cannot authorize this site', ['status' => 403]);
+        }
+        $app_user_mail_address = sanitize_email($auth_data["app_user_mail_address"] ?? '');
 
 
         // Generate a secure random token
@@ -441,8 +453,6 @@ class SuiteRestApi
 
         // Store the hashed token
         $this->store_token($user_id, $token, $app_user_mail_address);
-
-        delete_transient($transient_key);
 
         return rest_ensure_response(['token' => $token,]);
     }

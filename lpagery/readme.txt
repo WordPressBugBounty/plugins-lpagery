@@ -4,7 +4,7 @@ Tags: bulk page, seo, local seo, mass page, programmatic seo
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 3.1.0
+Stable tag: 3.1.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -281,6 +281,9 @@ You can revoke your consent at any time, and the integrations will be disabled i
 We are committed to transparency and your control over your data. For more information, please refer to our Privacy Policy.
 
 == Changelog ==
+
+= 3.1.1 - 2026-10-13 =
+* Security: Fixed missing authorization checks in the LPagery App connection flow (CVE-2026-110019). Thanks to Wordfence for responsible disclosure
 
 = 3.1.0 - 2026-10-09 =
 * Feat: Pre-flight Check. Before a run, LPagery checks your sheet and template and lists Problems to fix and Notes about what it will do. You can still create anyway

@@ -19,6 +19,13 @@ class SuiteOAuthAuthorizeHandler
                 exit;
             }
 
+            // An App Connection acts with this user's rights, so only a site administrator may
+            // grant one. admin_menu fires for every logged-in user, before WordPress checks the
+            // page capability, so the check has to happen here, before anything is minted.
+            if (!current_user_can('manage_options')) {
+                wp_die(esc_html__('You are not allowed to authorize this site.', 'lpagery'), '', ['response' => 403]);
+            }
+
             // Generate a unique code for this authorization
             $code = wp_generate_password(32, false);
             $user_id = get_current_user_id();

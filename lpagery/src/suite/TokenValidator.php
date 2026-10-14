@@ -27,9 +27,19 @@ class TokenValidator
         }
         $bearer_token = str_replace('Bearer ', '', $provided_token);
 
-        $secret_key = lpagery_fs()->get_site()->secret_key;
+        // Without a Freemius site there is no secret, and hashing an empty one yields a
+        // publicly known key that anyone could encrypt a bearer with. Refuse instead.
+        $site = lpagery_fs()->get_site();
+        $secret_key = is_object($site) ? (string)($site->secret_key ?? '') : '';
+        if ($secret_key === '') {
+            return new WP_Error('missing_site_secret', 'Site secret unavailable', array('status' => 401));
+        }
 
-        list($iv_b64, $encrypted_b64) = explode(':', $bearer_token, 2);
+        $bearer_parts = explode(':', $bearer_token, 2);
+        if (count($bearer_parts) !== 2) {
+            return new WP_Error('invalid_token_format', 'Invalid token format', array('status' => 401));
+        }
+        list($iv_b64, $encrypted_b64) = $bearer_parts;
 
         $iv = base64_decode($iv_b64);
         $encrypted_data = base64_decode($encrypted_b64);
@@ -87,7 +97,12 @@ class TokenValidator
         if (!$user) {
             return new WP_Error('user_not_found', 'User not found', array('status' => 401));
         }
-        
+        // An App Connection only keeps working while its user can still administer the site.
+        // This also disarms tokens minted before the authorize flow was capability-gated.
+        if (!user_can($user, 'manage_options')) {
+            return new WP_Error('lpagery_app_forbidden', 'User cannot administer this site', array('status' => 403));
+        }
+
         // Update last used timestamp
         $wpdb->update($table_name, ['last_used_at' => current_time('mysql')], ['id' => $token_record->id]);
         wp_set_current_user($token_record->user_id);
