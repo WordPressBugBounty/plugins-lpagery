@@ -18,6 +18,7 @@ class DbDeltaExecutor
                 last_used_at TIMESTAMP NULL,
                 app_user_mail_address VARCHAR(255) NOT NULL,
                 token VARCHAR(191) NOT NULL,
+                secret VARCHAR(191) NULL,
                 UNIQUE KEY token_unique (token),
                 KEY user_id_index (user_id),
                 PRIMARY KEY (id)
@@ -51,6 +52,8 @@ class DbDeltaExecutor
                 existing_page_update_action VARCHAR(100) DEFAULT 'create' NOT NULL,
                 managing_system VARCHAR(255) DEFAULT 'plugin' NOT NULL,
                 background_run_document LONGTEXT NULL,
+                app_run_creation_id VARCHAR(191) NULL,
+                app_run_last_activity DATETIME NULL,
                 KEY process_post_id (post_id),
                 KEY process_user_id (user_id),
                 PRIMARY KEY (id)

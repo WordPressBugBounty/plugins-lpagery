@@ -27,7 +27,7 @@ function lpagery_require_editor() {
     }
 }
 
-AjaxEndpoint::register('lpagery_sanitize_slug', Cap::none(), 'LPagery\lpagery_sanitize_slug');
+AjaxEndpoint::register('lpagery_sanitize_slug', Cap::editor(), 'LPagery\lpagery_sanitize_slug');
 
 function lpagery_sanitize_slug()
 {
@@ -41,7 +41,7 @@ function lpagery_sanitize_slug()
     return $result;
 }
 
-AjaxEndpoint::register('lpagery_custom_sanitize_title', Cap::none(), 'LPagery\lpagery_custom_sanitize_title');
+AjaxEndpoint::register('lpagery_custom_sanitize_title', Cap::editor(), 'LPagery\lpagery_custom_sanitize_title');
 
 function lpagery_custom_sanitize_title()
 {
@@ -143,7 +143,7 @@ function lpagery_create_posts()
     wp_send_json($result);
 }
 
-AjaxEndpoint::register('lpagery_get_settings', Cap::none(), 'LPagery\lpagery_get_settings');
+AjaxEndpoint::register('lpagery_get_settings', Cap::editor(), 'LPagery\lpagery_get_settings');
 function lpagery_get_settings()
 {
     $settings = lpagery_root()->settingsController()->getSettings();
@@ -160,14 +160,14 @@ function lpagery_run_edge_cache_probe()
     return array("conclusive" => $verdict !== null);
 }
 
-AjaxEndpoint::register('lpagery_get_batch_size', Cap::none(), 'LPagery\lpagery_get_batch_size');
+AjaxEndpoint::register('lpagery_get_batch_size', Cap::editor(), 'LPagery\lpagery_get_batch_size');
 function lpagery_get_batch_size()
 {
     $batch_size = lpagery_root()->settingsController()->getBatchSize();
     return array("batch_size" => $batch_size);
 }
 
-AjaxEndpoint::register('lpagery_get_pages', Cap::none(), 'LPagery\lpagery_get_pages');
+AjaxEndpoint::register('lpagery_get_pages', Cap::editor(), 'LPagery\lpagery_get_pages');
 function lpagery_get_pages()
 {
     $custom_post_types = lpagery_root()->settingsController()->getEnabledCustomPostTypes();
@@ -187,7 +187,7 @@ function lpagery_get_pages()
 }
 
 
-AjaxEndpoint::register('lpagery_get_taxonomy_terms', Cap::none(), 'LPagery\lpagery_get_taxonomy_terms');
+AjaxEndpoint::register('lpagery_get_taxonomy_terms', Cap::editor(), 'LPagery\lpagery_get_taxonomy_terms');
 function lpagery_get_taxonomy_terms()
 {
     $taxonomyController = lpagery_root()->taxonomyController();
@@ -196,7 +196,7 @@ function lpagery_get_taxonomy_terms()
     return $result;
 }
 
-AjaxEndpoint::register('lpagery_get_taxonomies', Cap::none(), 'LPagery\lpagery_get_taxonomies');
+AjaxEndpoint::register('lpagery_get_taxonomies', Cap::editor(), 'LPagery\lpagery_get_taxonomies');
 function lpagery_get_taxonomies()
 {
     $post_type = isset($_POST["post_type"]) ? sanitize_text_field($_POST["post_type"]) : null;
@@ -208,7 +208,7 @@ function lpagery_get_taxonomies()
 }
 
 
-AjaxEndpoint::register('lpagery_search_processes', Cap::none(), 'LPagery\lpagery_search_processes');
+AjaxEndpoint::register('lpagery_search_processes', Cap::editor(), 'LPagery\lpagery_search_processes');
 function lpagery_search_processes()
 {
     $post_id = (int)($_POST['post_id'] ?? null);
@@ -234,7 +234,7 @@ function lpagery_get_overview_snapshot()
     return lpagery_root()->overviewController()->getSnapshot();
 }
 
-AjaxEndpoint::register('lpagery_get_ram_usage', Cap::none(), 'LPagery\lpagery_get_ram_usage');
+AjaxEndpoint::register('lpagery_get_ram_usage', Cap::editor(), 'LPagery\lpagery_get_ram_usage');
 function lpagery_get_ram_usage()
 {
     $utilityController = lpagery_root()->utilityController();
@@ -244,7 +244,7 @@ function lpagery_get_ram_usage()
 }
 
 
-AjaxEndpoint::register('lpagery_get_post_title_as_slug', Cap::none(), 'LPagery\lpagery_get_post_title_as_slug');
+AjaxEndpoint::register('lpagery_get_post_title_as_slug', Cap::editor(), 'LPagery\lpagery_get_post_title_as_slug');
 function lpagery_get_post_title_as_slug()
 {
     $post_id = (int)$_POST['post_id'];
@@ -256,7 +256,7 @@ function lpagery_get_post_title_as_slug()
 }
 
 
-AjaxEndpoint::register('lpagery_get_users', Cap::none(), 'LPagery\lpagery_get_users');
+AjaxEndpoint::register('lpagery_get_users', Cap::editor(), 'LPagery\lpagery_get_users');
 function lpagery_get_users()
 {
     $utilityController = lpagery_root()->utilityController();
@@ -265,7 +265,7 @@ function lpagery_get_users()
     return $users;
 }
 
-AjaxEndpoint::register('lpagery_get_template_posts', Cap::none(), 'LPagery\lpagery_get_template_posts');
+AjaxEndpoint::register('lpagery_get_template_posts', Cap::editor(), 'LPagery\lpagery_get_template_posts');
 function lpagery_get_template_posts()
 {
     $postController = lpagery_root()->postController();
@@ -318,6 +318,7 @@ add_action('wp_ajax_lpagery_download_post_json', 'LPagery\lpagery_download_post_
 function lpagery_download_post_json()
 {
     check_ajax_referer('lpagery_ajax');
+    lpagery_require_editor();
     $process_id = intval($_GET["process_id"]);
 
     $processController = lpagery_root()->processController();
@@ -327,7 +328,7 @@ function lpagery_download_post_json()
 }
 
 
-AjaxEndpoint::register('lpagery_get_users_for_settings', Cap::none(), 'LPagery\lpagery_get_users_for_settings');
+AjaxEndpoint::register('lpagery_get_users_for_settings', Cap::admin(), 'LPagery\lpagery_get_users_for_settings');
 function lpagery_get_users_for_settings()
 {
     $utilityController = lpagery_root()->utilityController();
@@ -337,7 +338,7 @@ function lpagery_get_users_for_settings()
 }
 
 
-AjaxEndpoint::register('lpagery_get_process_details', Cap::none(), 'LPagery\lpagery_get_process_details');
+AjaxEndpoint::register('lpagery_get_process_details', Cap::editor(), 'LPagery\lpagery_get_process_details');
 function lpagery_get_process_details()
 {
     $id = (int)$_POST['id'];
@@ -349,7 +350,7 @@ function lpagery_get_process_details()
 }
 
 
-AjaxEndpoint::register('lpagery_get_post', Cap::none(), 'LPagery\lpagery_get_post');
+AjaxEndpoint::register('lpagery_get_post', Cap::editor(), 'LPagery\lpagery_get_post');
 function lpagery_get_post()
 {
     $post_id = intval($_POST["post_id"]);
@@ -430,7 +431,7 @@ function lpagery_get_all_views()
     return array("success" => true, "views" => $views);
 }
 
-AjaxEndpoint::register('lpagery_get_fresh_nonce', Cap::none(), 'LPagery\lpagery_get_fresh_nonce');
+AjaxEndpoint::register('lpagery_get_fresh_nonce', Cap::editor(), 'LPagery\lpagery_get_fresh_nonce');
 function lpagery_get_fresh_nonce()
 {
     $nonce = wp_create_nonce('lpagery_ajax');
@@ -440,7 +441,7 @@ function lpagery_get_fresh_nonce()
 
 
 // App Tokens AJAX Actions
-AjaxEndpoint::register('lpagery_fetch_app_tokens', Cap::none(), 'LPagery\lpagery_fetch_app_tokens_ajax');
+AjaxEndpoint::register('lpagery_fetch_app_tokens', Cap::editor(), 'LPagery\lpagery_fetch_app_tokens_ajax');
 function lpagery_fetch_app_tokens_ajax()
 {
     $tokens = lpagery_root()->appTokenRepository()->getAllAppTokens();
@@ -448,7 +449,7 @@ function lpagery_fetch_app_tokens_ajax()
     return $tokens;
 }
 
-AjaxEndpoint::register('lpagery_revoke_app_token', Cap::none(), 'LPagery\lpagery_revoke_app_token_ajax');
+AjaxEndpoint::register('lpagery_revoke_app_token', Cap::editor(), 'LPagery\lpagery_revoke_app_token_ajax');
 function lpagery_revoke_app_token_ajax()
 {
     if (!current_user_can('manage_options')) {

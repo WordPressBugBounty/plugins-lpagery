@@ -29,10 +29,19 @@ class PreflightPostResolver
      */
     public function resolve_parents(array $terms, string $post_type): array
     {
+        return $this->ids($this->resolve_parent_posts($terms, $post_type));
+    }
+
+    /**
+     * @param string[] $terms distinct, already substituted values
+     * @return array<string, array{id: int, title: string}> term => parent post, for the terms that resolve
+     */
+    public function resolve_parent_posts(array $terms, string $post_type): array
+    {
         if (empty($terms) || !is_post_type_hierarchical($post_type)) {
             return [];
         }
-        return $this->resolve($terms, $post_type);
+        return $this->resolve_posts($terms, $post_type);
     }
 
     /**
@@ -40,6 +49,15 @@ class PreflightPostResolver
      * @return array<string, int> term => post id, for the terms that resolve
      */
     public function resolve(array $terms, string $post_type): array
+    {
+        return $this->ids($this->resolve_posts($terms, $post_type));
+    }
+
+    /**
+     * @param string[] $terms distinct, already substituted values
+     * @return array<string, array{id: int, title: string}> term => post, for the terms that resolve
+     */
+    public function resolve_posts(array $terms, string $post_type): array
     {
         if (empty($terms)) {
             return [];
@@ -62,11 +80,11 @@ class PreflightPostResolver
             $names_by_term[$term] = sanitize_title($term);
         }
 
-        $parents = [];
-        $existing_ids = empty($ids_by_term) ? [] : array_flip($this->generatedPageRepository->find_post_ids_by_ids(array_values(array_unique($ids_by_term))));
+        $posts = [];
+        $titles_by_id = empty($ids_by_term) ? [] : $this->generatedPageRepository->find_post_titles_by_ids(array_values(array_unique($ids_by_term)));
         foreach ($ids_by_term as $term => $post_id) {
-            if (isset($existing_ids[$post_id])) {
-                $parents[$term] = $post_id;
+            if (isset($titles_by_id[$post_id])) {
+                $posts[$term] = ['id' => $post_id, 'title' => $titles_by_id[$post_id]];
             } elseif (is_numeric($term)) {
                 // A number that is no post id may still be a slug.
                 $names_by_term[$term] = sanitize_title((string)$term);
@@ -74,14 +92,25 @@ class PreflightPostResolver
         }
 
         if (!empty($names_by_term)) {
-            $ids_by_name = $this->generatedPageRepository->find_post_ids_by_names(array_values(array_unique($names_by_term)), $post_type);
+            $posts_by_name = $this->generatedPageRepository->find_posts_by_names(array_values(array_unique($names_by_term)), $post_type);
             foreach ($names_by_term as $term => $name) {
-                if (isset($ids_by_name[$name])) {
-                    $parents[$term] = $ids_by_name[$name];
+                if (isset($posts_by_name[$name])) {
+                    $posts[$term] = $posts_by_name[$name];
                 }
             }
         }
 
-        return $parents;
+        return $posts;
+    }
+
+    /**
+     * @param array<string, array{id: int, title: string}> $posts
+     * @return array<string, int>
+     */
+    private function ids(array $posts): array
+    {
+        return array_map(function ($post) {
+            return $post['id'];
+        }, $posts);
     }
 }

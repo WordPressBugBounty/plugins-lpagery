@@ -4,7 +4,7 @@ Tags: bulk page, seo, local seo, mass page, programmatic seo
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 3.1.1
+Stable tag: 3.1.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -281,6 +281,15 @@ You can revoke your consent at any time, and the integrations will be disabled i
 We are committed to transparency and your control over your data. For more information, please refer to our Privacy Policy.
 
 == Changelog ==
+
+= 3.1.2 - 2026-10-16 =
+* Security: LPagery's admin AJAX endpoints now require page editing rights (the user list requires administrator rights)
+* Security: The "LPagery: Export Template Page" link in post lists is now only shown to users who can edit that page
+* Feat: The LPagery App can now search and resolve authors, Template Pages, parents, taxonomy terms and media library images on your site
+* Improvement: App Connections now use a separate secret per token for stronger authentication
+* Fix: Creating pages from the LPagery App no longer fails on the first page
+* Fix: An App run that stops partway no longer blocks its page set. After 30 minutes without activity it is released and shown as Error in Manage
+* Fix: Removed a PHP notice ("wpdb::prepare was called incorrectly") that appeared on every LPagery admin page
 
 = 3.1.1 - 2026-10-13 =
 * Security: Fixed missing authorization checks in the LPagery App connection flow (CVE-2026-110019). Thanks to Wordfence for responsible disclosure

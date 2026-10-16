@@ -128,9 +128,11 @@ class LPageryDatabaseMigrator
         // (v20); the per-page `spin_seed` shipped as v21, the installation date option as v22, and
         // the latest step adds the (template_id, modified) index behind the Template Page
         // pending-changes check (v23); v24 shrinks the two indexes that broke MyISAM's 1000-byte key
-        // limit, raising the ceiling to 24.
+        // limit, v25 adds the per-token `secret` to the App Connection tokens, v26 adds the App Run on
+        // record (`app_run_creation_id`) to lpagery_process, and v27 adds that run's last activity
+        // (`app_run_last_activity`), raising the ceiling to 27.
         $db_version = intval(get_option("lpagery_database_version", 0));
-        if ($db_version >= 24) {
+        if ($db_version >= 27) {
             return;
         }
 
@@ -641,6 +643,50 @@ class LPageryDatabaseMigrator
             if ($meta_converged && $hashed_converged) {
                 update_option("lpagery_database_version", 24);
                 $db_version = 24;
+            }
+        }
+
+        // v25: the per-token `secret` on lpagery_app_tokens. Each App Connection token carries its own
+        // random secret, so the bearer no longer depends on the Freemius site secret and one stored
+        // credential authenticates against both this plugin and the WP Connector, which shares the
+        // table. The connector may have added the column first, so the add is guarded; the version
+        // advances only once the column is really there, so a failed ALTER is retried on the next load.
+        if ($db_version >= 24 && $db_version < 25 && $this->lpagery_table_exists_migrate($table_name_app_tokens)) {
+            if (!$this->lpagery_column_exists_migrate($table_name_app_tokens, "secret")) {
+                $wpdb->query("ALTER TABLE $table_name_app_tokens ADD COLUMN secret VARCHAR(191) NULL");
+            }
+            if ($this->lpagery_column_exists_migrate($table_name_app_tokens, "secret")) {
+                update_option("lpagery_database_version", 25);
+                $db_version = 25;
+            }
+        }
+
+        // v26: the App Run on record on lpagery_process (issue #305). When the LPagery App's first page
+        // takes a Page Set, the run's creation_id is stored here as the run holding the set, so a retried
+        // first page of that same run is let back in while any other run is rejected. Gated on
+        // $db_version >= 25 so a failed earlier step can't skip it; the add is guarded and the version
+        // advances only once the column is really there, so a failed ALTER is retried on the next load.
+        if ($db_version >= 25 && $db_version < 26 && $this->lpagery_table_exists_migrate($table_name_process)) {
+            if (!$this->lpagery_column_exists_migrate($table_name_process, "app_run_creation_id")) {
+                $wpdb->query("ALTER TABLE $table_name_process ADD COLUMN app_run_creation_id VARCHAR(191) NULL");
+            }
+            if ($this->lpagery_column_exists_migrate($table_name_process, "app_run_creation_id")) {
+                update_option("lpagery_database_version", 26);
+                $db_version = 26;
+            }
+        }
+
+        // v27: the App Run's last activity on lpagery_process (issue #309). Every accepted App page stamps
+        // it, and a run silent for 30 minutes is Abandoned and stops holding its Page Set. Gated on
+        // $db_version >= 26 like v26; the add is guarded and the version advances only once the column is
+        // really there, so a failed ALTER is retried on the next load.
+        if ($db_version >= 26 && $db_version < 27 && $this->lpagery_table_exists_migrate($table_name_process)) {
+            if (!$this->lpagery_column_exists_migrate($table_name_process, "app_run_last_activity")) {
+                $wpdb->query("ALTER TABLE $table_name_process ADD COLUMN app_run_last_activity DATETIME NULL");
+            }
+            if ($this->lpagery_column_exists_migrate($table_name_process, "app_run_last_activity")) {
+                update_option("lpagery_database_version", 27);
+                $db_version = 27;
             }
         }
     }

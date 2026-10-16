@@ -46,6 +46,10 @@ use LPagery\service\preflight\check\TemplatePlaceholderCheck;
 use LPagery\service\preflight\PreflightCheckService;
 use LPagery\service\preflight\PreflightPostResolver;
 use LPagery\service\preflight\PreflightRowResolver;
+use LPagery\service\preflight\PreflightUserResolver;
+use LPagery\service\lookup\LookupService;
+use LPagery\service\lookup\MediaLookup;
+use LPagery\service\lookup\TermLookup;
 use LPagery\service\preflight\TemplateScanner;
 use LPagery\service\DynamicPageAttributeHandler;
 use LPagery\service\FindPostService;
@@ -236,6 +240,18 @@ final class CompositionRoot {
 
     public function preflightPostResolver() : PreflightPostResolver {
         return $this->shared[__FUNCTION__] ??= new PreflightPostResolver($this->generatedPageRepository());
+    }
+
+    /**
+     * The App Connection's picker lookups. FREE: lookups, not features, so not tier-gated.
+     */
+    public function lookupService() : LookupService {
+        return $this->shared[__FUNCTION__] ??= new LookupService(
+            new PreflightUserResolver(),
+            $this->preflightPostResolver(),
+            new TermLookup($this->multilingualPlugin()),
+            new MediaLookup($this->attachmentBasenameService())
+        );
     }
 
     /**
@@ -572,7 +588,7 @@ final class CompositionRoot {
     }
 
     public function pageSetRepository() : PageSetRepository {
-        return $this->shared[__FUNCTION__] ??= new PageSetRepository();
+        return $this->shared[__FUNCTION__] ??= new PageSetRepository($this->syncQueueRepository());
     }
 
     public function appTokenRepository() : AppTokenRepository {

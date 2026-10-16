@@ -17,6 +17,17 @@ class PreflightUserResolver
      */
     public function find_users(array $values): array
     {
+        return array_map('strval', array_keys($this->resolve_users($values)));
+    }
+
+    /**
+     * The user each value names, keyed by the value. A value that names no user is left out.
+     *
+     * @param string[] $values distinct values
+     * @return array<string, array{id: int, display_name: string}>
+     */
+    public function resolve_users(array $values): array
+    {
         global $wpdb;
         $values = array_values(array_unique(array_map('strval', $values)));
         if (empty($values)) {
@@ -30,22 +41,33 @@ class PreflightUserResolver
             $in_ids = empty($ids) ? '0' : implode(', ', array_fill(0, count($ids), '%d'));
             $in_values = implode(', ', array_fill(0, count($chunk), '%s'));
             $users = array_merge($users, $wpdb->get_results($wpdb->prepare(
-                "SELECT ID, user_login, user_email FROM $wpdb->users
+                "SELECT ID, user_login, user_email, display_name FROM $wpdb->users
                  WHERE ID IN ($in_ids) OR user_email IN ($in_values) OR user_login IN ($in_values)",
                 array_merge($ids, $chunk, $chunk)
             )) ?: []);
         }
 
         // Email and login compare without case, like the database does.
-        $names = [];
-        $found_ids = [];
+        $by_id = [];
+        $by_email = [];
+        $by_login = [];
         foreach ($users as $user) {
-            $found_ids[(int)$user->ID] = true;
-            $names[strtolower((string)$user->user_email)] = true;
-            $names[strtolower((string)$user->user_login)] = true;
+            $found = ['id' => (int)$user->ID, 'display_name' => (string)$user->display_name];
+            $by_id[(int)$user->ID] = $found;
+            $by_email[strtolower((string)$user->user_email)] = $found;
+            $by_login[strtolower((string)$user->user_login)] = $found;
         }
-        return array_values(array_filter($values, function ($value) use ($found_ids, $names) {
-            return (is_numeric($value) && isset($found_ids[(int)$value])) || isset($names[strtolower($value)]);
-        }));
+        $resolved = [];
+        foreach ($values as $value) {
+            $key = strtolower($value);
+            if (is_numeric($value) && isset($by_id[(int)$value])) {
+                $resolved[$value] = $by_id[(int)$value];
+            } elseif (isset($by_email[$key])) {
+                $resolved[$value] = $by_email[$key];
+            } elseif (isset($by_login[$key])) {
+                $resolved[$value] = $by_login[$key];
+            }
+        }
+        return $resolved;
     }
 }

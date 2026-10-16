@@ -40,6 +40,14 @@ class PageSetRepository
      */
     private $table_exists = null;
 
+    /** Supplies the Abandoned App Run condition behind the listed effective status (issue #309). */
+    private SyncQueueRepository $syncQueueRepository;
+
+    public function __construct(?SyncQueueRepository $syncQueueRepository = null)
+    {
+        $this->syncQueueRepository = $syncQueueRepository ?? new SyncQueueRepository();
+    }
+
     /**
      * Persist a Page Set (insert when `$process_id <= 0`, otherwise update). PERSIST ONLY — the slug
      * substitution/validation lives in the controller now (Design D); this method just writes what it
@@ -163,10 +171,15 @@ class PageSetRepository
         }
         $where_query_text .= ' ORDER BY created desc';
 
+        // An Abandoned App Run is listed as the ERROR it will be stored as once a lock check releases it
+        // (issue #309), so Manage never keeps showing a dead run as Running while nothing has written yet.
+        list($abandoned, $abandoned_params) = $this->syncQueueRepository->abandoned_app_run_condition('lp');
+
         $query = "SELECT id,
                user_id,
                google_sheet_sync_enabled,
-               google_sheet_sync_status,
+               CASE WHEN $abandoned THEN 'ERROR' ELSE google_sheet_sync_status END AS google_sheet_sync_status,
+               CASE WHEN $abandoned THEN %s ELSE google_sheet_sync_error END AS google_sheet_sync_error,
                last_google_sheet_sync,
                google_sheet_data,
                data,
@@ -184,9 +197,11 @@ class PageSetRepository
                 " . $this->template_footprint_subquery() . " AS template_footprint_bytes
             FROM $table_name_process lp $where_query_text";
 
-        // The footprint's LIKE pattern sits in the SELECT list, i.e. ahead of every WHERE
-        // placeholder, so it is the first prepared argument and the query is ALWAYS prepared.
-        array_unshift($params, $wpdb->esc_like('_lpagery_') . '%');
+        // The effective-status cutoffs, the abandonment message and the footprint's LIKE pattern sit
+        // in the SELECT list, i.e. ahead of every WHERE placeholder, so they are the first prepared
+        // arguments, in SELECT order, and the query is ALWAYS prepared.
+        $params = array_merge($abandoned_params, $abandoned_params, array(SyncQueueRepository::APP_RUN_ABANDONED_MESSAGE),
+            array($wpdb->esc_like('_lpagery_') . '%'), $params);
         $query = $wpdb->prepare($query, ...$params);
 
         return $wpdb->get_results($query);
@@ -284,8 +299,7 @@ class PageSetRepository
     {
         global $wpdb;
         $table_name_process = $wpdb->prefix . 'lpagery_process';
-        $prepare = $wpdb->prepare("SELECT count(*) as count FROM $table_name_process");
-        $rows = $wpdb->get_results($prepare);
+        $rows = $wpdb->get_results("SELECT count(*) as count FROM $table_name_process");
         // A failed read answers an empty set, exactly like an empty table would not (count(*) always
         // yields one row); only last_error tells the Overview it must not report zero Page Sets.
         if ($wpdb->last_error) {
@@ -479,8 +493,7 @@ class PageSetRepository
     {
         global $wpdb;
         $table_name_process = $wpdb->prefix . 'lpagery_process';
-        $prepare = $wpdb->prepare("SELECT created FROM $table_name_process order by created asc limit 1");
-        $results = $wpdb->get_results($prepare);
+        $results = $wpdb->get_results("SELECT created FROM $table_name_process order by created asc limit 1");
         if (empty($results)) {
             return null;
         }

@@ -3,8 +3,10 @@
 namespace LPagery\suite;
 
 use LPagery\io\Mapper;
+use LPagery\service\lookup\LookupService;
 use LPagery\service\settings\SettingsController;
 use LPagery\service\preflight\PreflightRequest;
+use LPagery\service\queue\BackgroundOperationInProgressException;
 
 class SuiteRestApi
 {
@@ -64,6 +66,11 @@ class SuiteRestApi
                 'create_page'],
             'permission_callback' => [$this, 'check_token_permission'],]);
 
+        register_rest_route('lpagery/app/v1', '/abort_run', ['methods' => 'POST',
+            'callback' => [$this,
+                'abort_run'],
+            'permission_callback' => [$this, 'check_token_permission'],]);
+
         register_rest_route('lpagery/app/v1', '/disconnect_page_set', ['methods' => 'POST',
             'callback' => [$this,
                 'disconnect_page_set'],
@@ -104,6 +111,21 @@ class SuiteRestApi
         register_rest_route('lpagery/app/v1', '/get_process_data', ['methods' => 'POST',
             'callback' => [$this,
                 'get_process_data'],
+            'permission_callback' => [$this, 'check_token_permission'],]);
+
+        register_rest_route('lpagery/app/v1', '/get_users', ['methods' => 'POST',
+            'callback' => [$this,
+                'get_users'],
+            'permission_callback' => [$this, 'check_token_permission'],]);
+
+        register_rest_route('lpagery/app/v1', '/resolve_values', ['methods' => 'POST',
+            'callback' => [$this,
+                'resolve_values'],
+            'permission_callback' => [$this, 'check_token_permission'],]);
+
+        register_rest_route('lpagery/app/v1', '/search_media', ['methods' => 'POST',
+            'callback' => [$this,
+                'search_media'],
             'permission_callback' => [$this, 'check_token_permission'],]);
 
     }
@@ -187,11 +209,30 @@ class SuiteRestApi
         return rest_ensure_response($result);
     }
 
+    /**
+     * Without lookup params, every taxonomy's terms as before. With them, the term picker: one
+     * taxonomy's terms with their `Parent>Child` paths, searched and paged.
+     */
     public function get_taxonomy_terms(\WP_REST_Request $request)
     {
+        $json_params = $request->get_json_params() ?: [];
+        if (empty(array_intersect(['taxonomy', 'search', 'page', 'per_page', 'language'], array_keys($json_params)))) {
+            $result = lpagery_root()->taxonomyController()->getTaxonomyTerms();
 
-        $result = lpagery_root()->taxonomyController()->getTaxonomyTerms();
+            return rest_ensure_response($result);
+        }
 
+        [$page, $per_page] = $this->lookup_paging($json_params);
+        try {
+            $result = lpagery_root()->lookupService()->search_terms(
+                $this->lookup_context($json_params),
+                sanitize_text_field($json_params['search'] ?? ''),
+                $page,
+                $per_page
+            );
+        } catch (\InvalidArgumentException $exception) {
+            return new \WP_Error('lpagery_invalid_lookup', $exception->getMessage(), ['status' => 400]);
+        }
         return rest_ensure_response($result);
     }
 
@@ -276,11 +317,21 @@ class SuiteRestApi
         try {
             $createPostController = lpagery_root()->createPostController();
             $index = intval($json_params["index"]);
+            $process_id = (int)$json_params['process_id'];
+            $creation_id = sanitize_text_field((string)($json_params['creation_id'] ?? ''));
+            // The App Run takes the Page Set on its first page and holds it until its last (#305), so
+            // later pages skip the per-set lock that the run's own RUNNING status would trip. A retried
+            // first page of the same run is let back in; any other run on a busy set is rejected. Later
+            // pages are accepted only from the run holding the set, and every accepted page records the
+            // run's last activity, so a run that goes silent is Abandoned (#309).
             if ($index == 0) {
-                $process_id = (int)$json_params['process_id'];
-                lpagery_root()->syncQueueRepository()->update_process_sync_status($process_id, "RUNNING");
+                if (!lpagery_root()->syncQueueRepository()->try_acquire_app_run($process_id, $creation_id)) {
+                    throw new BackgroundOperationInProgressException();
+                }
+            } elseif (!lpagery_root()->syncQueueRepository()->touch_app_run($process_id, $creation_id)) {
+                throw new AppRunNotHoldingSetException();
             }
-            $result = $createPostController->lpagery_create_posts_ajax($json_params);
+            $result = $createPostController->create_posts_holding_lock($json_params);
             $ob_get_contents = ob_get_clean();
         } catch (\Throwable $exception) {
             {
@@ -295,6 +346,23 @@ class SuiteRestApi
 
 
         return rest_ensure_response($result);
+    }
+
+    /**
+     * The App aborts its own App Run (issue #309): when `creation_id` is the run holding the Page Set,
+     * the set is released and its sync status becomes ERROR with the abort message. Any other call (an
+     * unknown, finished or superseded run) changes nothing and still succeeds, so the App may retry it;
+     * `aborted` says whether this call ended the run.
+     */
+    public function abort_run(\WP_REST_Request $request)
+    {
+        $json_params = $request->get_json_params();
+        $process_id = (int)($json_params['process_id'] ?? 0);
+        $creation_id = sanitize_text_field((string)($json_params['creation_id'] ?? ''));
+
+        $aborted = lpagery_root()->syncQueueRepository()->abort_app_run($process_id, $creation_id);
+
+        return rest_ensure_response(["success" => true, "aborted" => $aborted]);
     }
 
     public function delete_pages(\WP_REST_Request $request)
@@ -413,6 +481,82 @@ class SuiteRestApi
             "headers" => $headers));
     }
 
+    /**
+     * The author picker: users who can author the post type of `post_type` or of the Template
+     * Page `template_id`, searched and paged.
+     */
+    public function get_users(\WP_REST_Request $request)
+    {
+        $json_params = $request->get_json_params() ?: [];
+        [$page, $per_page] = $this->lookup_paging($json_params);
+        try {
+            $result = lpagery_root()->lookupService()->search_users(
+                $this->lookup_context($json_params),
+                sanitize_text_field($json_params['search'] ?? ''),
+                $page,
+                $per_page
+            );
+        } catch (\InvalidArgumentException $exception) {
+            return new \WP_Error('lpagery_invalid_lookup', $exception->getMessage(), ['status' => 400]);
+        }
+        return rest_ensure_response($result);
+    }
+
+    /**
+     * Checks one column's values against the site in one request. The values are left as sent,
+     * because each answer is keyed by its value exactly as the App sent it.
+     */
+    public function resolve_values(\WP_REST_Request $request)
+    {
+        $json_params = $request->get_json_params() ?: [];
+        $values = is_array($json_params['values'] ?? null) ? $json_params['values'] : [];
+        $values = array_values(array_map('strval', array_filter($values, 'is_scalar')));
+        try {
+            $result = lpagery_root()->lookupService()->resolve_values(
+                sanitize_text_field($json_params['kind'] ?? ''),
+                $values,
+                $this->lookup_context($json_params)
+            );
+        } catch (\InvalidArgumentException $exception) {
+            return new \WP_Error('lpagery_invalid_lookup', $exception->getMessage(), ['status' => 400]);
+        }
+        return rest_ensure_response($result);
+    }
+
+    /**
+     * The media picker: the media library's images, searched by title and file name and paged.
+     */
+    public function search_media(\WP_REST_Request $request)
+    {
+        $json_params = $request->get_json_params() ?: [];
+        [$page, $per_page] = $this->lookup_paging($json_params);
+        $result = lpagery_root()->lookupService()->search_media(sanitize_text_field($json_params['search'] ?? ''), $page, $per_page);
+        return rest_ensure_response($result);
+    }
+
+    /**
+     * @return array<string, mixed> what a lookup runs against
+     */
+    private function lookup_context(array $json_params): array
+    {
+        return [
+            'post_type' => sanitize_text_field($json_params['post_type'] ?? ''),
+            'template_id' => intval($json_params['template_id'] ?? 0),
+            'taxonomy' => sanitize_text_field($json_params['taxonomy'] ?? ''),
+            'language' => sanitize_text_field($json_params['language'] ?? ''),
+        ];
+    }
+
+    /**
+     * @return int[] the 1-based page and the page size, capped
+     */
+    private function lookup_paging(array $json_params): array
+    {
+        $page = max(1, intval($json_params['page'] ?? 1));
+        $per_page = intval($json_params['per_page'] ?? LookupService::DEFAULT_PER_PAGE);
+        return [$page, min(LookupService::MAX_PER_PAGE, max(1, $per_page))];
+    }
+
     public function exchange_token(\WP_REST_Request $request)
     {
 
@@ -448,15 +592,18 @@ class SuiteRestApi
         $app_user_mail_address = sanitize_email($auth_data["app_user_mail_address"] ?? '');
 
 
-        // Generate a secure random token
+        // Generate a secure random token and a per-token transport secret
         $token = wp_generate_password(32, false);
+        $secret = wp_generate_password(64, false);
 
-        // Store the hashed token
-        $this->store_token($user_id, $token, $app_user_mail_address);
+        // Store the hashed token together with its per-token secret
+        $token_id = $this->store_token($user_id, $token, $app_user_mail_address, $secret);
 
-        return rest_ensure_response(['token' => $token,]);
+        // Echo the per-token secret once so the app can encrypt new-style bearers
+        // with it; only its stored copy remains on the row afterwards (issue #187).
+        return rest_ensure_response(['token' => $token, 'id' => $token_id, 'secret' => $secret, 'supports_per_token_secret' => true]);
     }
-    private function store_token($user_id, $token, $app_user_mail_address)
+    private function store_token($user_id, $token, $app_user_mail_address, $secret)
     {
         // Use SHA-256 for API tokens instead of bcrypt - much faster for high-entropy tokens
         $hashed_token = hash('sha256', $token);
@@ -465,7 +612,10 @@ class SuiteRestApi
         $table_name = $wpdb->prefix . 'lpagery_app_tokens';
         $wpdb->insert($table_name, ['user_id' => $user_id,
             'token' => $hashed_token,
-            'app_user_mail_address' => $app_user_mail_address,]);
+            'app_user_mail_address' => $app_user_mail_address,
+            'secret' => $secret,]);
+
+        return (int) $wpdb->insert_id;
     }
 
 }

@@ -1032,17 +1032,30 @@ class GeneratedPageRepository
      */
     public function find_post_ids_by_ids(array $ids): array
     {
+        return array_keys($this->find_post_titles_by_ids($ids));
+    }
+
+    /**
+     * The title of each of `$ids` that names a post {@see find_post_ids_by_ids()} accepts.
+     *
+     * @param int[] $ids
+     * @return array<int, string> post id => post title
+     */
+    public function find_post_titles_by_ids(array $ids): array
+    {
         global $wpdb;
 
         $found = array();
         foreach (array_chunk(array_values(array_unique(array_map('intval', $ids))), self::SLUG_CHUNK_SIZE) as $chunk) {
             $in = implode(', ', array_fill(0, count($chunk), '%d'));
-            $query = "SELECT p.ID FROM $wpdb->posts p
+            $query = "SELECT p.ID AS id, p.post_title FROM $wpdb->posts p
                 WHERE p.ID IN ($in)
                     AND p.post_status IN ('private', 'draft', 'publish')";
-            $found = array_merge($found, $wpdb->get_col($wpdb->prepare($query, $chunk)));
+            foreach ($wpdb->get_results($wpdb->prepare($query, $chunk)) ?: array() as $post) {
+                $found[(int)$post->id] = (string)$post->post_title;
+            }
         }
-        return array_map('intval', $found);
+        return $found;
     }
 
     /**
@@ -1054,20 +1067,33 @@ class GeneratedPageRepository
      */
     public function find_post_ids_by_names(array $names, string $post_type): array
     {
+        return array_map(function ($post) {
+            return $post['id'];
+        }, $this->find_posts_by_names($names, $post_type));
+    }
+
+    /**
+     * The id and title of the post {@see find_post_ids_by_names()} picks for each of `$names`.
+     *
+     * @param string[] $names
+     * @return array<string, array{id: int, title: string}> lowercased slug => post
+     */
+    public function find_posts_by_names(array $names, string $post_type): array
+    {
         global $wpdb;
 
         $found = array();
         $names = array_values(array_unique(array_map('strtolower', $names)));
         foreach (array_chunk($names, self::SLUG_CHUNK_SIZE) as $chunk) {
             $in = implode(', ', array_fill(0, count($chunk), '%s'));
-            $query = "SELECT p.ID AS id, LOWER(p.post_name) AS post_name FROM $wpdb->posts p
+            $query = "SELECT p.ID AS id, LOWER(p.post_name) AS post_name, p.post_title FROM $wpdb->posts p
                 WHERE p.post_name IN ($in)
                     AND p.post_type = %s
                     AND p.post_status IN ('publish', 'draft', 'private')
                 ORDER BY p.post_date, p.ID";
             foreach ($wpdb->get_results($wpdb->prepare($query, array_merge($chunk, array($post_type)))) ?: array() as $post) {
                 if (!isset($found[$post->post_name])) {
-                    $found[$post->post_name] = (int)$post->id;
+                    $found[$post->post_name] = array('id' => (int)$post->id, 'title' => (string)$post->post_title);
                 }
             }
         }

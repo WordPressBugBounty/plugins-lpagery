@@ -17,6 +17,17 @@ use LPagery\service\queue\QueueOperation;
  */
 class SyncQueueRepository
 {
+    /** @var callable(): int the current time as unix seconds; injectable so tests move it instead of sleeping */
+    private $clock;
+
+    /**
+     * @param callable(): int|null $clock the current time as unix seconds (defaults to `time()`)
+     */
+    public function __construct(?callable $clock = null)
+    {
+        $this->clock = $clock ?? 'time';
+    }
+
     public function save_process_sheet_data($process_id, $google_sheet_data, $google_sheet_sync_enabled)
     {
         global $wpdb;
@@ -64,13 +75,20 @@ class SyncQueueRepository
     {
         global $wpdb;
         $table_name_process = $wpdb->prefix . 'lpagery_process';
+        // A run that ends lets go of the set, so the App Run on record (#305) and its last activity
+        // (#309) are cleared with it: a later RUNNING written by another operation must not read as that
+        // App Run still holding it.
         if ($status == "ERROR") {
             $wpdb->update($table_name_process, array("google_sheet_sync_status" => $status,
-                "google_sheet_sync_error" => $error), array("id" => $process_id));
+                "google_sheet_sync_error" => $error,
+                "app_run_creation_id" => null,
+                "app_run_last_activity" => null), array("id" => $process_id));
         } elseif ($status == "FINISHED") {
             $wpdb->update($table_name_process, array("google_sheet_sync_status" => $status,
                 "google_sheet_sync_error" => null,
-                "last_google_sheet_sync" => current_time('mysql', true)), array("id" => $process_id));
+                "last_google_sheet_sync" => current_time('mysql', true),
+                "app_run_creation_id" => null,
+                "app_run_last_activity" => null), array("id" => $process_id));
         } else {
             $wpdb->update($table_name_process, array("google_sheet_sync_status" => $status), array("id" => $process_id));
         }
@@ -110,13 +128,12 @@ class SyncQueueRepository
     {
         global $wpdb;
         $table_name_process = $wpdb->prefix . 'lpagery_process';
-        $prepare = $wpdb->prepare("SELECT EXISTS (
+        $result = (array)$wpdb->get_results("SELECT EXISTS (
                 SELECT id
                 FROM $table_name_process
                 WHERE google_sheet_sync_enabled
                 AND google_sheet_sync_status IN ('DOWNLOADING_DATA', 'CRON_STARTED')
-            ) as is_syncing;");
-        $result = (array)$wpdb->get_results($prepare)[0];
+            ) as is_syncing;")[0];
         return boolval($result['is_syncing']);
     }
 
@@ -320,13 +337,24 @@ class SyncQueueRepository
      */
     private const ACTIVE_STATUSES = array('QUEUED', 'PLANNED', 'CRON_STARTED', 'DOWNLOADING_DATA', 'WAITING_FOR_PROCESSING', 'RUNNING');
 
+    /** An App Run silent for longer than this is Abandoned and stops holding its Page Set (issue #309). */
+    public const APP_RUN_ABANDON_AFTER_SECONDS = 1800;
+
+    /** The sync error an Abandoned App Run leaves on its Page Set. */
+    public const APP_RUN_ABANDONED_MESSAGE = 'The LPagery App stopped sending pages for 30 minutes, so this run was abandoned. Pages created before that are kept.';
+
+    /** The sync error an App Run aborted by the App leaves on its Page Set. */
+    public const APP_RUN_ABORTED_MESSAGE = 'The LPagery App aborted this run. Pages created before that are kept.';
+
     /**
      * True when the Page Set has any queued/running operation — the lock every producer (browser run,
      * background enqueue) checks: an in-flight run-record status, or queued items in the shared queue.
-     * One active operation per set is the concurrency contract.
+     * One active operation per set is the concurrency contract. An Abandoned App Run does not count: it
+     * is released first, storing ERROR with the abandonment message (issue #309).
      */
     public function has_active_operation(int $process_id): bool
     {
+        $this->release_abandoned_app_run($process_id);
         global $wpdb;
         $table_name_process = $wpdb->prefix . 'lpagery_process';
         $table_name_sync_queue = $wpdb->prefix . 'lpagery_sync_queue';
@@ -369,10 +397,12 @@ class SyncQueueRepository
      * Atomically claim the per-set lock for a background run, the moment the upload begins. A single
      * conditional UPDATE flips the run-record status to QUEUED only when the set has no in-flight status
      * and no queued items — so two producers can't both win, and nothing races mid-upload. Returns true
-     * when this caller acquired the lock, false when the set is already busy (reject the enqueue).
+     * when this caller acquired the lock, false when the set is already busy (reject the enqueue). An
+     * Abandoned App Run is released first and does not count as busy (issue #309).
      */
     public function try_acquire_background_lock(int $process_id): bool
     {
+        $this->release_abandoned_app_run($process_id);
         global $wpdb;
         $table_name_process = $wpdb->prefix . 'lpagery_process';
         $table_name_sync_queue = $wpdb->prefix . 'lpagery_sync_queue';
@@ -387,6 +417,166 @@ class SyncQueueRepository
             ...$params
         ));
         return $affected === 1;
+    }
+
+    /**
+     * Claim the per-set lock for an App Run on its first page (issue #305) and record the run's
+     * `creation_id` on the set as the run that holds it. One conditional UPDATE flips the set to RUNNING
+     * when it is free (the same test as {@see self::try_acquire_background_lock()}) or when the App Run
+     * on record is this same run, so a retried first page whose response was lost is let back in.
+     * An Abandoned App Run is released first (issue #309), and the run's last activity is stamped.
+     * Returns false when another operation or another App Run holds the set, or when the run has no
+     * `creation_id` to be recognised by (reject the page).
+     */
+    public function try_acquire_app_run(int $process_id, string $creation_id): bool
+    {
+        if ($creation_id === '') {
+            return false;
+        }
+        $this->release_abandoned_app_run($process_id);
+        global $wpdb;
+        $table_name_process = $wpdb->prefix . 'lpagery_process';
+        $table_name_sync_queue = $wpdb->prefix . 'lpagery_sync_queue';
+        $placeholders = implode(',', array_fill(0, count(self::ACTIVE_STATUSES), '%s'));
+        $params = array_merge(array($creation_id, $this->now_utc(), $process_id), self::ACTIVE_STATUSES,
+            array($process_id, $creation_id));
+        $affected = $wpdb->query($wpdb->prepare(
+            "UPDATE $table_name_process
+             SET google_sheet_sync_status = 'RUNNING', app_run_creation_id = %s, app_run_last_activity = %s
+             WHERE id = %d
+               AND (
+                    ((google_sheet_sync_status IS NULL OR google_sheet_sync_status NOT IN ($placeholders))
+                     AND NOT EXISTS (SELECT 1 FROM $table_name_sync_queue WHERE process_id = %d))
+                 OR (google_sheet_sync_status = 'RUNNING' AND app_run_creation_id <> '' AND app_run_creation_id = %s)
+               )",
+            ...$params
+        ));
+        if ($affected === 1) {
+            return true;
+        }
+        // MySQL counts a re-entry that rewrites the same values as zero affected rows, so a retried
+        // first page is recognised by reading the run on record back.
+        return $this->get_app_run_creation_id($process_id) === $creation_id;
+    }
+
+    /**
+     * Accept a page after the first of an App Run (issue #309): true only when this `creation_id` is the
+     * run on record and that run still holds the set, i.e. it has not been Abandoned. An accepted page
+     * stamps the run's last activity. A page from any other run, from a finished or aborted run, or from
+     * an abandoned one (released here if no other run took the set yet) is refused.
+     */
+    public function touch_app_run(int $process_id, string $creation_id): bool
+    {
+        if ($creation_id === '') {
+            return false;
+        }
+        $this->release_abandoned_app_run($process_id);
+        global $wpdb;
+        $table_name_process = $wpdb->prefix . 'lpagery_process';
+        $affected = $wpdb->query($wpdb->prepare(
+            "UPDATE $table_name_process SET app_run_last_activity = %s
+             WHERE id = %d AND google_sheet_sync_status = 'RUNNING' AND app_run_creation_id = %s",
+            $this->now_utc(), $process_id, $creation_id
+        ));
+        if ($affected === 1) {
+            return true;
+        }
+        // A second page within the same second rewrites the same stamp, which MySQL counts as zero rows.
+        return $this->get_app_run_creation_id($process_id) === $creation_id;
+    }
+
+    /**
+     * Abort an App Run at the App's request (issue #309): when this `creation_id` is the run on record and
+     * still holds the set, release it and store ERROR with the abort message. Anything else (another run,
+     * an unknown set, a finished or already aborted run) changes nothing, so the call is idempotent; an
+     * Abandoned run no longer holds the set and keeps its abandonment message instead. Returns true when
+     * this call aborted the run.
+     */
+    public function abort_app_run(int $process_id, string $creation_id): bool
+    {
+        if ($creation_id === '') {
+            return false;
+        }
+        $this->release_abandoned_app_run($process_id);
+        global $wpdb;
+        $table_name_process = $wpdb->prefix . 'lpagery_process';
+        $affected = $wpdb->query($wpdb->prepare(
+            "UPDATE $table_name_process
+             SET google_sheet_sync_status = 'ERROR', google_sheet_sync_error = %s,
+                 app_run_creation_id = NULL, app_run_last_activity = NULL
+             WHERE id = %d AND google_sheet_sync_status = 'RUNNING' AND app_run_creation_id = %s",
+            self::APP_RUN_ABORTED_MESSAGE, $process_id, $creation_id
+        ));
+        return $affected === 1;
+    }
+
+    /**
+     * The SQL condition (and its prepare() params) that is true for a Page Set row whose App Run is
+     * Abandoned (issue #309): RUNNING with no queued items, and either no run on record (a set stuck
+     * before #309 shipped) or a run on record whose last page arrived more than
+     * {@see self::APP_RUN_ABANDON_AFTER_SECONDS} ago. `$process_table` qualifies the row's columns (the
+     * table name or its alias), so list queries can use the condition as a column to compute the
+     * effective status. The queue check keeps a background run, which writes RUNNING while its queued
+     * items drain, from ever reading as abandoned.
+     *
+     * @return array{0: string, 1: array<int, string>}
+     */
+    public function abandoned_app_run_condition(string $process_table): array
+    {
+        global $wpdb;
+        $table_name_sync_queue = $wpdb->prefix . 'lpagery_sync_queue';
+        $cutoff = gmdate('Y-m-d H:i:s', (int)call_user_func($this->clock) - self::APP_RUN_ABANDON_AFTER_SECONDS);
+        return array(
+            "($process_table.google_sheet_sync_status = 'RUNNING'
+              AND ($process_table.app_run_creation_id IS NULL OR $process_table.app_run_creation_id = ''
+                   OR $process_table.app_run_last_activity IS NULL OR $process_table.app_run_last_activity < %s)
+              AND NOT EXISTS (SELECT 1 FROM $table_name_sync_queue WHERE process_id = $process_table.id))",
+            array($cutoff),
+        );
+    }
+
+    /**
+     * Let go of the set when its App Run is Abandoned: store ERROR with the abandonment message and
+     * clear the run on record, in one conditional UPDATE, so every per-set lock check that runs this
+     * first sees an idle set. Returns true when this call released an abandoned run.
+     */
+    private function release_abandoned_app_run(int $process_id): bool
+    {
+        global $wpdb;
+        $table_name_process = $wpdb->prefix . 'lpagery_process';
+        list($abandoned, $abandoned_params) = $this->abandoned_app_run_condition($table_name_process);
+        $params = array_merge(array(self::APP_RUN_ABANDONED_MESSAGE, $process_id), $abandoned_params);
+        $affected = $wpdb->query($wpdb->prepare(
+            "UPDATE $table_name_process
+             SET google_sheet_sync_status = 'ERROR', google_sheet_sync_error = %s,
+                 app_run_creation_id = NULL, app_run_last_activity = NULL
+             WHERE id = %d AND $abandoned",
+            ...$params
+        ));
+        return $affected === 1;
+    }
+
+    /**
+     * The clock's current time as a UTC MySQL datetime, the format `app_run_last_activity` is stored in.
+     */
+    private function now_utc(): string
+    {
+        return gmdate('Y-m-d H:i:s', (int)call_user_func($this->clock));
+    }
+
+    /**
+     * The `creation_id` of the App Run holding the set: the run on record while the set is RUNNING,
+     * null when the set is not held by an App Run.
+     */
+    public function get_app_run_creation_id(int $process_id): ?string
+    {
+        global $wpdb;
+        $table_name_process = $wpdb->prefix . 'lpagery_process';
+        $creation_id = $wpdb->get_var($wpdb->prepare(
+            "SELECT app_run_creation_id FROM $table_name_process WHERE id = %d AND google_sheet_sync_status = 'RUNNING'",
+            $process_id
+        ));
+        return $creation_id === null || $creation_id === '' ? null : (string)$creation_id;
     }
 
     /**
@@ -516,16 +706,18 @@ class SyncQueueRepository
         // The queue and the run-status column are shared with background generation (issue #220),
         // so both halves are scoped to Google Sheet Sync: queue rows by their operation, and the
         // process status by the set having sheet sync switched on. A failed background run is
-        // reported by the background-run status instead.
+        // reported by the background-run status instead. An Abandoned App Run counts as the ERROR it
+        // will be stored as (issue #309), the same effective status the Manage row shows.
+        list($abandoned, $abandoned_params) = $this->abandoned_app_run_condition('lp');
         $count = $wpdb->get_var($wpdb->prepare(
             "SELECT count(*) FROM (
                 SELECT process_id AS id FROM $table_name_sync_queue
                  WHERE operation = %s AND error IS NOT NULL
                 UNION
-                SELECT id FROM $table_name_process
-                 WHERE google_sheet_sync_enabled = 1 AND google_sheet_sync_status = 'ERROR'
+                SELECT lp.id FROM $table_name_process lp
+                 WHERE lp.google_sheet_sync_enabled = 1 AND (lp.google_sheet_sync_status = 'ERROR' OR $abandoned)
              ) broken",
-            QueueOperation::SHEET_SYNC
+            ...array_merge(array(QueueOperation::SHEET_SYNC), $abandoned_params)
         ));
         // get_var() answers null for a failed query, which (int) would turn into "no errors".
         if ($wpdb->last_error) {
@@ -577,10 +769,11 @@ class SyncQueueRepository
      * Overview's Google Sheet Sync card (issue #273). Every set lands in exactly one bucket, so the
      * four numbers add up to the Synced Page Set count.
      *
-     * First match wins, worst first. A set is `failed` when its run ended in an error or it carries
-     * an errored sheet-sync queue row. It is `stuck` when the plugin is the one syncing it and either
-     * a run started and never reached the queue, or the schedule itself is more than an interval plus
-     * the grace overdue while nothing has finished in the last quarter of an hour. That second rule is
+     * First match wins, worst first. A set is `failed` when its run ended in an error, its App Run
+     * is Abandoned (issue #309), or it carries an errored sheet-sync queue row. It is `stuck` when
+     * the plugin is the one syncing it and either a run started and never reached the queue, or the
+     * schedule itself is more than an interval plus the grace overdue while nothing has finished in
+     * the last quarter of an hour. That second rule is
      * the PAST_DUE derivation the Manage row shows ({@see \LPagery\io\Mapper}), so an overdue
      * schedule cannot read as stuck on one screen and healthy on the other. A set the LPagery App
      * syncs is never stuck: its runs are driven from the App, not from this site's WP-Cron.
@@ -614,9 +807,13 @@ class SyncQueueRepository
         // than every threshold, which is what "never synced" should count as.
         $last_sync = "coalesce(lp.last_google_sheet_sync, '0000-00-00 00:00:00')";
 
-        // In the order the placeholders appear in the query below: the running statuses, then the
-        // stuck arithmetic, then the queue partition.
+        // An Abandoned App Run is failed, not running: the ERROR it will be stored as (issue #309).
+        list($abandoned, $abandoned_params) = $this->abandoned_app_run_condition('lp');
+
+        // In the order the placeholders appear in the query below: the abandonment cutoff, the running
+        // statuses, then the stuck arithmetic, then the queue partition.
         $params = array_merge(
+            $abandoned_params,
             self::SYNC_RUNNING_STATUSES,
             array(
                 $overdue_before,
@@ -636,7 +833,7 @@ class SyncQueueRepository
                 sum(case when failed = 0 and stuck = 0 and running = 0 then 1 else 0 end) AS up_to_date
              FROM (
                 SELECT
-                    case when lp.google_sheet_sync_status = 'ERROR' or coalesce(q.errored_rows, 0) > 0
+                    case when lp.google_sheet_sync_status = 'ERROR' or coalesce(q.errored_rows, 0) > 0 or $abandoned
                          then 1 else 0 end AS failed,
                     case when lp.google_sheet_sync_status in ($running_placeholders) or coalesce(q.pending_rows, 0) > 0
                          then 1 else 0 end AS running,

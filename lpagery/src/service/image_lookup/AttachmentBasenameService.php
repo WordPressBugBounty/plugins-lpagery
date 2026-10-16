@@ -147,6 +147,22 @@ class AttachmentBasenameService
      */
     public function find_existing_names(array $names): array
     {
+        $found = $this->find_by_names($names);
+        return array_values(array_filter(array_values(array_unique(array_map('strval', $names))), function ($name) use ($found) {
+            return isset($found[$name]);
+        }));
+    }
+
+    /**
+     * The image each name finds, by the rules of {@see find_existing_names()}: the first accepted
+     * file name, in the order the run tries them, that the media library has, and of several
+     * images with that file name the oldest. One query per 1,000 names.
+     *
+     * @param string[] $names
+     * @return array<string, object{id: int, basename: string, title: string}> keyed by each name that finds an image, as given
+     */
+    public function find_by_names(array $names): array
+    {
         global $wpdb;
         $names = array_values(array_unique(array_map('strval', $names)));
         $candidates = [];
@@ -160,34 +176,39 @@ class AttachmentBasenameService
             $basenames = array_values(array_unique(array_merge([''], ...array_column($chunk, 'basenames'))));
             $stems = array_values(array_unique(array_merge([''], ...array_column($chunk, 'stems'))));
             $query = $wpdb->prepare(
-                "SELECT ab.basename, ab.basename_no_ext
+                "SELECT ab.attachment_id AS id, ab.basename, ab.basename_no_ext, p.post_title
                  FROM {$table} ab
                  INNER JOIN {$wpdb->posts} p ON p.ID = ab.attachment_id
                  WHERE p.post_type = 'attachment'
                  AND p.post_status IN ('inherit','private')
                  AND (ab.basename IN (" . implode(', ', array_fill(0, count($basenames), '%s')) . ")
-                      OR ab.basename_no_ext IN (" . implode(', ', array_fill(0, count($stems), '%s')) . "))",
+                      OR ab.basename_no_ext IN (" . implode(', ', array_fill(0, count($stems), '%s')) . "))
+                 ORDER BY ab.attachment_id",
                 array_merge($basenames, $stems)
             );
+            // Rows come oldest first, so the first image seen for a file name is the one kept.
+            $by_name = [];
             foreach ($wpdb->get_results($query) ?: [] as $row) {
-                $found['basename:' . strtolower((string)$row->basename)] = true;
-                $found['stem:' . strtolower((string)$row->basename_no_ext)] = true;
+                $attachment = (object)['id' => (int)$row->id, 'basename' => (string)$row->basename, 'title' => (string)($row->post_title ?? '')];
+                $by_name['basename:' . strtolower($attachment->basename)] ??= $attachment;
+                $by_name['stem:' . strtolower((string)$row->basename_no_ext)] ??= $attachment;
+            }
+
+            foreach ($chunk as $name => $name_candidates) {
+                $keys = array_merge(array_map(function ($basename) {
+                    return 'basename:' . strtolower($basename);
+                }, $name_candidates['basenames']), array_map(function ($stem) {
+                    return 'stem:' . strtolower($stem);
+                }, $name_candidates['stems']));
+                foreach ($keys as $key) {
+                    if (isset($by_name[$key])) {
+                        $found[(string)$name] = $by_name[$key];
+                        break;
+                    }
+                }
             }
         }
-
-        return array_values(array_filter($names, function ($name) use ($candidates, $found) {
-            foreach ($candidates[$name]['basenames'] as $basename) {
-                if (isset($found['basename:' . strtolower($basename)])) {
-                    return true;
-                }
-            }
-            foreach ($candidates[$name]['stems'] as $stem) {
-                if (isset($found['stem:' . strtolower($stem)])) {
-                    return true;
-                }
-            }
-            return false;
-        }));
+        return $found;
     }
 
     /**

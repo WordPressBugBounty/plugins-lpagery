@@ -247,6 +247,12 @@ class AdminListTableHooks
     {
         $post_id = $post->ID;
 
+        // The row action carries an lpagery_ajax nonce, so only show it to users the plugin's
+        // endpoints would accept anyway (core applies row actions to rows the viewer cannot edit).
+        if (!current_user_can('edit_pages') || !current_user_can('edit_post', $post_id)) {
+            return $actions;
+        }
+
         // Use cached data if available, otherwise fall back to database query
         $process_id = null;
         if (isset($GLOBALS['lpagery_template_cache'][$post_id])) {

@@ -262,6 +262,9 @@ class Mapper
             "next_google_sheet_sync" => $next_sync,
             "last_google_sheet_sync" => $last_sync,
             "google_sheet_sync_status" => $status,
+            // The set-level error the Manage Error dialog shows above the failed items, e.g. an
+            // Abandoned App Run's message (issue #309), which no queue row carries.
+            "google_sheet_sync_error" => $lpagery_process->google_sheet_sync_error ?? null,
             "google_sheet_url" => $google_sheet_url,
             "render_mode" => $configured_render_mode,
             "observed_render_mode" => $this->derive_observed_render_mode($classic_count, $live_count,

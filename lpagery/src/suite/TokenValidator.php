@@ -4,6 +4,7 @@ namespace LPagery\suite;
 
 use WP_REST_Request;
 use WP_Error;
+use LPagery\suite\BearerTokenDecryptor;
 
 class TokenValidator
 {
@@ -13,84 +14,77 @@ class TokenValidator
 
 
     /**
-     * Verify token from request and return user ID if valid
+     * Verify token from request and return user ID if valid.
+     *
+     * Two paths share one crypto implementation (BearerTokenDecryptor):
+     *  - New-style (X-LPagery-Token-ID present): locate the row by (id, user_id)
+     *    and decrypt with that row's per-token secret, then constant-time compare
+     *    the decrypted hash against the stored token hash.
+     *  - Legacy (no locator header): decrypt with the Freemius site secret and
+     *    look the row up by the decrypted token hash. Refused when the site has no
+     *    Freemius secret, since hashing an empty one gives a publicly known key.
+     *
+     * Either way the token only authorizes while its user can still administer the
+     * site (CVE-2026-110019).
      */
     public function verify_token(WP_REST_Request $request)
     {
-
         $provided_token = $request->get_header('Authorization');
         $user_id = intval($request->get_header('X-LPagery-User-ID'));
-
+        $token_id = intval($request->get_header('X-LPagery-Token-ID'));
 
         if (!$provided_token || !$user_id) {
             return new WP_Error('missing_credentials', 'Authorization header or User ID missing', array('status' => 401));
         }
-        $bearer_token = str_replace('Bearer ', '', $provided_token);
 
-        // Without a Freemius site there is no secret, and hashing an empty one yields a
-        // publicly known key that anyone could encrypt a bearer with. Refuse instead.
-        $site = lpagery_fs()->get_site();
-        $secret_key = is_object($site) ? (string)($site->secret_key ?? '') : '';
-        if ($secret_key === '') {
-            return new WP_Error('missing_site_secret', 'Site secret unavailable', array('status' => 401));
-        }
+        // Case-insensitive strip so an HTTP/2-lowercased `bearer ` prefix still works.
+        $bearer_token = preg_replace('/^Bearer\s+/i', '', $provided_token);
 
-        $bearer_parts = explode(':', $bearer_token, 2);
-        if (count($bearer_parts) !== 2) {
-            return new WP_Error('invalid_token_format', 'Invalid token format', array('status' => 401));
-        }
-        list($iv_b64, $encrypted_b64) = $bearer_parts;
-
-        $iv = base64_decode($iv_b64);
-        $encrypted_data = base64_decode($encrypted_b64);
-
-        // Derive AES key
-        $key = hash('sha256', $secret_key, true);
-        // Decrypt
-        $decrypted = openssl_decrypt(
-            $encrypted_data,
-            'aes-256-cbc',
-            $key,
-            OPENSSL_RAW_DATA,
-            $iv
-        );
-
-        if ($decrypted === false) {
-            $ssl_error = openssl_error_string();
-            $error_message = 'Failed to decrypt token';
-            if ($ssl_error) {
-                $error_message .= ': ' . $ssl_error;
-            }
-            error_log($error_message);
-            return new WP_Error('decryption_failed', "decryption_failed", array('status' => 401));
-        }
-
-        $parts = explode('|', $decrypted);
-        if (count($parts) !== 2) {
-            return new WP_Error('invalid_token_format', 'Invalid token format', array('status' => 401));
-        }
-
-        list($token, $nonce) = $parts;
-
-        // Validate nonce freshness (max 1 hour)
-        $nonce_time = strtotime($nonce . ':00:00Z');
-        $now = time();
-        if (abs($now - $nonce_time) > 3600) {
-            return new WP_Error('token_expired', 'Token has expired', array('status' => 401));
-        }
+        $decryptor = new BearerTokenDecryptor();
 
         global $wpdb;
         $table_name = $wpdb->prefix . 'lpagery_app_tokens';
 
-        // Hash the provided token for comparison (much faster than password_verify)
-        $hashed_token = hash('sha256', $token);
+        if ($token_id) {
+            // New-style: locate the row up front and decrypt with its per-token secret.
+            $prepare = $wpdb->prepare("SELECT user_id, id, token, secret FROM $table_name WHERE id = %d AND user_id = %d", $token_id, $user_id);
+            $token_record = $wpdb->get_row($prepare);
 
-        // Direct lookup by token hash and user ID - much more efficient
-        $prepare = $wpdb->prepare("SELECT user_id, id FROM $table_name WHERE token = %s AND user_id = %d", $hashed_token, $user_id);
-        $token_record = $wpdb->get_row($prepare);
+            if (!$token_record || !$token_record->secret) {
+                return new WP_Error('invalid_token', 'Token verification failed', array('status' => 401));
+            }
 
-        if (!$token_record) {
-            return new WP_Error('invalid_token', 'Token verification failed', array('status' => 401));
+            $decrypted = $decryptor->decrypt_and_validate($bearer_token, $token_record->secret, time());
+            if (is_wp_error($decrypted)) {
+                return $decrypted;
+            }
+
+            // Confirm the decrypted token matches the stored hash (constant time).
+            if (!hash_equals($token_record->token, $decrypted['token_hash'])) {
+                return new WP_Error('invalid_token', 'Token verification failed', array('status' => 401));
+            }
+        } else {
+            // Legacy: decrypt with the Freemius site secret and look up by token hash.
+            // Without a Freemius site there is no secret, and hashing an empty one yields a
+            // publicly known key that anyone could encrypt a bearer with. Refuse instead.
+            $site = lpagery_fs()->get_site();
+            $secret_key = is_object($site) ? (string)($site->secret_key ?? '') : '';
+            if ($secret_key === '') {
+                return new WP_Error('missing_site_secret', 'Site secret unavailable', array('status' => 401));
+            }
+
+            $decrypted = $decryptor->decrypt_and_validate($bearer_token, $secret_key, time());
+            if (is_wp_error($decrypted)) {
+                return $decrypted;
+            }
+
+            // Direct lookup by token hash and user ID - much more efficient
+            $prepare = $wpdb->prepare("SELECT user_id, id FROM $table_name WHERE token = %s AND user_id = %d", $decrypted['token_hash'], $user_id);
+            $token_record = $wpdb->get_row($prepare);
+
+            if (!$token_record) {
+                return new WP_Error('invalid_token', 'Token verification failed', array('status' => 401));
+            }
         }
 
         $user = get_user_by("id", $token_record->user_id);

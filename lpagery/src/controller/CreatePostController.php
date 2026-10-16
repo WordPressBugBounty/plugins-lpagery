@@ -167,6 +167,16 @@ class CreatePostController
             throw new BackgroundOperationInProgressException();
         }
 
+        return $this->create_posts_holding_lock($post_data);
+    }
+
+    /**
+     * Creates one page of a run whose caller already holds the Page Set (issue #305): an App Run
+     * acquires the set once on its first page, and its own RUNNING status would otherwise trip the
+     * per-set lock on every page. Browser runs go through {@see self::lpagery_create_posts_ajax()}.
+     */
+    function create_posts_holding_lock($post_data)
+    {
         $creation_id = $post_data["creation_id"];
         $is_last_page = filter_var($post_data["is_last_page"], FILTER_VALIDATE_BOOLEAN);
         $index = intval($post_data["index"]);
